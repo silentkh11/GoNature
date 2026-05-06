@@ -17,7 +17,7 @@ public class DBController {
             
             // Connect to the DB (Change the password to your actual MySQL root password!)
             // Also ensure the timezone is set to avoid errors
-            conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/gonature?allowLoadLocalInfile=true&serverTimezone=Asia/Jerusalem&useSSL=false", "root", "Hamkh1324@@%%");
+            conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/gonature?allowLoadLocalInfile=true&serverTimezone=Asia/Jerusalem&useSSL=false", "root", "123456");
             
             System.out.println("SQL connection succeed");
             
