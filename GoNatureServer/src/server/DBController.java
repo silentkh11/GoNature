@@ -1,43 +1,54 @@
 package server;
+
 import firstPackage.Order;
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
 import java.sql.Connection;
-import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 
 public class DBController {
     
-    private static Connection conn;
+    // The Pool Manager
+    private static HikariDataSource dataSource;
 
-    // Call this method when your Server GUI starts
- // Notice we added "throws SQLException" here!
     public static void connectToDB() throws SQLException {
         try {
-            // Register the MySQL driver
-            Class.forName("com.mysql.cj.jdbc.Driver");
+            HikariConfig config = new HikariConfig();
             
-            // Connect to the DB
-            conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/gonature?allowLoadLocalInfile=true&serverTimezone=Asia/Jerusalem&useSSL=false", "root", "123456");
+            // Your exact database credentials
+            config.setJdbcUrl("jdbc:mysql://localhost:3306/gonature?allowLoadLocalInfile=true&serverTimezone=Asia/Jerusalem&useSSL=false");
+            config.setUsername("root");
+            config.setPassword("123456"); // Change this if your DB password is different!
             
-            System.out.println("SQL connection succeed");
+            // Pool Configuration
+            config.setMaximumPoolSize(10); // Hold 10 connections ready
+            config.setMinimumIdle(2);      // Always keep at least 2 open and waiting
+            config.setConnectionTimeout(30000); // 30 second timeout
+            config.setDriverClassName("com.mysql.cj.jdbc.Driver");
+
+            // Build the pool
+            dataSource = new HikariDataSource(config);
+            System.out.println("SQL Connection Pool initialized successfully!");
             
-        } catch (SQLException ex) {
-            System.out.println("SQLException: " + ex.getMessage());
-            // We throw the error so the Server UI knows the connection failed!
-            throw ex; 
-        } catch (ClassNotFoundException e) {
-            System.out.println("Could not find the JDBC driver.");
+        } catch (Exception e) {
+            System.err.println("Failed to initialize Connection Pool!");
             e.printStackTrace();
+            throw new SQLException("Pool initialization failed", e);
         }
     }
-    
-    // We will add getOrders() and updateOrder() here later!
-    
+
     public static ArrayList<Order> getOrders() {
         ArrayList<Order> list = new ArrayList<>();
-        try {
-            java.sql.Statement stmt = conn.createStatement();
-            java.sql.ResultSet rs = stmt.executeQuery("SELECT * FROM `Order`");
+        String query = "SELECT * FROM `Order`";
+        
+        // try-with-resources automatically borrows and returns the connection
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(query);
+             ResultSet rs = stmt.executeQuery()) {
+             
             while(rs.next()) {
                 Order order = new Order(
                     rs.getInt("order_number"), rs.getDate("order_date"),
@@ -46,19 +57,26 @@ public class DBController {
                 );
                 list.add(order);
             }
-        } catch (Exception e) { e.printStackTrace(); }
+        } catch (Exception e) { 
+            e.printStackTrace(); 
+        }
         return list;
     }
 
     public static void updateOrder(Order order) {
-        try {
-            java.sql.PreparedStatement ps = conn.prepareStatement(
-                "UPDATE `Order` SET order_date = ?, number_of_visitors = ? WHERE order_number = ?"
-            );
+        String query = "UPDATE `Order` SET order_date = ?, number_of_visitors = ? WHERE order_number = ?";
+        
+        // try-with-resources automatically borrows and returns the connection
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement(query)) {
+             
             ps.setDate(1, order.getOrderDate());
             ps.setInt(2, order.getNumberOfVisitors());
             ps.setInt(3, order.getOrderNumber());
             ps.executeUpdate();
-        } catch (Exception e) { e.printStackTrace(); }
+            
+        } catch (Exception e) { 
+            e.printStackTrace(); 
+        }
     }
 }
