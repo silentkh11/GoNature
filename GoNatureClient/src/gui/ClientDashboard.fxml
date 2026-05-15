@@ -34,10 +34,10 @@
       </Label>
       <HBox alignment="CENTER_LEFT" spacing="15.0">
          <Label style="-fx-font-weight: bold; -fx-text-fill: #2d3436;" text="IP Address:" />
-         <TextField fx:id="ipField" prefWidth="150.0" promptText="Server IP" text="localhost" />
+         <TextField fx:id="ipField" prefWidth="150.0" promptText="Server IP" text="localhost" disable="true" />
          <Label style="-fx-font-weight: bold; -fx-text-fill: #2d3436;" text="Port:" />
-         <TextField fx:id="portField" prefWidth="100.0" promptText="Port" text="5555" />
-         <Button fx:id="connectBtn" mnemonicParsing="false" onAction="#connectToServer" style="-fx-background-color: #0984e3; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 8 20; -fx-background-radius: 5; -fx-cursor: hand;" text="Connect &amp; Load" />
+         <TextField fx:id="portField" prefWidth="100.0" promptText="Port" text="5555" disable="true" />
+         <Button fx:id="connectBtn" mnemonicParsing="false" onAction="#connectToServer" style="-fx-background-color: #0984e3; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 8 20; -fx-background-radius: 5; -fx-cursor: hand;" text="Retry / Refresh" />
       </HBox>
    </VBox>
 

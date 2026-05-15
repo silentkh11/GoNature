@@ -49,12 +49,13 @@ public class ChatClient extends AbstractClient {
     }
 
     // Helper method to send messages to the server
+ // Helper method to send messages to the server
     public void handleMessageFromClientUI(Object message) {
         try {
             sendToServer(message);
         } catch (Exception e) {
-            System.out.println("Could not send message to server. Terminating client.");
-            quit();
+            System.out.println("Could not send message to server. Ensure connection is active.");
+            // REMOVED quit(); so the app stays open and the user can retry!
         }
     }
 
