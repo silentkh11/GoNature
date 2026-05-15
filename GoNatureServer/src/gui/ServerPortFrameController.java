@@ -33,7 +33,12 @@ public class ServerPortFrameController {
     @FXML
     public void initialize() {
         consoleText.appendText("> Welcome to GoNature Server Console.\n> System initialized. Ready to start.\n");
+        
+        // BUG FIX: Actually disable the Stop button logically, not just visually
+        startBtn.setDisable(false);
         startBtn.setStyle(startBtnStyle);
+        
+        stopBtn.setDisable(true); 
         stopBtn.setStyle(disabledBtnStyle);
         
         // Lock the port field so the user cannot change it
@@ -47,7 +52,7 @@ public class ServerPortFrameController {
         try {
             int port = DEFAULT_PORT;
             
-            // NEW: Initialize server with the UI Logger callback
+            // Initialize server with the UI Logger callback
             server = new EchoServer(port, (String logMsg) -> {
                 javafx.application.Platform.runLater(() -> {
                     consoleText.appendText(logMsg);
@@ -65,8 +70,10 @@ public class ServerPortFrameController {
             statusIndicator.setText("ONLINE (Port: " + port + ")");
             statusIndicator.setStyle("-fx-text-fill: #00b894;"); 
             
+            // Update Buttons (Lock Start, Unlock Stop)
             startBtn.setDisable(true);
             startBtn.setStyle(disabledBtnStyle);
+            
             stopBtn.setDisable(false);
             stopBtn.setStyle(stopBtnStyle);
             
@@ -82,10 +89,14 @@ public class ServerPortFrameController {
                 server.close();
             }
             
+            // Optional: If you have a disconnect method in DBController, call it here
+            // DBController.disconnectFromDB(); 
+            
             // Update UI visually
             statusIndicator.setText("OFFLINE");
             statusIndicator.setStyle("-fx-text-fill: #d63031;"); // Red
             
+            // Update Buttons (Unlock Start, Lock Stop)
             startBtn.setDisable(false);
             startBtn.setStyle(startBtnStyle);
             
