@@ -19,9 +19,9 @@ public class DBController {
             HikariConfig config = new HikariConfig();
             
             // Your exact database credentials
-            config.setJdbcUrl("jdbc:mysql://localhost:3306/gonature?allowLoadLocalInfile=true&serverTimezone=Asia/Jerusalem&useSSL=false");
+            config.setJdbcUrl("jdbc:mysql://localhost:3306/gonature?allowLoadLocalInfile=true&serverTimezone=Asia/Jerusalem&useSSL=false&allowPublicKeyRetrieval=true");
             config.setUsername("root");
-            config.setPassword("123456"); // Change this if your DB password is different!
+            config.setPassword("12345678"); // Change this if your DB password is different!
             
             // Pool Configuration
             config.setMaximumPoolSize(10); // Hold 10 connections ready

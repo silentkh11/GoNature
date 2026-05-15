@@ -5,67 +5,65 @@ import ocsf.server.ConnectionToClient;
 import firstPackage.Message;
 import firstPackage.Order;
 import java.util.ArrayList;
+import java.util.function.Consumer; // Added import
 
 public class EchoServer extends AbstractServer {
 
-	public EchoServer(int port) {
-		super(port);
-	}
+    // Added a callback to send logs to the UI
+    private Consumer<String> uiLogger;
 
-	// ---------------------------------------------------------
-	// 1. This method handles messages coming FROM the Client
-	// ---------------------------------------------------------
-	@Override
-	protected void handleMessageFromClient(Object msg, ConnectionToClient client) {
-		System.out.println("Message received: " + msg + " from " + client);
+    // Updated constructor to accept the UI logger
+    public EchoServer(int port, Consumer<String> uiLogger) {
+        super(port);
+        this.uiLogger = uiLogger;
+    }
 
-		if (msg instanceof Message) {
-			Message request = (Message) msg;
+    @Override
+    protected void handleMessageFromClient(Object msg, ConnectionToClient client) {
+        uiLogger.accept("> Message received: " + ((Message)msg).getCommand() + " from " + client.getInetAddress().getHostAddress() + "\n");
 
-			try {
-				// If the client wants to load the table
-				if (request.getCommand().equals("GET_ORDERS")) {
-					System.out.println("Client requested orders.");
+        if (msg instanceof Message) {
+            Message request = (Message) msg;
 
-					// MAKE SURE THESE TWO LINES ARE NOT COMMENTED OUT (No // in front of them)
-					ArrayList<Order> orders = DBController.getOrders();
-					client.sendToClient(new Message("ORDERS_DATA", orders));
-				}
+            try {
+                if (request.getCommand().equals("GET_ORDERS")) {
+                    uiLogger.accept("> Client requested orders.\n");
+                    ArrayList<Order> orders = DBController.getOrders();
+                    client.sendToClient(new Message("ORDERS_DATA", orders));
+                }
+                else if (request.getCommand().equals("UPDATE_ORDER")) {
+                    Order orderToUpdate = (Order) request.getData();
+                    uiLogger.accept("> Client requested to update order: #" + orderToUpdate.getOrderNumber() + "\n");
+                    DBController.updateOrder(orderToUpdate);
+                    client.sendToClient(new Message("UPDATE_SUCCESS", null));
+                }
+            } catch (Exception e) {
+                uiLogger.accept("> ERROR processing client request.\n");
+                e.printStackTrace();
+            }
+        }
+    }
 
-				// If the client wants to update a row
-				else if (request.getCommand().equals("UPDATE_ORDER")) {
-					Order orderToUpdate = (Order) request.getData();
-					System.out.println("Client requested to update order: " + orderToUpdate.getOrderNumber());
+    @Override
+    protected void clientConnected(ConnectionToClient client) {
+        String ip = client.getInetAddress().getHostAddress();
+        String host = client.getInetAddress().getHostName();
+        // Send this directly to the Server UI!
+        uiLogger.accept("> NEW CLIENT CONNECTED! IP: " + ip + " | Host: " + host + "\n");
+    }
+    
+    @Override
+    protected void clientDisconnected(ConnectionToClient client) {
+        uiLogger.accept("> Client disconnected.\n");
+    }
 
-					// MAKE SURE THESE TWO LINES ARE NOT COMMENTED OUT
-					DBController.updateOrder(orderToUpdate);
-					client.sendToClient(new Message("UPDATE_SUCCESS", null));
-				}
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
-		}
-	}
+    @Override
+    protected void serverStarted() {
+        uiLogger.accept("> Server listening for connections on port " + getPort() + "\n");
+    }
 
-	// ---------------------------------------------------------
-	// 2. REQUIRED BY ASSIGNMENT: Show connected client IP & Host
-	// ---------------------------------------------------------
-	@Override
-	protected void clientConnected(ConnectionToClient client) {
-		String ip = client.getInetAddress().getHostAddress();
-		String host = client.getInetAddress().getHostName();
-		System.out.println("Client Connected!");
-		System.out.println("IP: " + ip);
-		System.out.println("Host: " + host);
-	}
-
-	@Override
-	protected void serverStarted() {
-		System.out.println("Server listening for connections on port " + getPort());
-	}
-
-	@Override
-	protected void serverStopped() {
-		System.out.println("Server has stopped listening for connections.");
-	}
+    @Override
+    protected void serverStopped() {
+        uiLogger.accept("> Server has stopped listening for connections.\n");
+    }
 }
