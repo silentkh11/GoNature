@@ -20,7 +20,7 @@ public class ClientDashboardController {
     // --- FXML UI Elements ---
     @FXML private TextField ipField;
     @FXML private TextField portField;
-    @FXML private Button connectBtn;
+    @FXML private Button connectBtn; // Brought the button back!
     
     @FXML private TableView<Order> table;
     @FXML private TableColumn<Order, Integer> numCol;
@@ -38,7 +38,6 @@ public class ClientDashboardController {
     private final String successColor = "-fx-text-fill: #2ecc71; -fx-font-style: italic; -fx-font-weight: bold;";
     private final String errorColor = "-fx-text-fill: #e74c3c; -fx-font-style: italic; -fx-font-weight: bold;";
     private final String infoColor = "-fx-text-fill: #0984e3; -fx-font-style: italic;";
-    private final String disabledBtnStyle = "-fx-background-color: #b2bec3; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 8 20; -fx-background-radius: 5;";
 
     @FXML
     public void initialize() {
@@ -63,30 +62,48 @@ public class ClientDashboardController {
                 statusMsg.setText("Order #" + newSelection.getOrderNumber() + " selected for editing.");
             }
         });
+
+        // Make fields read-only so the user knows they are locked
+        ipField.setEditable(false);
+        ipField.setDisable(true);
+        portField.setEditable(false);
+        portField.setDisable(true);
+
+        // 4. Try connecting automatically right when the app opens
+        attemptConnection();
     }
 
+    // This runs when the user clicks the "Retry / Refresh" button
     @FXML
     void connectToServer(ActionEvent event) {
+        attemptConnection();
+    }
+
+    // Centralized connection logic
+    private void attemptConnection() {
         try {
             String ip = ipField.getText();
             int port = Integer.parseInt(portField.getText());
 
-            ChatClient.getInstance(ip, port, (Message msg) -> {
+            ChatClient client = ChatClient.getInstance(ip, port, (Message msg) -> {
                 Platform.runLater(() -> handleServerResponse(msg));
             });
 
-            ChatClient.getInstance().handleMessageFromClientUI(new Message("GET_ORDERS", null));
+            // If the client lost connection, force it to reopen
+            if (!client.isConnected()) {
+                client.openConnection();
+            }
+
+            // Request the data
+            client.handleMessageFromClientUI(new Message("GET_ORDERS", null));
             
-            connectBtn.setDisable(true);
-            connectBtn.setStyle(disabledBtnStyle);
-            updateBtn.setDisable(false);
-            
+            updateBtn.setDisable(false); 
             statusMsg.setStyle(successColor);
-            statusMsg.setText("Connected successfully.");
+            statusMsg.setText("Connected successfully. Loading data...");
 
         } catch (Exception ex) {
             statusMsg.setStyle(errorColor);
-            statusMsg.setText("Error connecting: " + ex.getMessage());
+            statusMsg.setText("Server offline. Start server and click Retry.");
         }
     }
 
@@ -121,12 +138,12 @@ public class ClientDashboardController {
             orderData.addAll(orders);
             
             statusMsg.setStyle(infoColor);
-            statusMsg.setText("Data refreshed from server.");
+            statusMsg.setText("Data loaded successfully.");
         } 
         else if (msg.getCommand().equals("UPDATE_SUCCESS")) {
             statusMsg.setStyle(successColor);
             statusMsg.setText("Update successful! Refreshing table...");
-            ChatClient.getInstance().handleMessageFromClientUI(new Message("GET_ORDERS", null));
+            attemptConnection(); // Refresh data after update
         }
     }
 }
