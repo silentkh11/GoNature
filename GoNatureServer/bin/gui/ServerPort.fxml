@@ -39,7 +39,7 @@
       </HBox>
       <HBox alignment="CENTER_LEFT" spacing="15.0">
          <Label style="-fx-font-weight: bold; -fx-text-fill: #2d3436;" text="Listen Port:" />
-         <TextField fx:id="portField" prefWidth="80.0" text="5555" />
+         <TextField fx:id="portField" prefWidth="80.0" text="5555" editable="false" disable="true" />
          <Button fx:id="startBtn" mnemonicParsing="false" onAction="#startServer" text="Start Server" />
          <Button fx:id="stopBtn" mnemonicParsing="false" onAction="#stopServer" text="Stop Server" />
       </HBox>

@@ -20,6 +20,10 @@ public class ServerPortFrameController {
 
     private EchoServer server;
 
+    // --- CONFIGURATION VARIABLES ---
+    // Change this variable to easily update the server port in the future
+    private static final int DEFAULT_PORT = 5555;
+
     // --- STYLING CONSTANTS ---
     private final String startBtnStyle = "-fx-background-color: #00b894; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 8 20; -fx-background-radius: 5; -fx-cursor: hand;";
     private final String stopBtnStyle = "-fx-background-color: #d63031; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 8 20; -fx-background-radius: 5; -fx-cursor: hand;";
@@ -31,15 +35,26 @@ public class ServerPortFrameController {
         consoleText.appendText("> Welcome to GoNature Server Console.\n> System initialized. Ready to start.\n");
         startBtn.setStyle(startBtnStyle);
         stopBtn.setStyle(disabledBtnStyle);
+        
+        // Lock the port field so the user cannot change it
+        portField.setText(String.valueOf(DEFAULT_PORT));
+        portField.setEditable(false);
+        portField.setDisable(true); 
     }
 
     @FXML
     void startServer(ActionEvent event) {
         try {
-            int port = Integer.parseInt(portField.getText());
-            server = new EchoServer(port);
+            int port = DEFAULT_PORT;
             
-            // Connect to DB (Ensure DBController is imported correctly)
+            // NEW: Initialize server with the UI Logger callback
+            server = new EchoServer(port, (String logMsg) -> {
+                javafx.application.Platform.runLater(() -> {
+                    consoleText.appendText(logMsg);
+                });
+            });
+            
+            // Connect to DB
             DBController.connectToDB();
             consoleText.appendText("> Database connected successfully.\n");
             
@@ -48,20 +63,15 @@ public class ServerPortFrameController {
             
             // Update UI visually
             statusIndicator.setText("ONLINE (Port: " + port + ")");
-            statusIndicator.setStyle("-fx-text-fill: #00b894;"); // Green
+            statusIndicator.setStyle("-fx-text-fill: #00b894;"); 
             
             startBtn.setDisable(true);
             startBtn.setStyle(disabledBtnStyle);
-            portField.setDisable(true); // Prevent changing port while running
-            
             stopBtn.setDisable(false);
             stopBtn.setStyle(stopBtnStyle);
             
-            consoleText.appendText("> Server started. Waiting for clients...\n");
-        } catch (NumberFormatException ex) {
-            consoleText.appendText("> ERROR: Invalid port number!\n");
         } catch (Exception ex) {
-            consoleText.appendText("> ERROR: Could not listen for clients! Port may be in use.\n");
+            consoleText.appendText("> ERROR: Could not start server. Port may be in use.\n");
         }
     }
 
@@ -78,7 +88,6 @@ public class ServerPortFrameController {
             
             startBtn.setDisable(false);
             startBtn.setStyle(startBtnStyle);
-            portField.setDisable(false); // Allow changing port again
             
             stopBtn.setDisable(true);
             stopBtn.setStyle(disabledBtnStyle);
