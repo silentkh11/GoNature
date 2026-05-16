@@ -18,7 +18,7 @@ public class ServerUI extends Application {
         // Loads the visual design from the gui package
         Parent root = FXMLLoader.load(getClass().getResource("/gui/ServerPort.fxml"));
         
-        Scene scene = new Scene(root, 600, 500);
+        Scene scene = new Scene(root, 850, 550);
         primaryStage.setTitle("GoNature Server Configuration");
         
         // --- ADD THIS BLOCK ---

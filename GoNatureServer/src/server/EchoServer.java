@@ -5,17 +5,19 @@ import ocsf.server.ConnectionToClient;
 import firstPackage.Message;
 import firstPackage.Order;
 import java.util.ArrayList;
-import java.util.function.Consumer; // Added import
+import java.util.function.Consumer;
 
 public class EchoServer extends AbstractServer {
 
-    // Added a callback to send logs to the UI
     private Consumer<String> uiLogger;
+    private Consumer<ConnectionToClient> onClientConnected;
+    private Consumer<ConnectionToClient> onClientDisconnected;
 
-    // Updated constructor to accept the UI logger
-    public EchoServer(int port, Consumer<String> uiLogger) {
+    public EchoServer(int port, Consumer<String> uiLogger, Consumer<ConnectionToClient> onConnect, Consumer<ConnectionToClient> onDisconnect) {
         super(port);
         this.uiLogger = uiLogger;
+        this.onClientConnected = onConnect;
+        this.onClientDisconnected = onDisconnect;
     }
 
     @Override
@@ -24,7 +26,6 @@ public class EchoServer extends AbstractServer {
 
         if (msg instanceof Message) {
             Message request = (Message) msg;
-
             try {
                 if (request.getCommand().equals("GET_ORDERS")) {
                     uiLogger.accept("> Client requested orders.\n");
@@ -48,13 +49,35 @@ public class EchoServer extends AbstractServer {
     protected void clientConnected(ConnectionToClient client) {
         String ip = client.getInetAddress().getHostAddress();
         String host = client.getInetAddress().getHostName();
-        // Send this directly to the Server UI!
         uiLogger.accept("> NEW CLIENT CONNECTED! IP: " + ip + " | Host: " + host + "\n");
+        
+        if (onClientConnected != null) {
+            onClientConnected.accept(client);
+        }
     }
     
     @Override
     protected void clientDisconnected(ConnectionToClient client) {
-        uiLogger.accept("> Client disconnected.\n");
+        // Prevents double treatment as directed by the instructor
+        if (client.getInfo("Disconnected") == null) { 
+            client.setInfo("Disconnected", true);
+            uiLogger.accept("> Client disconnected normally.\n");
+            if (onClientDisconnected != null) {
+                onClientDisconnected.accept(client);
+            }
+        }
+    }
+
+    @Override
+    synchronized protected void clientException(ConnectionToClient client, Throwable exception) {
+        // Prevents double handling in the event of a client crash
+        if (client.getInfo("Disconnected") == null) { 
+            client.setInfo("Disconnected", true);
+            uiLogger.accept("> Client disconnected (Connection Lost).\n");
+            if (onClientDisconnected != null) {
+                onClientDisconnected.accept(client);
+            }
+        }
     }
 
     @Override
