@@ -20,7 +20,7 @@ public class ClientDashboardController {
     // --- FXML UI Elements ---
     @FXML private TextField ipField;
     @FXML private TextField portField;
-    @FXML private Button connectBtn; // Brought the button back!
+    // Button completely removed!
     
     @FXML private TableView<Order> table;
     @FXML private TableColumn<Order, Integer> numCol;
@@ -33,6 +33,7 @@ public class ClientDashboardController {
     @FXML private Label statusMsg;
 
     private ObservableList<Order> orderData = FXCollections.observableArrayList();
+    private boolean wasConnected = false;
 
     // --- STYLING CONSTANTS ---
     private final String successColor = "-fx-text-fill: #2ecc71; -fx-font-style: italic; -fx-font-weight: bold;";
@@ -41,13 +42,13 @@ public class ClientDashboardController {
 
     @FXML
     public void initialize() {
-        // 1. Setup Table Columns
+        // 1. Setup Table
         numCol.setCellValueFactory(new PropertyValueFactory<>("orderNumber"));
         dateCol.setCellValueFactory(new PropertyValueFactory<>("orderDate"));
         visitorsCol.setCellValueFactory(new PropertyValueFactory<>("numberOfVisitors"));
         table.setItems(orderData);
 
-        // 2. Setup Spinner Configuration (Min 1, Max 100, Default 1)
+        // 2. Setup Spinner Configuration
         visitorSpinner.setValueFactory(new SpinnerValueFactory.IntegerSpinnerValueFactory(1, 100, 1));
 
         // 3. Setup Table Selection Listener
@@ -63,50 +64,68 @@ public class ClientDashboardController {
             }
         });
 
-        // Make fields read-only so the user knows they are locked
+        // 4. Lock fields and disable update button until connected
         ipField.setEditable(false);
         ipField.setDisable(true);
         portField.setEditable(false);
         portField.setDisable(true);
+        updateBtn.setDisable(true);
 
-        // 4. Try connecting automatically right when the app opens
-        attemptConnection();
+        // 5. Grab the IP and Port safely on the UI thread
+        String ip = ipField.getText();
+        int port = Integer.parseInt(portField.getText());
+
+        // 6. Start the background monitor (Pass the IP and Port to it)
+        startConnectionMonitor(ip, port);
     }
 
-    // This runs when the user clicks the "Retry / Refresh" button
-    @FXML
-    void connectToServer(ActionEvent event) {
-        attemptConnection();
-    }
-
-    // Centralized connection logic
-    private void attemptConnection() {
-        try {
-            String ip = ipField.getText();
-            int port = Integer.parseInt(portField.getText());
-
-            ChatClient client = ChatClient.getInstance(ip, port, (Message msg) -> {
-                Platform.runLater(() -> handleServerResponse(msg));
-            });
-
-            // If the client lost connection, force it to reopen
-            if (!client.isConnected()) {
-                client.openConnection();
-            }
-
-            // Request the data
-            client.handleMessageFromClientUI(new Message("GET_ORDERS", null));
+    // --- THE WATCHDOG THREAD (THREAD-SAFE) ---
+    private void startConnectionMonitor(String ip, int port) {
+        Thread monitor = new Thread(() -> {
             
-            updateBtn.setDisable(false); 
-            statusMsg.setStyle(successColor);
-            statusMsg.setText("Connected successfully. Loading data...");
+            // Give the UI 0.5 seconds to pop up and draw itself beautifully on screen first!
+            try { Thread.sleep(500); } catch (InterruptedException e) {}
 
-        } catch (Exception ex) {
-            statusMsg.setStyle(errorColor);
-            statusMsg.setText("Server offline. Start server and click Retry.");
-        }
+            while (true) {
+                if (!wasConnected) {
+                    try {
+                        // 1. Get or create the client
+                        ChatClient client = ChatClient.getInstance(ip, port, (Message msg) -> {
+                            Platform.runLater(() -> handleServerResponse(msg));
+                        });
+
+                        // 2. Try to connect! (If server is offline, this blocks for a second, but the UI is safe!)
+                        if (!client.isConnected()) {
+                            client.openConnection(); 
+                        }
+
+                        // 3. If we reach here, connection is SUCCESSFUL! Tell the UI.
+                        Platform.runLater(() -> {
+                            wasConnected = true;
+                            updateBtn.setDisable(false);
+                            statusMsg.setStyle(successColor);
+                            statusMsg.setText("Connected to server! Loading data...");
+                            client.handleMessageFromClientUI(new Message("GET_ORDERS", null));
+                        });
+
+                    } catch (Exception e) {
+                        // 4. Connection FAILED. Tell the UI we are still waiting.
+                        Platform.runLater(() -> {
+                            wasConnected = false;
+                            updateBtn.setDisable(true);
+                            statusMsg.setStyle(errorColor);
+                            statusMsg.setText("Server offline. Waiting to auto-connect...");
+                        });
+                    }
+                }
+                
+                // Wait 2 seconds before trying to connect again
+                try { Thread.sleep(2000); } catch (InterruptedException e) { break; }
+            }
+        });
+        monitor.setDaemon(true); // Kills the thread when you click the X button
+        monitor.start();
     }
-
     @FXML
     void updateSelectedOrder(ActionEvent event) {
         Order selectedOrder = table.getSelectionModel().getSelectedItem();
@@ -130,6 +149,7 @@ public class ClientDashboardController {
         }
     }
 
+ // --- HANDLE MESSAGES FROM SERVER OR OCSF ---
     private void handleServerResponse(Message msg) {
         if (msg.getCommand().equals("ORDERS_DATA")) {
             @SuppressWarnings("unchecked")
@@ -138,12 +158,21 @@ public class ClientDashboardController {
             orderData.addAll(orders);
             
             statusMsg.setStyle(infoColor);
-            statusMsg.setText("Data loaded successfully.");
+            statusMsg.setText("Data synchronized with server.");
         } 
         else if (msg.getCommand().equals("UPDATE_SUCCESS")) {
             statusMsg.setStyle(successColor);
             statusMsg.setText("Update successful! Refreshing table...");
-            attemptConnection(); // Refresh data after update
+            ChatClient.getInstance().handleMessageFromClientUI(new Message("GET_ORDERS", null));
+        }
+        // Immediate detection from the OCSF that the connection has been dropped!
+        else if (msg.getCommand().equals("SERVER_DISCONNECTED")) {
+            wasConnected = false;
+            updateBtn.setDisable(true);
+            orderData.clear(); // Clears the table immediately
+
+            statusMsg.setStyle(errorColor);
+            statusMsg.setText("Connection lost! Table cleared. Waiting for server...");
         }
     }
 }

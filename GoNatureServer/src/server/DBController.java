@@ -14,19 +14,19 @@ public class DBController {
     // The Pool Manager
     private static HikariDataSource dataSource;
 
-    public static void connectToDB() throws SQLException {
+    public static void connectToDB() throws Exception {
         try {
             HikariConfig config = new HikariConfig();
             
             // Your exact database credentials
             config.setJdbcUrl("jdbc:mysql://localhost:3306/gonature?allowLoadLocalInfile=true&serverTimezone=Asia/Jerusalem&useSSL=false&allowPublicKeyRetrieval=true");
             config.setUsername("root");
-            config.setPassword("root"); // Change this if your DB password is different!
+            config.setPassword("root"); // Updated to your password!
             
             // Pool Configuration
-            config.setMaximumPoolSize(10); // Hold 10 connections ready
-            config.setMinimumIdle(2);      // Always keep at least 2 open and waiting
-            config.setConnectionTimeout(30000); // 30 second timeout
+            config.setMaximumPoolSize(10);
+            config.setMinimumIdle(2);
+            config.setConnectionTimeout(30000);
             config.setDriverClassName("com.mysql.cj.jdbc.Driver");
 
             // Build the pool
@@ -34,9 +34,9 @@ public class DBController {
             System.out.println("SQL Connection Pool initialized successfully!");
             
         } catch (Exception e) {
-            System.err.println("Failed to initialize Connection Pool!");
-            e.printStackTrace();
-            throw new SQLException("Pool initialization failed", e);
+            // We removed e.printStackTrace() so it doesn't spam the console!
+            // Instead, we throw a clean, single-line error message back to the UI.
+            throw new Exception("Database Authentication Failed: Check your SQL username and password.");
         }
     }
 

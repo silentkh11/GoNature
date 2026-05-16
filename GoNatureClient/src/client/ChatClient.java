@@ -49,13 +49,11 @@ public class ChatClient extends AbstractClient {
     }
 
     // Helper method to send messages to the server
- // Helper method to send messages to the server
     public void handleMessageFromClientUI(Object message) {
         try {
             sendToServer(message);
         } catch (Exception e) {
             System.out.println("Could not send message to server. Ensure connection is active.");
-            // REMOVED quit(); so the app stays open and the user can retry!
         }
     }
 
@@ -65,5 +63,21 @@ public class ChatClient extends AbstractClient {
         } catch (Exception e) {
         }
         System.exit(0);
+    }
+    
+    // ---------------------------------------------------------
+    // OCSF Connection Handlers (REQUIRED BY ASSIGNMENT)
+    // ---------------------------------------------------------
+    
+    @Override
+    protected void connectionClosed() {
+        // Sends an internal message to the UI that the server has disconnected gracefully
+        uiUpdater.accept(new Message("SERVER_DISCONNECTED", null));
+    }
+
+    @Override
+    protected void connectionException(Exception exception) {
+    	// Sends an internal message to the UI that the server crashed
+    	uiUpdater.accept(new Message("SERVER_DISCONNECTED", null));
     }
 }
