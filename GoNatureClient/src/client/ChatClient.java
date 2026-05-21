@@ -1,10 +1,11 @@
 package client;
 
 import ocsf.client.AbstractClient;
-import firstPackage.Message;
 
 // A functional interface to pass messages back to the JavaFX GUI
-import java.util.function.Consumer; 
+import java.util.function.Consumer;
+
+import entities.Message; 
 
 public class ChatClient extends AbstractClient {
 
