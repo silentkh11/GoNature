@@ -1,8 +1,8 @@
 package gui;
 
 import client.ChatClient;
-import firstPackage.Message;
-import firstPackage.Order;
+import entities.Message;
+import entities.Order;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
