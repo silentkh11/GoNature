@@ -2,10 +2,12 @@ package server;
 
 import ocsf.server.AbstractServer;
 import ocsf.server.ConnectionToClient;
-import firstPackage.Message;
-import firstPackage.Order;
+
 import java.util.ArrayList;
 import java.util.function.Consumer;
+
+import entities.Message;
+import entities.Order;
 
 public class EchoServer extends AbstractServer {
 
