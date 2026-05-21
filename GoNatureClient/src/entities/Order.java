@@ -1,4 +1,4 @@
-package firstPackage;
+package entities;
 
 import java.io.Serializable;
 import java.sql.Date; // Use java.sql.Date for database dates
