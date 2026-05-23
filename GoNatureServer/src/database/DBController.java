@@ -44,7 +44,7 @@ public class DBController {
         HikariConfig config = new HikariConfig();
         
         // Your exact localized JDBC URL
-        config.setJdbcUrl("jdbc:mysql://localhost:3306/gonature_db?allowLoadLocalInfile=true&serverTimezone=Asia/Jerusalem&useSSL=false");
+        config.setJdbcUrl("jdbc:mysql://localhost:3306/gonature_db?allowLoadLocalInfile=true&serverTimezone=Asia/Jerusalem&useSSL=false&allowPublicKeyRetrieval=true");
         
         // TODO: Ensure your local MySQL username and password match these!
         config.setUsername("root"); 
