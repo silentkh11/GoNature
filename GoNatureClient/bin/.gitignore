@@ -1,2 +1,5 @@
-/gui/
 /client/
+/entities/
+/gui/
+/module-info.class
+/ocsf/

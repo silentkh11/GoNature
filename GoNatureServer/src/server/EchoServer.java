@@ -3,11 +3,10 @@ package server;
 import ocsf.server.AbstractServer;
 import ocsf.server.ConnectionToClient;
 
-import java.util.ArrayList;
 import java.util.function.Consumer;
 
+import database.DBController;
 import entities.Message;
-import entities.Order;
 
 public class EchoServer extends AbstractServer {
 
@@ -29,17 +28,60 @@ public class EchoServer extends AbstractServer {
         if (msg instanceof Message) {
             Message request = (Message) msg;
             try {
-                if (request.getCommand().equals("GET_ORDERS")) {
-                    uiLogger.accept("> Client requested orders.\n");
-                    ArrayList<Order> orders = DBController.getOrders();
-                    client.sendToClient(new Message("ORDERS_DATA", orders));
+                
+                // --- LOGIN ROUTING ---
+                if (request.getCommand().equals("LOGIN_REQUEST")) {
+                    uiLogger.accept("> Client attempting to log in...\n");
+                    
+                    // The client will send the username and password as a String array: [username, password]
+                    String[] credentials = (String[]) request.getData();
+                    String username = credentials[0];
+                    String password = credentials[1];
+                    
+                    // Ask the DBController to check the database
+                    entities.Employee loggedInUser = DBController.verifyLogin(username, password);
+                    
+                    if (loggedInUser != null) {
+                        uiLogger.accept("> Login SUCCESS for user: " + username + " (Role: " + loggedInUser.getRole() + ")\n");
+                        client.sendToClient(new Message("LOGIN_SUCCESS", loggedInUser));
+                    } else {
+                        uiLogger.accept("> Login FAILED for user: " + username + " (Invalid credentials)\n");
+                        client.sendToClient(new Message("LOGIN_FAILED", "Incorrect username or password."));
+                    }
+                }// --- PARK PARAMETER ROUTING ---
+                else if (request.getCommand().equals("FETCH_PARK_INFO")) {
+                    int parkId = (int) request.getData();
+                    uiLogger.accept("> Fetching data for Park ID: " + parkId + "\n");
+                    
+                    entities.Park parkData = DBController.getParkById(parkId);
+                    client.sendToClient(new Message("PARK_INFO_DATA", parkData));
                 }
-                else if (request.getCommand().equals("UPDATE_ORDER")) {
-                    Order orderToUpdate = (Order) request.getData();
-                    uiLogger.accept("> Client requested to update order: #" + orderToUpdate.getOrderNumber() + "\n");
-                    DBController.updateOrder(orderToUpdate);
-                    client.sendToClient(new Message("UPDATE_SUCCESS", null));
+                else if (request.getCommand().equals("UPDATE_PARK_PARAMS")) {
+                    entities.Park requestedUpdate = (entities.Park) request.getData();
+                    uiLogger.accept("> Park ID " + requestedUpdate.getParkId() + " requested parameter update.\n");
+                    
+                    boolean success = DBController.updateParkParameters(requestedUpdate);
+                    if (success) {
+                        client.sendToClient(new Message("UPDATE_PARAMS_SUCCESS", requestedUpdate));
+                    } else {
+                        client.sendToClient(new Message("UPDATE_PARAMS_FAILED", "Database error during update."));
+                    }
+                }// --- BOOKING ENGINE ROUTING ---
+                else if (request.getCommand().equals("SUBMIT_ORDER")) {
+                    entities.VisitOrder incomingOrder = (entities.VisitOrder) request.getData();
+                    uiLogger.accept("> Processing new order for Park ID: " + incomingOrder.getParkId() + "\n");
+                    
+                    entities.VisitOrder processedOrder = DBController.processNewOrder(incomingOrder);
+                    
+                    if (processedOrder != null) {
+                        uiLogger.accept("> Order #" + processedOrder.getOrderId() + " processed with status: " + processedOrder.getStatus() + "\n");
+                        client.sendToClient(new Message("ORDER_SUCCESS", processedOrder));
+                    } else {
+                        uiLogger.accept("> Order processing FAILED (Database Error).\n");
+                        client.sendToClient(new Message("ORDER_FAILED", "Failed to process order in the database."));
+                    }
                 }
+                
             } catch (Exception e) {
                 uiLogger.accept("> ERROR processing client request.\n");
                 e.printStackTrace();
@@ -60,7 +102,6 @@ public class EchoServer extends AbstractServer {
     
     @Override
     protected void clientDisconnected(ConnectionToClient client) {
-        // Prevents double treatment as directed by the instructor
         if (client.getInfo("Disconnected") == null) { 
             client.setInfo("Disconnected", true);
             uiLogger.accept("> Client disconnected normally.\n");
@@ -72,7 +113,6 @@ public class EchoServer extends AbstractServer {
 
     @Override
     synchronized protected void clientException(ConnectionToClient client, Throwable exception) {
-        // Prevents double handling in the event of a client crash
         if (client.getInfo("Disconnected") == null) { 
             client.setInfo("Disconnected", true);
             uiLogger.accept("> Client disconnected (Connection Lost).\n");
@@ -90,5 +130,7 @@ public class EchoServer extends AbstractServer {
     @Override
     protected void serverStopped() {
         uiLogger.accept("> Server has stopped listening for connections.\n");
+        // Cleanly shut down HikariCP when you hit the 'Stop' button!
+        DBController.getInstance().closePool();
     }
 }
