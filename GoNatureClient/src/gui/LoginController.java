@@ -101,6 +101,10 @@ public class LoginController {
                     targetFxml = "/gui/DeptManagerDashboard.fxml";
                     windowTitle = "GoNature - Department Manager";
                     break;
+				case "ServiceRep":
+                    targetFxml = "/gui/ServiceRepDashboard.fxml";
+                    windowTitle = "GoNature - Service Representative";
+                    break;
 				default:
 					showError("Error: Unknown employee role.");
 					return;

@@ -409,4 +409,88 @@ public class DBController {
             return false;
         }
     }
+ // =========================================================================
+    // --- 6. SERVICE REPRESENTATIVE REGISTRATION ---
+    // =========================================================================
+
+    /**
+     * Registers a new Family Subscriber or Tour Guide.
+     * Automatically upserts the visitor profile to ensure foreign keys don't break.
+     */
+    public static String registerNewSubscriber(entities.Subscriber sub) {
+        try (java.sql.Connection conn = getInstance().getConnection()) {
+
+            // 1. Check if they are ALREADY a subscriber to prevent duplicates
+            String checkSubQuery = "SELECT subscriber_id FROM subscriber WHERE visitor_id = ?";
+            try (java.sql.PreparedStatement checkStmt = conn.prepareStatement(checkSubQuery)) {
+                checkStmt.setString(1, sub.getVisitorId());
+                try (java.sql.ResultSet rs = checkStmt.executeQuery()) {
+                    if (rs.next()) {
+                        return "Error: ID " + sub.getVisitorId() + " is already a registered subscriber.";
+                    }
+                }
+            }
+
+            // 2. Set the correct visitor status type
+            String visType = sub.isGuide() ? "Guide" : "Subscriber";
+
+            // 3. Upsert the Visitor Profile
+            String checkVisQuery = "SELECT visitor_id FROM visitor WHERE visitor_id = ?";
+            boolean visitorExists = false;
+            try (java.sql.PreparedStatement checkVisStmt = conn.prepareStatement(checkVisQuery)) {
+                checkVisStmt.setString(1, sub.getVisitorId());
+                try (java.sql.ResultSet rs = checkVisStmt.executeQuery()) {
+                    if (rs.next()) visitorExists = true;
+                }
+            }
+
+            if (visitorExists) {
+                // Update their existing profile with the new info
+                String updateVis = "UPDATE visitor SET first_name=?, last_name=?, email=?, phone=?, visitor_type=? WHERE visitor_id=?";
+                try (java.sql.PreparedStatement updateStmt = conn.prepareStatement(updateVis)) {
+                    updateStmt.setString(1, sub.getFirstName());
+                    updateStmt.setString(2, sub.getLastName());
+                    updateStmt.setString(3, sub.getEmail());
+                    updateStmt.setString(4, sub.getPhone());
+                    updateStmt.setString(5, visType);
+                    updateStmt.setString(6, sub.getVisitorId());
+                    updateStmt.executeUpdate();
+                }
+            } else {
+                // Create a brand new profile
+                String insertVis = "INSERT INTO visitor (visitor_id, first_name, last_name, email, phone, visitor_type) VALUES (?, ?, ?, ?, ?, ?)";
+                try (java.sql.PreparedStatement insertStmt = conn.prepareStatement(insertVis)) {
+                    insertStmt.setString(1, sub.getVisitorId());
+                    insertStmt.setString(2, sub.getFirstName());
+                    insertStmt.setString(3, sub.getLastName());
+                    insertStmt.setString(4, sub.getEmail());
+                    insertStmt.setString(5, sub.getPhone());
+                    insertStmt.setString(6, visType);
+                    insertStmt.executeUpdate();
+                }
+            }
+
+            // 4. Insert the new Subscriber record and grab the auto-generated ID
+            String insertSubQuery = "INSERT INTO subscriber (visitor_id, family_size, credit_card, is_guide) VALUES (?, ?, ?, ?)";
+            try (java.sql.PreparedStatement insertSubStmt = conn.prepareStatement(insertSubQuery, java.sql.Statement.RETURN_GENERATED_KEYS)) {
+                insertSubStmt.setString(1, sub.getVisitorId());
+                insertSubStmt.setInt(2, sub.getFamilySize());
+                insertSubStmt.setString(3, sub.getCreditCard());
+                insertSubStmt.setBoolean(4, sub.isGuide());
+                insertSubStmt.executeUpdate();
+
+                try (java.sql.ResultSet generatedKeys = insertSubStmt.getGeneratedKeys()) {
+                    if (generatedKeys.next()) {
+                        int newSubId = generatedKeys.getInt(1);
+                        return "SUCCESS: " + visType + " registered! (Sub ID: #" + newSubId + ")";
+                    }
+                }
+            }
+
+        } catch (java.sql.SQLException e) {
+            e.printStackTrace();
+            return "Error: Database failure during registration.";
+        }
+        return "Error: Registration failed due to an unknown database issue.";
+    }
 }

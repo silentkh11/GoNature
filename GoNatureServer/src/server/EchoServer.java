@@ -135,6 +135,21 @@ public class EchoServer extends AbstractServer {
 					java.util.ArrayList<entities.ParameterRequest> requests = DBController.getPendingRequests();
 					client.sendToClient(new Message("PENDING_REQUESTS_DATA", requests));
 				}
+				// =========================================================================
+                // --- 6. SERVICE REPRESENTATIVE ROUTING ---
+                // =========================================================================
+                else if (request.getCommand().equals("REGISTER_SUBSCRIBER_REQUEST")) {
+                    entities.Subscriber newSub = (entities.Subscriber) request.getData();
+                    uiLogger.accept("> Service Rep attempting to register Subscriber ID: " + newSub.getVisitorId() + "\n");
+                    
+                    String resultMsg = DBController.registerNewSubscriber(newSub);
+                    
+                    if (resultMsg.startsWith("SUCCESS")) {
+                        client.sendToClient(new Message("REGISTER_SUCCESS", resultMsg));
+                    } else {
+                        client.sendToClient(new Message("REGISTER_FAILED", resultMsg));
+                    }
+                }
 
 				else if (request.getCommand().equals("PROCESS_REQUEST_DECISION")) {
 					String[] data = (String[]) request.getData();
