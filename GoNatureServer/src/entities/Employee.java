@@ -10,10 +10,11 @@ public class Employee implements Serializable {
     private String lastName;
     private String email;
     private String role;
-    private Integer parkId; // Integer instead of int so it can be null for Dept Managers
+    private Integer parkId; // Using Integer instead of int so it can hold 'null' for Department Managers
     private String username;
+    private String password;
 
-    public Employee(int employeeId, String firstName, String lastName, String email, String role, Integer parkId, String username) {
+    public Employee(int employeeId, String firstName, String lastName, String email, String role, Integer parkId, String username, String password) {
         this.employeeId = employeeId;
         this.firstName = firstName;
         this.lastName = lastName;
@@ -21,6 +22,7 @@ public class Employee implements Serializable {
         this.role = role;
         this.parkId = parkId;
         this.username = username;
+        this.password = password;
     }
 
     // --- Getters ---
@@ -31,4 +33,15 @@ public class Employee implements Serializable {
     public String getRole() { return role; }
     public Integer getParkId() { return parkId; }
     public String getUsername() { return username; }
+    public String getPassword() { return password; }
+
+    // --- Setters ---
+    public void setEmployeeId(int employeeId) { this.employeeId = employeeId; }
+    public void setFirstName(String firstName) { this.firstName = firstName; }
+    public void setLastName(String lastName) { this.lastName = lastName; }
+    public void setEmail(String email) { this.email = email; }
+    public void setRole(String role) { this.role = role; }
+    public void setParkId(Integer parkId) { this.parkId = parkId; }
+    public void setUsername(String username) { this.username = username; }
+    public void setPassword(String password) { this.password = password; }
 }
