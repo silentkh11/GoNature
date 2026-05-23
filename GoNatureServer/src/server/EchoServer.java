@@ -13,20 +13,19 @@ import java.util.function.Consumer;
  */
 public class EchoServer extends AbstractServer {
 
-	// A callback to print messages directly to the ServerUI console
+	// Callbacks to update the ServerUI
 	private Consumer<String> uiLogger;
-
-	/**
-	 * Constructs an instance of the echo server.
-	 *
-	 * @param port     The port number to connect on.
-	 * @param uiLogger The consumer that handles UI console printing.
-	 */
 	private Consumer<ConnectionToClient> clientConnectedHandler;
 	private Consumer<ConnectionToClient> clientDisconnectedHandler;
 
 	/**
 	 * Constructs an instance of the echo server.
+	 *
+	 * @param port                      The port number to connect on.
+	 * @param uiLogger                  The consumer that handles UI console
+	 *                                  printing.
+	 * @param clientConnectedHandler    Updates the UI when a client connects.
+	 * @param clientDisconnectedHandler Updates the UI when a client disconnects.
 	 */
 	public EchoServer(int port, Consumer<String> uiLogger, Consumer<ConnectionToClient> clientConnectedHandler,
 			Consumer<ConnectionToClient> clientDisconnectedHandler) {
@@ -38,10 +37,6 @@ public class EchoServer extends AbstractServer {
 
 	/**
 	 * This method handles any messages received from the client.
-	 *
-	 * @param msg    The message received from the client (Expected to be an
-	 *               entities.Message object).
-	 * @param client The connection from which the message originated.
 	 */
 	@Override
 	protected void handleMessageFromClient(Object msg, ConnectionToClient client) {
@@ -104,6 +99,19 @@ public class EchoServer extends AbstractServer {
 				// =========================================================================
 				// --- 4. PARK MANAGER ROUTING ---
 				// =========================================================================
+				else if (request.getCommand().equals("FETCH_PARK_DETAILS")) {
+					int parkIdToFetch = (int) request.getData();
+					uiLogger.accept("> Fetching park details for Park ID: " + parkIdToFetch + "\n");
+
+					entities.Park parkData = DBController.getParkById(parkIdToFetch);
+
+					if (parkData != null) {
+						client.sendToClient(new Message("PARK_DETAILS_DATA", parkData));
+					} else {
+						client.sendToClient(new Message("PARK_DETAILS_ERROR", "Could not find park data."));
+					}
+				}
+
 				else if (request.getCommand().equals("UPDATE_PARK_PARAMS")) {
 					entities.Park requestedUpdate = (entities.Park) request.getData();
 					uiLogger.accept(
@@ -175,18 +183,18 @@ public class EchoServer extends AbstractServer {
 	}
 
 	@Override
-    protected void clientConnected(ConnectionToClient client) {
-        uiLogger.accept("> Client connected: " + client.getInetAddress().getHostAddress() + "\n");
-        if (clientConnectedHandler != null) {
-            clientConnectedHandler.accept(client);
-        }
-    }
-    
-    @Override
-    protected void clientDisconnected(ConnectionToClient client) {
-        uiLogger.accept("> Client disconnected.\n");
-        if (clientDisconnectedHandler != null) {
-            clientDisconnectedHandler.accept(client);
-        }
-    }
+	protected void clientConnected(ConnectionToClient client) {
+		uiLogger.accept("> Client connected: " + client.getInetAddress().getHostAddress() + "\n");
+		if (clientConnectedHandler != null) {
+			clientConnectedHandler.accept(client);
+		}
+	}
+
+	@Override
+	protected void clientDisconnected(ConnectionToClient client) {
+		uiLogger.accept("> Client disconnected.\n");
+		if (clientDisconnectedHandler != null) {
+			clientDisconnectedHandler.accept(client);
+		}
+	}
 }

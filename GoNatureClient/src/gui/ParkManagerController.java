@@ -7,132 +7,115 @@ import entities.Park;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
-import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 
 public class ParkManagerController {
 
-	@FXML
-	private Label welcomeLabel;
+    // --- Current Parameters (Left Side) ---
+    @FXML private Label lblParkName;
+    @FXML private Label lblMaxCapacity;
+    @FXML private Label lblCasualGap;
+    @FXML private Label lblEstStay;
 
-	// Current Stats Labels
-	@FXML
-	private Label lblParkName;
-	@FXML
-	private Label lblMaxCap;
-	@FXML
-	private Label lblCasualGap;
-	@FXML
-	private Label lblStayTime;
+    // --- Request Update (Right Side) ---
+    @FXML private TextField txtNewMaxCapacity;
+    @FXML private TextField txtNewCasualGap;
+    @FXML private TextField txtNewEstStay;
+    
+    @FXML private Label lblStatus;
 
-	// Input Fields
-	@FXML
-	private TextField txtNewMaxCap;
-	@FXML
-	private TextField txtNewCasualGap;
-	@FXML
-	private TextField txtNewStayTime;
+    private Employee currentUser;
+    private Park currentPark;
 
-	@FXML
-	private Label statusLabel;
-	@FXML
-	private Button btnSubmit;
+    @FXML
+    public void initialize() {
+        // Route network responses to this screen
+        ChatClient.getInstance().setResponseHandler(this::handleServerResponse);
+    }
 
-	private Employee currentUser;
-	private Park currentPark;
+    /**
+     * This is called by the LoginController right after the scene switches.
+     * It passes the logged-in user so we know which park to fetch!
+     */
+    public void setUser(Employee user) {
+        this.currentUser = user;
+        
+        if (currentUser.getParkId() != null) {
+            // Ask the server for this specific park's data
+            ChatClient.getInstance().handleMessageFromClientUI(
+                new Message("FETCH_PARK_DETAILS", currentUser.getParkId())
+            );
+        } else {
+            showStatus("Error: No park assigned to this manager.", "#d63031");
+        }
+    }
 
-	/**
-	 * Called automatically by the Login screen right before swapping scenes.
-	 */
-	public void setUser(Employee user) {
-		this.currentUser = user;
-		welcomeLabel.setText("Manager: " + user.getFirstName() + " " + user.getLastName() + " | Authenticated");
+    @FXML
+    void submitParameters(ActionEvent event) {
+        if (currentPark == null) {
+            showStatus("Network error: Cannot update. Park data not loaded.", "#d63031");
+            return;
+        }
 
-		// As soon as we know who the user is, ask the server for their park's details!
-		fetchParkData();
-	}
+        try {
+            int newMax = Integer.parseInt(txtNewMaxCapacity.getText().trim());
+            int newGap = Integer.parseInt(txtNewCasualGap.getText().trim());
+            int newStay = Integer.parseInt(txtNewEstStay.getText().trim());
 
-	private void fetchParkData() {
-		if (currentUser.getParkId() != null) {
-			try {
-				// Update the network callback specifically for this screen
-				ChatClient.getInstance().setResponseHandler(this::handleServerResponse);
-				ChatClient.getInstance()
-						.handleMessageFromClientUI(new Message("FETCH_PARK_INFO", currentUser.getParkId()));
-			} catch (Exception e) {
-				showStatus("Error communicating with server.", "#d63031");
-			}
-		}
-	}
+            // Build a temporary Park object to hold the requested changes
+            Park requestedUpdate = new Park(
+                currentPark.getParkId(),
+                currentPark.getName(),
+                newMax,
+                newGap,
+                newStay,
+                currentPark.getCurrentVisitors()
+            );
 
-	@FXML
-	void submitParameters(ActionEvent event) {
-		// --- STRICT PROFESSIONAL VALIDATION ---
-		try {
-			int newMax = Integer.parseInt(txtNewMaxCap.getText().trim());
-			int newGap = Integer.parseInt(txtNewCasualGap.getText().trim());
-			int newTime = Integer.parseInt(txtNewStayTime.getText().trim());
+            // Send to the server's "holding pen"
+            ChatClient.getInstance().handleMessageFromClientUI(
+                new Message("UPDATE_PARK_PARAMS", requestedUpdate)
+            );
+            
+            showStatus("Submitting request...", "#0984e3"); // Blue processing text
 
-			if (newMax <= 0 || newGap < 0 || newTime <= 0) {
-				showStatus("Values must be positive numbers.", "#d63031");
-				return;
-			}
-			if (newGap >= newMax) {
-				showStatus("Casual gap cannot be greater than max capacity.", "#d63031");
-				return;
-			}
+        } catch (NumberFormatException e) {
+            showStatus("Please enter valid numbers only.", "#d63031");
+        }
+    }
 
-			// Create a temporary Park object to send the update
-			Park updatedPark = new Park(currentPark.getParkId(), currentPark.getName(), newMax, newGap, newTime,
-					currentPark.getCurrentVisitors());
+    public void handleServerResponse(Message msg) {
+        Platform.runLater(() -> {
+            switch (msg.getCommand()) {
+                
+                case "PARK_DETAILS_DATA":
+                    this.currentPark = (Park) msg.getData();
+                    // Populate the left side of the UI!
+                    lblParkName.setText(currentPark.getName());
+                    lblMaxCapacity.setText(String.valueOf(currentPark.getMaxCapacity()));
+                    lblCasualGap.setText(String.valueOf(currentPark.getCasualGap()));
+                    lblEstStay.setText(String.valueOf(currentPark.getEstimatedStayTime()));
+                    break;
+                    
+                case "UPDATE_PARAMS_SUCCESS":
+                    showStatus((String) msg.getData(), "#00b894"); // Green success
+                    // Clear the text fields
+                    txtNewMaxCapacity.clear();
+                    txtNewCasualGap.clear();
+                    txtNewEstStay.clear();
+                    break;
+                    
+                case "UPDATE_PARAMS_FAILED":
+                case "PARK_DETAILS_ERROR":
+                    showStatus((String) msg.getData(), "#d63031"); // Red error
+                    break;
+            }
+        });
+    }
 
-			btnSubmit.setDisable(true);
-			showStatus("Sending request...", "#0984e3");
-
-			ChatClient.getInstance().handleMessageFromClientUI(new Message("UPDATE_PARK_PARAMS", updatedPark));
-
-		} catch (NumberFormatException e) {
-			showStatus("Please enter valid whole numbers only.", "#d63031");
-		} catch (Exception e) {
-			showStatus("Network error.", "#d63031");
-		}
-	}
-
-	/**
-	 * Handles incoming messages from the Server while this screen is active.
-	 */
-	public void handleServerResponse(Message msg) {
-		Platform.runLater(() -> {
-			switch (msg.getCommand()) {
-			case "PARK_INFO_DATA":
-				this.currentPark = (Park) msg.getData();
-				lblParkName.setText(currentPark.getName());
-				lblMaxCap.setText(String.valueOf(currentPark.getMaxCapacity()));
-				lblCasualGap.setText(String.valueOf(currentPark.getCasualGap()));
-				lblStayTime.setText(String.valueOf(currentPark.getEstimatedStayTime()));
-				break;
-
-			case "UPDATE_PARAMS_SUCCESS":
-				showStatus("Parameters updated successfully!", "#00b894");
-				btnSubmit.setDisable(false);
-				// Refresh the left card with the new data
-				txtNewMaxCap.clear();
-				txtNewCasualGap.clear();
-				txtNewStayTime.clear();
-				fetchParkData();
-				break;
-
-			case "UPDATE_PARAMS_FAILED":
-				showStatus((String) msg.getData(), "#d63031");
-				btnSubmit.setDisable(false);
-				break;
-			}
-		});
-	}
-
-	private void showStatus(String message, String hexColor) {
-		statusLabel.setText(message);
-		statusLabel.setStyle("-fx-text-fill: " + hexColor + "; -fx-font-weight: bold;");
-	}
+    private void showStatus(String message, String hexColor) {
+        lblStatus.setText(message);
+        lblStatus.setStyle("-fx-text-fill: " + hexColor + "; -fx-font-weight: bold;");
+    }
 }

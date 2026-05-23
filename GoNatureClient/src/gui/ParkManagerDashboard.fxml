@@ -8,67 +8,64 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
 
-<VBox prefHeight="600.0" prefWidth="850.0" spacing="25.0" style="-fx-background-color: #f5f6fa;" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="gui.ParkManagerController">
+<VBox alignment="CENTER" prefHeight="600.0" prefWidth="800.0" spacing="30.0" style="-fx-background-color: #f5f6fa;" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="gui.ParkManagerController">
    <padding>
-      <Insets bottom="30.0" left="40.0" right="40.0" top="30.0" />
+      <Insets bottom="40.0" left="40.0" right="40.0" top="40.0" />
    </padding>
 
-   <VBox spacing="5.0">
-      <Label style="-fx-text-fill: #2d3436;" text="Park Manager Dashboard">
-         <font><Font name="Segoe UI Bold" size="28.0" /></font>
-      </Label>
-      <Label fx:id="welcomeLabel" style="-fx-text-fill: #636e72;" text="Loading user data...">
-         <font><Font name="Segoe UI" size="16.0" /></font>
-      </Label>
-   </VBox>
+   <Label style="-fx-text-fill: #2d3436;" text="Park Manager Dashboard">
+      <font>
+         <Font name="Segoe UI Bold" size="28.0" />
+      </font>
+   </Label>
 
-   <HBox spacing="30.0" VBox.vgrow="ALWAYS">
+   <HBox spacing="40.0" alignment="CENTER">
       
-      <VBox spacing="20.0" style="-fx-background-color: white; -fx-background-radius: 8; -fx-border-color: #dfe6e9; -fx-border-radius: 8; -fx-padding: 25; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.05), 5, 0, 0, 2);" HBox.hgrow="ALWAYS">
-         <Label style="-fx-text-fill: #0984e3;" text="Current Parameters">
-            <font><Font name="Segoe UI Bold" size="18.0" /></font>
+      <VBox spacing="15.0" style="-fx-background-color: white; -fx-background-radius: 8; -fx-padding: 25; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.05), 5, 0, 0, 2);" HBox.hgrow="ALWAYS">
+         <Label text="Current Parameters" style="-fx-text-fill: #0984e3;">
+            <font><Font name="Segoe UI Bold" size="20.0" /></font>
+            <VBox.margin><Insets bottom="10.0" /></VBox.margin>
          </Label>
          
-         <GridPane hgap="15.0" vgap="15.0">
-            <Label text="Park Name:" style="-fx-font-weight: bold;" GridPane.columnIndex="0" GridPane.rowIndex="0" />
-            <Label fx:id="lblParkName" text="-" GridPane.columnIndex="1" GridPane.rowIndex="0" />
+         <GridPane vgap="15.0" hgap="20.0">
+            <Label text="Park Name:" GridPane.rowIndex="0" GridPane.columnIndex="0"><font><Font name="Segoe UI Bold" size="14.0" /></font></Label>
+            <Label fx:id="lblParkName" text="-" GridPane.rowIndex="0" GridPane.columnIndex="1"><font><Font name="Segoe UI" size="14.0" /></font></Label>
             
-            <Label text="Max Capacity:" style="-fx-font-weight: bold;" GridPane.columnIndex="0" GridPane.rowIndex="1" />
-            <Label fx:id="lblMaxCap" text="-" GridPane.columnIndex="1" GridPane.rowIndex="1" />
+            <Label text="Max Capacity:" GridPane.rowIndex="1" GridPane.columnIndex="0"><font><Font name="Segoe UI Bold" size="14.0" /></font></Label>
+            <Label fx:id="lblMaxCapacity" text="-" GridPane.rowIndex="1" GridPane.columnIndex="1"><font><Font name="Segoe UI" size="14.0" /></font></Label>
             
-            <Label text="Casual Gap:" style="-fx-font-weight: bold;" GridPane.columnIndex="0" GridPane.rowIndex="2" />
-            <Label fx:id="lblCasualGap" text="-" GridPane.columnIndex="1" GridPane.rowIndex="2" />
+            <Label text="Casual Gap:" GridPane.rowIndex="2" GridPane.columnIndex="0"><font><Font name="Segoe UI Bold" size="14.0" /></font></Label>
+            <Label fx:id="lblCasualGap" text="-" GridPane.rowIndex="2" GridPane.columnIndex="1"><font><Font name="Segoe UI" size="14.0" /></font></Label>
             
-            <Label text="Est. Stay (Hours):" style="-fx-font-weight: bold;" GridPane.columnIndex="0" GridPane.rowIndex="3" />
-            <Label fx:id="lblStayTime" text="-" GridPane.columnIndex="1" GridPane.rowIndex="3" />
+            <Label text="Est. Stay (Hours):" GridPane.rowIndex="3" GridPane.columnIndex="0"><font><Font name="Segoe UI Bold" size="14.0" /></font></Label>
+            <Label fx:id="lblEstStay" text="-" GridPane.rowIndex="3" GridPane.columnIndex="1"><font><Font name="Segoe UI" size="14.0" /></font></Label>
          </GridPane>
       </VBox>
 
-      <VBox spacing="15.0" style="-fx-background-color: white; -fx-background-radius: 8; -fx-border-color: #dfe6e9; -fx-border-radius: 8; -fx-padding: 25; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.05), 5, 0, 0, 2);" HBox.hgrow="ALWAYS">
-         <Label style="-fx-text-fill: #d63031;" text="Request Parameter Update">
-            <font><Font name="Segoe UI Bold" size="18.0" /></font>
+      <VBox spacing="15.0" style="-fx-background-color: white; -fx-background-radius: 8; -fx-padding: 25; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.05), 5, 0, 0, 2);" HBox.hgrow="ALWAYS">
+         <Label text="Request Parameter Update" style="-fx-text-fill: #d63031;">
+            <font><Font name="Segoe UI Bold" size="20.0" /></font>
+            <VBox.margin><Insets bottom="10.0" /></VBox.margin>
          </Label>
          
-         <VBox spacing="5.0">
-             <Label text="New Max Capacity:" />
-             <TextField fx:id="txtNewMaxCap" promptText="e.g., 500" />
-         </VBox>
+         <Label text="New Max Capacity:"><font><Font name="Segoe UI" size="14.0" /></font></Label>
+         <TextField fx:id="txtNewMaxCapacity" promptText="e.g., 200" />
          
-         <VBox spacing="5.0">
-             <Label text="New Casual Gap:" />
-             <TextField fx:id="txtNewCasualGap" promptText="e.g., 50" />
-         </VBox>
+         <Label text="New Casual Gap:"><font><Font name="Segoe UI" size="14.0" /></font></Label>
+         <TextField fx:id="txtNewCasualGap" promptText="e.g., 50" />
          
-         <VBox spacing="5.0">
-             <Label text="New Est. Stay (Hours):" />
-             <TextField fx:id="txtNewStayTime" promptText="e.g., 4" />
-         </VBox>
-
-         <Label fx:id="statusLabel" wrapText="true" style="-fx-font-weight: bold;" />
+         <Label text="New Est. Stay (Hours):"><font><Font name="Segoe UI" size="14.0" /></font></Label>
+         <TextField fx:id="txtNewEstStay" promptText="e.g., 4" />
          
-         <Button fx:id="btnSubmit" maxWidth="Infinity" onAction="#submitParameters" style="-fx-background-color: #00b894; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10; -fx-cursor: hand;" text="Submit Update Request">
-             <VBox.margin><Insets top="10.0" /></VBox.margin>
+         <Button mnemonicParsing="false" onAction="#submitParameters" prefHeight="40.0" maxWidth="Infinity" style="-fx-background-color: #00b894; -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand;" text="Submit Request">
+            <VBox.margin><Insets top="10.0" /></VBox.margin>
          </Button>
       </VBox>
+      
    </HBox>
+
+   <Label fx:id="lblStatus" alignment="CENTER" maxWidth="Infinity">
+      <font><Font name="Segoe UI Bold" size="16.0" /></font>
+   </Label>
+
 </VBox>
