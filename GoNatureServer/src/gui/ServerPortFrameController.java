@@ -1,5 +1,6 @@
 package gui;
 
+import database.DBController;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -13,7 +14,6 @@ import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.cell.PropertyValueFactory;
 import ocsf.server.ConnectionToClient;
-import server.DBController;
 import server.EchoServer;
 
 public class ServerPortFrameController {
