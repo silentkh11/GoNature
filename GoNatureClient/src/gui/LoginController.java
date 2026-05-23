@@ -84,24 +84,47 @@ public class LoginController {
 				// 1. Extract the user object the Server sent us
 				entities.Employee user = (entities.Employee) msg.getData();
 
+				String targetFxml = "";
+				String windowTitle = "";
+
+				// 2. The Traffic Director (Check the role!)
+				switch (user.getRole()) {
+				case "ParkManager":
+					targetFxml = "/gui/ParkManagerDashboard.fxml";
+					windowTitle = "GoNature - Park Manager";
+					break;
+				case "GateWorker":
+					targetFxml = "/gui/ParkEntrance.fxml";
+					windowTitle = "GoNature - Park Gate Scanner";
+					break;
+				case "DeptManager":
+                    targetFxml = "/gui/DeptManagerDashboard.fxml";
+                    windowTitle = "GoNature - Department Manager";
+                    break;
+				default:
+					showError("Error: Unknown employee role.");
+					return;
+				}
+
+				// 3. Load the designated screen
 				try {
-					// 2. Load the new FXML file
-					javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(
-							getClass().getResource("/gui/ParkManagerDashboard.fxml"));
+					javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(getClass().getResource(targetFxml));
 					javafx.scene.Parent root = loader.load();
 
-					// 3. Pass the user data into the new controller!
-					ParkManagerController pmController = loader.getController();
-					pmController.setUser(user);
+					// If it is the Park Manager, pass the user data into their specific controller!
+					if (user.getRole().equals("ParkManager")) {
+						ParkManagerController pmController = loader.getController();
+						pmController.setUser(user);
+					}
 
 					// 4. Grab the current window and swap the scene
 					javafx.stage.Stage stage = (javafx.stage.Stage) loginBtn.getScene().getWindow();
-					stage.setScene(new javafx.scene.Scene(root, 800, 600));
-					stage.setTitle("GoNature - Park Manager Dashboard");
+					stage.setScene(new javafx.scene.Scene(root));
+					stage.setTitle(windowTitle);
 					stage.centerOnScreen();
 
 				} catch (Exception e) {
-					showError("Error loading dashboard screen.");
+					showError("Error loading " + user.getRole() + " screen.");
 					e.printStackTrace();
 				}
 

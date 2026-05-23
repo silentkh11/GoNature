@@ -16,24 +16,13 @@ public class ClientUI extends Application {
 
     @Override
     public void start(Stage primaryStage) throws Exception {
-        
-        // --- 1. DEVELOPER FIX: Jump-start the network connection first! ---
-        try {
-            // We establish the connection to localhost:5555 with an empty placeholder listener
-            ChatClient.getInstance("127.0.0.1", 5555, (Message msg) -> {});
-            System.out.println("Developer bypass: Network connected successfully.");
-        } catch (Exception e) {
-            System.err.println("Developer bypass: Could not connect to server. Is it running?");
-        }
-
-        // --- 2. Load the UI ---
-        Parent root = FXMLLoader.load(getClass().getResource("/gui/CreateOrder.fxml"));
+        // Pointing back to the Login screen for normal operations
+        Parent root = FXMLLoader.load(getClass().getResource("/gui/Login.fxml"));
         Scene scene = new Scene(root);
         
-        primaryStage.setTitle("GoNature - Developer Booking Test");
+        primaryStage.setTitle("GoNature - Employee Login");
         primaryStage.setScene(scene);
         
-        // Ensure all background network threads die when the user closes the window
         primaryStage.setOnCloseRequest(event -> {
             System.out.println("Closing client application...");
             Platform.exit();

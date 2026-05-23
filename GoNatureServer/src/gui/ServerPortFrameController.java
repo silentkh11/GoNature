@@ -61,7 +61,7 @@ public class ServerPortFrameController {
             int port = DEFAULT_PORT;
             
             // 1. Connect to DB FIRST. If this fails, it jumps straight to the catch block!
-            DBController.connectToDB();
+            DBController.getInstance();
             consoleText.appendText("> Database connected successfully.\n");
             
             // 2. Initialize and start server
