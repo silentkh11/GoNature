@@ -1,6 +1,5 @@
 package client;
 
-import entities.Message;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.fxml.FXMLLoader;
@@ -16,12 +15,14 @@ public class ClientUI extends Application {
 
     @Override
     public void start(Stage primaryStage) throws Exception {
-        // Pointing back to the Login screen for normal operations
-        Parent root = FXMLLoader.load(getClass().getResource("/gui/Login.fxml"));
-        Scene scene = new Scene(root);
+        Parent root = FXMLLoader.load(getClass().getResource("/gui/MainMenu.fxml"));
         
-        primaryStage.setTitle("GoNature - Employee Login");
+        // Set a fixed window size here (e.g., 850x650) so the window never changes size!
+        Scene scene = new Scene(root, 850, 650);
+        
+        primaryStage.setTitle("GoNature - Welcome");
         primaryStage.setScene(scene);
+        primaryStage.setResizable(false); // Optional: Prevents the user from dragging the window size
         
         primaryStage.setOnCloseRequest(event -> {
             System.out.println("Closing client application...");

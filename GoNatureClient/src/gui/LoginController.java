@@ -68,6 +68,23 @@ public class LoginController {
 			e.printStackTrace();
 		}
 	}
+	
+	@FXML
+	void handleGoBack(ActionEvent event) {
+		try {
+			// Swap the root back to the Main Menu cleanly
+			javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(getClass().getResource("/gui/MainMenu.fxml"));
+			javafx.scene.Parent root = loader.load();
+			
+			javafx.stage.Stage stage = (javafx.stage.Stage) ((javafx.scene.Node) event.getSource()).getScene().getWindow();
+			stage.getScene().setRoot(root);
+			stage.setTitle("GoNature - Welcome");
+			
+		} catch (Exception e) {
+			System.err.println("Error returning to Main Menu.");
+			e.printStackTrace();
+		}
+	}
 
 	/**
 	 * Call this method from your ChatClient when the server responds with either
@@ -115,17 +132,18 @@ public class LoginController {
 					javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(getClass().getResource(targetFxml));
 					javafx.scene.Parent root = loader.load();
 
-					// If it is the Park Manager, pass the user data into their specific controller!
 					if (user.getRole().equals("ParkManager")) {
 						ParkManagerController pmController = loader.getController();
 						pmController.setUser(user);
 					}
 
-					// 4. Grab the current window and swap the scene
+					// 4. Grab the current window and swap the ROOT smoothly
 					javafx.stage.Stage stage = (javafx.stage.Stage) loginBtn.getScene().getWindow();
-					stage.setScene(new javafx.scene.Scene(root));
+					
+                    stage.getScene().setRoot(root); // Swap the content without resizing!
 					stage.setTitle(windowTitle);
-					stage.centerOnScreen();
+                    
+                    // Removed stage.centerOnScreen() here as well!
 
 				} catch (Exception e) {
 					showError("Error loading " + user.getRole() + " screen.");

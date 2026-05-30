@@ -26,15 +26,38 @@ public class CreateOrderController {
 
     @FXML
     public void initialize() {
-        // 1. Tell the network engine to route responses to THIS screen now
-        ChatClient.getInstance().setResponseHandler(this::handleServerResponse);
+        try {
+            // Safely create the connection if it doesn't exist, and set the listener
+            ChatClient.getInstance("127.0.0.1", 5555, this::handleServerResponse);
+        } catch (Exception e) {
+            showStatus("Error: Cannot connect to the server.", "#d63031");
+            submitBtn.setDisable(true);
+            e.printStackTrace();
+        }
 
         // 2. Populate the dropdown menus
-        parkCombo.getItems().addAll("1 - Carmel National Park"); // Hardcoded for now. In Phase 3, we fetch this from the DB!
+        parkCombo.getItems().addAll("1 - Carmel National Park"); 
         timeCombo.getItems().addAll("08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00");
         typeCombo.getItems().addAll("Solo", "Family", "Group");
     }
 
+    @FXML
+    void handleGoBack(ActionEvent event) {
+        try {
+            // Swap the root back to the Main Menu cleanly
+            javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(getClass().getResource("/gui/MainMenu.fxml"));
+            javafx.scene.Parent root = loader.load();
+            
+            javafx.stage.Stage stage = (javafx.stage.Stage) ((javafx.scene.Node) event.getSource()).getScene().getWindow();
+            stage.getScene().setRoot(root);
+            stage.setTitle("GoNature - Welcome");
+            
+        } catch (Exception e) {
+            System.err.println("Error returning to Main Menu.");
+            e.printStackTrace();
+        }
+    }
+    
     @FXML
     void submitOrder(ActionEvent event) {
         // --- STRICT UI VALIDATION ---
@@ -81,7 +104,7 @@ public class CreateOrderController {
         showStatus("Checking availability with server...", "#0984e3");
         
         // --- FIRE THE NETWORK REQUEST ---
-        ChatClient.getInstance().handleMessageFromClientUI(new Message("SUBMIT_ORDER", newOrder));
+        ChatClient.getInstance().handleMessageFromClientUI(new Message("NEW_ORDER_REQUEST", newOrder));
     }
 
     /**
@@ -91,7 +114,7 @@ public class CreateOrderController {
         Platform.runLater(() -> {
             submitBtn.setDisable(false);
             
-            if (msg.getCommand().equals("ORDER_SUCCESS")) {
+            if (msg.getCommand().equals("ORDER_CONFIRMED")) {
                 VisitOrder finalizedOrder = (VisitOrder) msg.getData();
                 
                 if (finalizedOrder.getStatus().equals("Waitlisted")) {
