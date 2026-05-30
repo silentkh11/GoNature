@@ -23,7 +23,7 @@
    </top>
    
    <center>
-      <VBox alignment="CENTER" spacing="25.0" BorderPane.alignment="CENTER">
+      <VBox alignment="CENTER" spacing="20.0" BorderPane.alignment="CENTER">
          <children>
             <Label style="-fx-text-fill: #2d3436;" text="Welcome to GoNature">
                <font>
@@ -41,6 +41,13 @@
             </Label>
             
             <Button fx:id="guestBtn" mnemonicParsing="false" onAction="#handleGuestBooking" style="-fx-background-color: #00b894; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 20px; -fx-padding: 15 50; -fx-background-radius: 8; -fx-cursor: hand; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 5, 0, 0, 2);" text="Start Guest Booking" />
+            
+            <Button fx:id="manageOrdersBtn" mnemonicParsing="false" onAction="#handleManageOrders" style="-fx-background-color: #0984e3; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 16px; -fx-padding: 10 40; -fx-background-radius: 8; -fx-cursor: hand; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 5, 0, 0, 2);" text="Manage My Orders">
+               <VBox.margin>
+                  <Insets top="10.0" />
+               </VBox.margin>
+            </Button>
+
          </children>
          <BorderPane.margin>
             <Insets bottom="60.0" />

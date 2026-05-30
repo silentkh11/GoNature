@@ -6,38 +6,36 @@ import javafx.fxml.FXMLLoader;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
-import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.stage.Stage;
 import java.io.IOException;
 
 public class MainMenuController {
 
-    @FXML
-    private Button guestBtn;
-
-    @FXML
-    private Button loginBtn;
-
-    @FXML
-    private Button registerBtn;
+    @FXML private Button guestBtn;
+    @FXML private Button loginBtn;
+    @FXML private Button registerBtn;
+    @FXML private Button manageOrdersBtn; // <-- 1. Added the new button variable
 
     @FXML
     void handleGuestBooking(ActionEvent event) {
-        // Guests bypass login and go straight to creating an order
         switchScene(event, "/gui/CreateOrder.fxml", "GoNature - Guest Booking");
     }
 
     @FXML
     void handleEmployeeLogin(ActionEvent event) {
-        // Employees are routed to the secure login screen
         switchScene(event, "/gui/Login.fxml", "GoNature - Employee Login");
     }
 
     @FXML
     void handleRegister(ActionEvent event) {
-        // Swap the root to the new public registration screen
         switchScene(event, "/gui/Register.fxml", "GoNature - Registration");
+    }
+
+    // --- 2. Added the routing method for the Guest Portal ---
+    @FXML
+    void handleManageOrders(ActionEvent event) {
+        switchScene(event, "/gui/GuestPortal.fxml", "GoNature - Manage Orders");
     }
 
     /**
@@ -48,11 +46,8 @@ public class MainMenuController {
             Parent root = FXMLLoader.load(getClass().getResource(fxmlPath));
             Stage stage = (Stage) ((Node) event.getSource()).getScene().getWindow();
             
-            // SWAP THE ROOT INSTEAD OF THE SCENE
             stage.getScene().setRoot(root); 
             stage.setTitle(title);
-            
-            // Remove stage.centerOnScreen() completely!
             
         } catch (IOException e) {
             System.err.println("CRITICAL ERROR: Could not load FXML file -> " + fxmlPath);
