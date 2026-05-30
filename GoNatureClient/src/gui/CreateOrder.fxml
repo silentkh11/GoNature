@@ -5,70 +5,77 @@
 <?import javafx.scene.control.DatePicker?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
 
-<VBox alignment="CENTER" prefHeight="600.0" prefWidth="650.0" spacing="20.0" style="-fx-background-color: #f5f6fa;" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="gui.CreateOrderController">
-   <padding>
-      <Insets bottom="30.0" left="40.0" right="40.0" top="30.0" />
-   </padding>
-
-   <Label style="-fx-text-fill: #2d3436;" text="New Visitor Booking">
-      <font>
-         <Font name="Segoe UI Bold" size="28.0" />
-      </font>
-   </Label>
+<BorderPane prefHeight="650.0" prefWidth="850.0" style="-fx-background-color: #f5f6fa;" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="gui.CreateOrderController">
    
-   <Label style="-fx-text-fill: #636e72;" text="Enter the visit details to check availability.">
-      <font>
-         <Font name="Segoe UI" size="14.0" />
-      </font>
-      <VBox.margin>
-         <Insets bottom="10.0" />
-      </VBox.margin>
-   </Label>
-
-   <VBox spacing="20.0" style="-fx-background-color: white; -fx-background-radius: 8; -fx-border-color: #dfe6e9; -fx-border-radius: 8; -fx-padding: 30; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.05), 5, 0, 0, 2);">
-      
-      <GridPane hgap="15.0" vgap="20.0">
-         <Label text="Select Park:" GridPane.columnIndex="0" GridPane.rowIndex="0">
-            <font><Font name="Segoe UI Bold" size="14.0" /></font>
-         </Label>
-         <ComboBox fx:id="parkCombo" prefWidth="250.0" promptText="Choose a Park..." GridPane.columnIndex="1" GridPane.rowIndex="0" />
-
-         <Label text="Visitor ID:" GridPane.columnIndex="0" GridPane.rowIndex="1">
-            <font><Font name="Segoe UI Bold" size="14.0" /></font>
-         </Label>
-         <TextField fx:id="visitorIdField" prefWidth="250.0" promptText="ID Number" GridPane.columnIndex="1" GridPane.rowIndex="1" />
-
-         <Label text="Visit Date:" GridPane.columnIndex="0" GridPane.rowIndex="2">
-            <font><Font name="Segoe UI Bold" size="14.0" /></font>
-         </Label>
-         <DatePicker fx:id="datePicker" prefWidth="250.0" promptText="Select Date" GridPane.columnIndex="1" GridPane.rowIndex="2" />
-
-         <Label text="Time Slot:" GridPane.columnIndex="0" GridPane.rowIndex="3">
-            <font><Font name="Segoe UI Bold" size="14.0" /></font>
-         </Label>
-         <ComboBox fx:id="timeCombo" prefWidth="250.0" promptText="Select Time" GridPane.columnIndex="1" GridPane.rowIndex="3" />
-
-         <Label text="Total Visitors:" GridPane.columnIndex="0" GridPane.rowIndex="4">
-            <font><Font name="Segoe UI Bold" size="14.0" /></font>
-         </Label>
-         <TextField fx:id="visitorsField" prefWidth="250.0" promptText="Number of people" GridPane.columnIndex="1" GridPane.rowIndex="4" />
-
-         <Label text="Order Type:" GridPane.columnIndex="0" GridPane.rowIndex="5">
-            <font><Font name="Segoe UI Bold" size="14.0" /></font>
-         </Label>
-         <ComboBox fx:id="typeCombo" prefWidth="250.0" promptText="Type of visit" GridPane.columnIndex="1" GridPane.rowIndex="5" />
-      </GridPane>
-
-      <Label fx:id="statusLabel" alignment="CENTER" maxWidth="Infinity" style="-fx-font-weight: bold;" wrapText="true" />
-
-      <Button fx:id="submitBtn" maxWidth="Infinity" onAction="#submitOrder" style="-fx-background-color: #0984e3; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 15px; -fx-padding: 12; -fx-background-radius: 5; -fx-cursor: hand;" text="Check Availability &amp; Book">
-         <VBox.margin>
-            <Insets top="10.0" />
-         </VBox.margin>
+   <top>
+      <Button mnemonicParsing="false" onAction="#handleGoBack" style="-fx-background-color: transparent; -fx-text-fill: #636e72; -fx-font-weight: bold; -fx-cursor: hand; -fx-underline: true; -fx-font-size: 14px;" text="&lt; Back to Main Menu" BorderPane.alignment="TOP_LEFT">
+         <BorderPane.margin>
+            <Insets left="20.0" top="20.0" />
+         </BorderPane.margin>
       </Button>
-   </VBox>
-</VBox>
+   </top>
+
+   <center>
+      <VBox alignment="CENTER" maxWidth="500.0" spacing="20.0" BorderPane.alignment="CENTER">
+         <children>
+            <Label style="-fx-text-fill: #2d3436;" text="New Visitor Booking">
+               <font>
+                  <Font name="Segoe UI Bold" size="28.0" />
+               </font>
+            </Label>
+            
+            <Label style="-fx-text-fill: #636e72;" text="Enter the visit details to check availability.">
+               <font>
+                  <Font name="Segoe UI" size="14.0" />
+               </font>
+            </Label>
+            
+            <VBox spacing="20.0" style="-fx-background-color: white; -fx-background-radius: 8; -fx-padding: 30; -fx-border-color: #dcdde1; -fx-border-radius: 8; -fx-border-width: 1; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.05), 5, 0, 0, 2);">
+               <GridPane hgap="15.0" vgap="20.0">
+                  <Label text="Select Park:" GridPane.columnIndex="0" GridPane.rowIndex="0">
+                     <font><Font name="Segoe UI Bold" size="14.0" /></font>
+                  </Label>
+                  <ComboBox fx:id="parkCombo" prefWidth="250.0" promptText="Choose a Park" GridPane.columnIndex="1" GridPane.rowIndex="0" />
+
+                  <Label text="Visitor ID:" GridPane.columnIndex="0" GridPane.rowIndex="1">
+                     <font><Font name="Segoe UI Bold" size="14.0" /></font>
+                  </Label>
+                  <TextField fx:id="visitorIdField" prefWidth="250.0" promptText="Your ID Number" GridPane.columnIndex="1" GridPane.rowIndex="1" />
+
+                  <Label text="Visit Date:" GridPane.columnIndex="0" GridPane.rowIndex="2">
+                     <font><Font name="Segoe UI Bold" size="14.0" /></font>
+                  </Label>
+                  <DatePicker fx:id="datePicker" prefWidth="250.0" promptText="Select Date" GridPane.columnIndex="1" GridPane.rowIndex="2" />
+
+                  <Label text="Time Slot:" GridPane.columnIndex="0" GridPane.rowIndex="3">
+                     <font><Font name="Segoe UI Bold" size="14.0" /></font>
+                  </Label>
+                  <ComboBox fx:id="timeCombo" prefWidth="250.0" promptText="Select Time" GridPane.columnIndex="1" GridPane.rowIndex="3" />
+
+                  <Label text="Total Visitors:" GridPane.columnIndex="0" GridPane.rowIndex="4">
+                     <font><Font name="Segoe UI Bold" size="14.0" /></font>
+                  </Label>
+                  <TextField fx:id="visitorsField" prefWidth="250.0" promptText="Number of people" GridPane.columnIndex="1" GridPane.rowIndex="4" />
+
+                  <Label text="Order Type:" GridPane.columnIndex="0" GridPane.rowIndex="5">
+                     <font><Font name="Segoe UI Bold" size="14.0" /></font>
+                  </Label>
+                  <ComboBox fx:id="typeCombo" prefWidth="250.0" promptText="Type of visit" GridPane.columnIndex="1" GridPane.rowIndex="5" />
+               </GridPane>
+
+               <Label fx:id="statusLabel" alignment="CENTER" maxWidth="Infinity" style="-fx-font-weight: bold;" wrapText="true" />
+
+               <Button fx:id="submitBtn" maxWidth="Infinity" onAction="#submitOrder" style="-fx-background-color: #0984e3; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 15px; -fx-padding: 10; -fx-background-radius: 5; -fx-cursor: hand;" text="Check Availability &amp; Book" />
+            </VBox>
+         </children>
+         <BorderPane.margin>
+            <Insets bottom="40.0" />
+         </BorderPane.margin>
+      </VBox>
+   </center>
+</BorderPane>

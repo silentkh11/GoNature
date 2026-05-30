@@ -1,4 +1,6 @@
-/server/
 /database/
+/entities/
 /gui/
+/module-info.class
 /ocsf/
+/server/
