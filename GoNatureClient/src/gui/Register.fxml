@@ -9,47 +9,48 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
 
-<BorderPane prefHeight="650.0" prefWidth="850.0" style="-fx-background-color: #f5f6fa;" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="gui.RegisterController">
-   
+<BorderPane prefHeight="650.0" prefWidth="850.0" styleClass="page-root" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="gui.RegisterController">
+
    <top>
-      <Button mnemonicParsing="false" onAction="#handleGoBack" style="-fx-background-color: transparent; -fx-text-fill: #636e72; -fx-font-weight: bold; -fx-cursor: hand; -fx-underline: true; -fx-font-size: 14px;" text="&lt; Back to Main Menu" BorderPane.alignment="TOP_LEFT">
-         <BorderPane.margin>
-            <Insets left="20.0" top="20.0" />
-         </BorderPane.margin>
-      </Button>
+      <BorderPane BorderPane.alignment="CENTER">
+         <padding><Insets left="20.0" right="20.0" top="15.0" bottom="5.0" /></padding>
+         <left>
+            <Button mnemonicParsing="false" onAction="#handleGoBack" styleClass="back-link" text="&lt; Back to Main Menu" />
+         </left>
+         <right>
+            <Button fx:id="themeBtn" mnemonicParsing="false" onAction="#handleToggleTheme" styleClass="theme-toggle" text="🌙 Dark Mode" />
+         </right>
+      </BorderPane>
    </top>
 
    <center>
       <VBox alignment="CENTER" maxWidth="500.0" spacing="20.0" BorderPane.alignment="CENTER">
          <children>
-            <Label style="-fx-text-fill: #2d3436;" text="Become a GoNature Subscriber">
-               <font>
-                  <Font name="Segoe UI Bold" size="24.0" />
-               </font>
+            <Label styleClass="title-label" text="Become a GoNature Subscriber">
+               <font><Font name="Segoe UI Bold" size="24.0" /></font>
             </Label>
-            
-            <VBox spacing="15.0" style="-fx-background-color: white; -fx-background-radius: 8; -fx-padding: 30; -fx-border-color: #dcdde1; -fx-border-radius: 8; -fx-border-width: 1; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.05), 5, 0, 0, 2);">
-               
+
+            <VBox spacing="15.0" styleClass="card" style="-fx-padding: 30;">
                <GridPane hgap="15.0" vgap="15.0">
-                  <Label text="ID Number:" GridPane.columnIndex="0" GridPane.rowIndex="0"><font><Font name="Segoe UI Bold" size="14.0" /></font></Label>
+                  <Label styleClass="body-label" text="ID Number:" GridPane.columnIndex="0" GridPane.rowIndex="0"><font><Font name="Segoe UI Bold" size="14.0" /></font></Label>
                   <TextField fx:id="txtId" promptText="Your ID" GridPane.columnIndex="1" GridPane.rowIndex="0" />
 
-                  <Label text="First Name:" GridPane.columnIndex="0" GridPane.rowIndex="1"><font><Font name="Segoe UI Bold" size="14.0" /></font></Label>
+                  <Label styleClass="body-label" text="First Name:" GridPane.columnIndex="0" GridPane.rowIndex="1"><font><Font name="Segoe UI Bold" size="14.0" /></font></Label>
                   <TextField fx:id="txtFirst" promptText="First Name" GridPane.columnIndex="1" GridPane.rowIndex="1" />
 
-                  <Label text="Last Name:" GridPane.columnIndex="0" GridPane.rowIndex="2"><font><Font name="Segoe UI Bold" size="14.0" /></font></Label>
+                  <Label styleClass="body-label" text="Last Name:" GridPane.columnIndex="0" GridPane.rowIndex="2"><font><Font name="Segoe UI Bold" size="14.0" /></font></Label>
                   <TextField fx:id="txtLast" promptText="Last Name" GridPane.columnIndex="1" GridPane.rowIndex="2" />
 
-                  <Label text="Email:" GridPane.columnIndex="0" GridPane.rowIndex="3"><font><Font name="Segoe UI Bold" size="14.0" /></font></Label>
+                  <Label styleClass="body-label" text="Email:" GridPane.columnIndex="0" GridPane.rowIndex="3"><font><Font name="Segoe UI Bold" size="14.0" /></font></Label>
                   <TextField fx:id="txtEmail" promptText="example@mail.com" GridPane.columnIndex="1" GridPane.rowIndex="3" />
 
-                  <Label text="Phone:" GridPane.columnIndex="0" GridPane.rowIndex="4"><font><Font name="Segoe UI Bold" size="14.0" /></font></Label>
+                  <Label styleClass="body-label" text="Phone:" GridPane.columnIndex="0" GridPane.rowIndex="4"><font><Font name="Segoe UI Bold" size="14.0" /></font></Label>
                   <TextField fx:id="txtPhone" promptText="05X-XXXXXXX" GridPane.columnIndex="1" GridPane.rowIndex="4" />
 
-                  <Label text="Credit Card:" GridPane.columnIndex="0" GridPane.rowIndex="5"><font><Font name="Segoe UI Bold" size="14.0" /></font></Label>
+                  <Label styleClass="body-label" text="Credit Card:" GridPane.columnIndex="0" GridPane.rowIndex="5"><font><Font name="Segoe UI Bold" size="14.0" /></font></Label>
                   <TextField fx:id="txtCard" promptText="Optional" GridPane.columnIndex="1" GridPane.rowIndex="5" />
-                  
-                  <Label text="Family Size:" GridPane.columnIndex="0" GridPane.rowIndex="6"><font><Font name="Segoe UI Bold" size="14.0" /></font></Label>
+
+                  <Label styleClass="body-label" text="Family Size:" GridPane.columnIndex="0" GridPane.rowIndex="6"><font><Font name="Segoe UI Bold" size="14.0" /></font></Label>
                   <TextField fx:id="txtFamilySize" promptText="Default: 1" GridPane.columnIndex="1" GridPane.rowIndex="6" />
                </GridPane>
 
@@ -60,7 +61,7 @@
 
                <Label fx:id="lblStatus" alignment="CENTER" maxWidth="Infinity" wrapText="true" />
 
-               <Button fx:id="btnRegister" maxWidth="Infinity" mnemonicParsing="false" onAction="#handleRegister" prefHeight="40.0" style="-fx-background-color: #0984e3; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 15px; -fx-cursor: hand; -fx-background-radius: 5;" text="Create Account" />
+               <Button fx:id="btnRegister" maxWidth="Infinity" mnemonicParsing="false" onAction="#handleRegister" prefHeight="40.0" styleClass="primary-btn" style="-fx-font-size: 15px;" text="Create Account" />
             </VBox>
          </children>
          <BorderPane.margin>

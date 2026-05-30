@@ -28,9 +28,11 @@ public class RegisterController {
     @FXML private CheckBox chkGuide;
     @FXML private Label lblStatus;
     @FXML private Button btnRegister;
+    @FXML private Button themeBtn;
 
     @FXML
     public void initialize() {
+        themeBtn.setText(ThemeManager.getInstance().toggleLabel());
         try {
             // Safely create the connection if it doesn't exist, and set the listener
             ChatClient.getInstance("127.0.0.1", 5555, this::handleServerResponse);
@@ -39,6 +41,13 @@ public class RegisterController {
             btnRegister.setDisable(true);
             e.printStackTrace();
         }
+    }
+
+    @FXML
+    void handleToggleTheme(ActionEvent event) {
+        javafx.scene.Scene scene = ((javafx.scene.Node) event.getSource()).getScene();
+        ThemeManager.getInstance().toggle(scene);
+        themeBtn.setText(ThemeManager.getInstance().toggleLabel());
     }
 
     @FXML

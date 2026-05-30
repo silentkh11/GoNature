@@ -15,7 +15,20 @@ public class MainMenuController {
     @FXML private Button guestBtn;
     @FXML private Button loginBtn;
     @FXML private Button registerBtn;
-    @FXML private Button manageOrdersBtn; // <-- 1. Added the new button variable
+    @FXML private Button manageOrdersBtn;
+    @FXML private Button themeBtn;
+
+    @FXML
+    public void initialize() {
+        themeBtn.setText(ThemeManager.getInstance().toggleLabel());
+    }
+
+    @FXML
+    void handleToggleTheme(ActionEvent event) {
+        Scene scene = ((Node) event.getSource()).getScene();
+        ThemeManager.getInstance().toggle(scene);
+        themeBtn.setText(ThemeManager.getInstance().toggleLabel());
+    }
 
     @FXML
     void handleGuestBooking(ActionEvent event) {

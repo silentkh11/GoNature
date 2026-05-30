@@ -7,6 +7,8 @@ import entities.Park;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.scene.Node;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 
@@ -24,14 +26,22 @@ public class ParkManagerController {
     @FXML private TextField txtNewEstStay;
     
     @FXML private Label lblStatus;
+    @FXML private Button themeBtn;
 
     private Employee currentUser;
     private Park currentPark;
 
     @FXML
     public void initialize() {
-        // Route network responses to this screen
+        themeBtn.setText(ThemeManager.getInstance().toggleLabel());
         ChatClient.getInstance().setResponseHandler(this::handleServerResponse);
+    }
+
+    @FXML
+    void handleToggleTheme(ActionEvent event) {
+        javafx.scene.Scene scene = ((Node) event.getSource()).getScene();
+        ThemeManager.getInstance().toggle(scene);
+        themeBtn.setText(ThemeManager.getInstance().toggleLabel());
     }
 
     /**

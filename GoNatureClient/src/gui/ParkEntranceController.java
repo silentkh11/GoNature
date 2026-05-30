@@ -5,6 +5,7 @@ import entities.Message;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
@@ -13,12 +14,20 @@ public class ParkEntranceController {
 
     @FXML private TextField txtOrderId;
     @FXML private Button btnAdmit;
+    @FXML private Button themeBtn;
     @FXML private Label lblStatus;
 
     @FXML
     public void initialize() {
-        // Route incoming network responses to this specific screen
+        themeBtn.setText(ThemeManager.getInstance().toggleLabel());
         ChatClient.getInstance().setResponseHandler(this::handleServerResponse);
+    }
+
+    @FXML
+    void handleToggleTheme(ActionEvent event) {
+        javafx.scene.Scene scene = ((Node) event.getSource()).getScene();
+        ThemeManager.getInstance().toggle(scene);
+        themeBtn.setText(ThemeManager.getInstance().toggleLabel());
     }
 
     @FXML

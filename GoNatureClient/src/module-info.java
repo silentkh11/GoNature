@@ -3,7 +3,8 @@ module GoNatureClient {
     requires javafx.controls;
     requires javafx.graphics;
     requires javafx.fxml;
-    requires java.sql; 
+    requires java.sql;
+    requires java.prefs;
 
     // Exports & Opens for the GUI
     exports client; 

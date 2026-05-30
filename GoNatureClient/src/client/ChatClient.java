@@ -31,10 +31,11 @@ public class ChatClient extends AbstractClient {
      * Called by the FIRST screen (Login) to initialize the connection.
      */
     public static ChatClient getInstance(String host, int port, Consumer<Message> handler) throws IOException {
-        if (instance == null) {
+        if (instance == null || !instance.isConnected()) {
+            // Create a fresh connection — handles first-time setup AND reconnection
+            // after the server was not running when the screen first opened.
             instance = new ChatClient(host, port, handler);
         } else {
-            // If already connected, just update the handler
             instance.setResponseHandler(handler);
         }
         return instance;

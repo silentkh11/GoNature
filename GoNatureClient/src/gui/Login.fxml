@@ -8,56 +8,48 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
 
-<BorderPane prefHeight="650.0" prefWidth="850.0" style="-fx-background-color: #f5f6fa;" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="gui.LoginController">
-   
+<BorderPane prefHeight="650.0" prefWidth="850.0" styleClass="page-root" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="gui.LoginController">
+
    <top>
-      <!-- The Back Button in the top left -->
-      <Button mnemonicParsing="false" onAction="#handleGoBack" style="-fx-background-color: transparent; -fx-text-fill: #636e72; -fx-font-weight: bold; -fx-cursor: hand; -fx-underline: true; -fx-font-size: 14px;" text="&lt; Back to Main Menu" BorderPane.alignment="TOP_LEFT">
-         <BorderPane.margin>
-            <Insets left="20.0" top="20.0" />
-         </BorderPane.margin>
-      </Button>
+      <BorderPane BorderPane.alignment="CENTER">
+         <padding><Insets left="20.0" right="20.0" top="15.0" bottom="5.0" /></padding>
+         <left>
+            <Button mnemonicParsing="false" onAction="#handleGoBack" styleClass="back-link" text="&lt; Back to Main Menu" />
+         </left>
+         <right>
+            <Button fx:id="themeBtn" mnemonicParsing="false" onAction="#handleToggleTheme" styleClass="theme-toggle" text="🌙 Dark Mode" />
+         </right>
+      </BorderPane>
    </top>
 
    <center>
-      <!-- The Login Card constrained to exactly 400px wide -->
       <VBox alignment="CENTER" maxWidth="400.0" maxHeight="450.0" spacing="20.0" BorderPane.alignment="CENTER">
          <children>
-            <Label style="-fx-text-fill: #2d3436;" text="GoNature Portal">
+            <Label styleClass="title-label" text="GoNature Portal">
                <font>
                   <Font name="Segoe UI Bold" size="26.0" />
                </font>
             </Label>
-            
-            <VBox spacing="15.0" style="-fx-background-color: white; -fx-background-radius: 8; -fx-border-color: #dcdde1; -fx-border-radius: 8; -fx-border-width: 1; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.05), 5, 0, 0, 2);">
-               <padding>
-                  <Insets bottom="25.0" left="25.0" right="25.0" top="25.0" />
-               </padding>
-               
+
+            <VBox spacing="15.0" styleClass="card" style="-fx-padding: 25;">
                <VBox spacing="5.0">
-                  <Label text="Username">
-                     <font>
-                        <Font name="Segoe UI Bold" size="14.0" />
-                     </font>
+                  <Label styleClass="body-label" text="Username">
+                     <font><Font name="Segoe UI Bold" size="14.0" /></font>
                   </Label>
-                  <TextField fx:id="usernameField" promptText="Enter username..." style="-fx-padding: 10; -fx-background-radius: 5; -fx-border-color: #b2bec3; -fx-border-radius: 5; -fx-font-size: 14px;" />
+                  <TextField fx:id="usernameField" promptText="Enter username..." style="-fx-padding: 10; -fx-font-size: 14px;" />
                </VBox>
-               
+
                <VBox spacing="5.0">
-                  <Label text="Password">
-                     <font>
-                        <Font name="Segoe UI Bold" size="14.0" />
-                     </font>
+                  <Label styleClass="body-label" text="Password">
+                     <font><Font name="Segoe UI Bold" size="14.0" /></font>
                   </Label>
-                  <PasswordField fx:id="passwordField" promptText="Enter password..." style="-fx-padding: 10; -fx-background-radius: 5; -fx-border-color: #b2bec3; -fx-border-radius: 5; -fx-font-size: 14px;" />
+                  <PasswordField fx:id="passwordField" promptText="Enter password..." style="-fx-padding: 10; -fx-font-size: 14px;" />
                </VBox>
-               
+
                <Label fx:id="errorLabel" style="-fx-text-fill: #d63031; -fx-font-weight: bold;" text="Error message here" visible="false" wrapText="true" />
-               
-               <Button fx:id="loginBtn" maxWidth="Infinity" mnemonicParsing="false" onAction="#handleLogin" style="-fx-background-color: #0984e3; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 15px; -fx-padding: 12; -fx-background-radius: 5; -fx-cursor: hand;" text="Login">
-                  <VBox.margin>
-                     <Insets top="10.0" />
-                  </VBox.margin>
+
+               <Button fx:id="loginBtn" maxWidth="Infinity" mnemonicParsing="false" onAction="#handleLogin" styleClass="primary-btn" style="-fx-font-size: 15px; -fx-padding: 12;" text="Login">
+                  <VBox.margin><Insets top="10.0" /></VBox.margin>
                </Button>
             </VBox>
          </children>

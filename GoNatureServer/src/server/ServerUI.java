@@ -19,6 +19,7 @@ public class ServerUI extends Application {
         Parent root = FXMLLoader.load(getClass().getResource("/gui/ServerPort.fxml"));
         
         Scene scene = new Scene(root, 850, 550);
+        gui.ThemeManager.getInstance().applyTo(scene);
         primaryStage.setTitle("GoNature Server Configuration");
         
         // --- ADD THIS BLOCK ---
