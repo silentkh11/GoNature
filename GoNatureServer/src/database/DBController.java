@@ -85,47 +85,109 @@ public class DBController {
         }
         return null;
     }
+    /**
+     * Checks if the visitor already has an active booking for this park on the requested date.
+     * Prevents ticket hoarding and duplicate time slots.
+     */
+    public static boolean hasDuplicateBooking(entities.VisitOrder order) {
+        // We look for active orders on the same date for the same park by the same ID
+        String query = "SELECT order_id FROM visit_order WHERE visitor_id = ? AND park_id = ? AND visit_date = ? AND status IN ('Confirmed', 'Waitlisted', 'In Park')";
+        
+        try (Connection conn = getInstance().getConnection();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+             
+            stmt.setString(1, order.getVisitorId());
+            stmt.setInt(2, order.getParkId());
+            stmt.setString(3, order.getVisitDate());
+            
+            try (ResultSet rs = stmt.executeQuery()) {
+                // If rs.next() is true, it means we found an existing active order!
+                return rs.next(); 
+            }
+        } catch (SQLException e) {
+            System.err.println("Database error during duplicate check: " + e.getMessage());
+        }
+        return false;
+    }
 
  // =========================================================================
-    // --- 2. BOOKING ---
+    // --- 2. BOOKING (WITH AUTOMATED CAPACITY ENGINE) ---
     // =========================================================================
     public static entities.VisitOrder processNewOrder(entities.VisitOrder order) {
         
-        // 1. THE FIX: Create a "Ghost Profile" for unregistered guests so the Foreign Key doesn't crash!
-        // INSERT IGNORE ensures that if they are already a registered subscriber, it leaves their real profile alone.
+        // 1. Ensure "Ghost Profile" exists so the Foreign Key doesn't crash
         String ensureVisitorQuery = "INSERT IGNORE INTO visitor (visitor_id, first_name, last_name, email, phone, visitor_type) VALUES (?, 'Guest', 'Visitor', 'Not Provided', 'Not Provided', 'Regular')";
-        
         try (Connection conn = getInstance().getConnection();
              PreparedStatement visitorStmt = conn.prepareStatement(ensureVisitorQuery)) {
-             
             visitorStmt.setString(1, order.getVisitorId());
             visitorStmt.executeUpdate(); 
-            
         } catch (SQLException e) {
             System.err.println("Database Error: Could not create temporary visitor profile - " + e.getMessage());
-            return null; // Stop if we can't satisfy the database constraint
+            return null; 
         }
 
-        // 2. Now that the parent profile is guaranteed to exist, insert the actual order
-        String query = "INSERT INTO visit_order (park_id, visitor_id, visit_date, visit_time, visitor_count, order_type, status) VALUES (?, ?, ?, ?, ?, ?, ?)";
-        try (Connection conn = getInstance().getConnection();
-             PreparedStatement stmt = conn.prepareStatement(query, Statement.RETURN_GENERATED_KEYS)) {
-             
-            stmt.setInt(1, order.getParkId());
-            stmt.setString(2, order.getVisitorId());
-            stmt.setString(3, order.getVisitDate());
-            stmt.setString(4, order.getVisitTime());
-            stmt.setInt(5, order.getVisitorCount());
-            stmt.setString(6, order.getOrderType());
-            stmt.setString(7, "Confirmed"); // For now, defaulting to Confirmed
+        // 2. CHECK AVAILABILITY MATH
+        int maxCapacity = 0;
+        int casualGap = 0;
+        int currentBooked = 0;
+
+        try (Connection conn = getInstance().getConnection()) {
             
-            stmt.executeUpdate();
+            // A. Get Park Limits
+            String parkQuery = "SELECT max_capacity, casual_gap FROM park WHERE park_id = ?";
+            try (PreparedStatement parkStmt = conn.prepareStatement(parkQuery)) {
+                parkStmt.setInt(1, order.getParkId());
+                try (ResultSet rs = parkStmt.executeQuery()) {
+                    if (rs.next()) {
+                        maxCapacity = rs.getInt("max_capacity");
+                        casualGap = rs.getInt("casual_gap");
+                    }
+                }
+            }
+
+            // B. Get current sum of visitors already booked for this exact date and time
+            String sumQuery = "SELECT SUM(visitor_count) AS total_visitors FROM visit_order WHERE park_id = ? AND visit_date = ? AND visit_time = ? AND status IN ('Confirmed', 'In Park')";
+            try (PreparedStatement sumStmt = conn.prepareStatement(sumQuery)) {
+                sumStmt.setInt(1, order.getParkId());
+                sumStmt.setString(2, order.getVisitDate());
+                sumStmt.setString(3, order.getVisitTime());
+                try (ResultSet rs = sumStmt.executeQuery()) {
+                    if (rs.next()) {
+                        currentBooked = rs.getInt("total_visitors");
+                    }
+                }
+            }
+
+            // C. The Capacity Algorithm
+            // Pre-orders are only allowed to fill the park up to the Max Capacity minus the space saved for casual walk-ins.
+            int availableForPreorder = maxCapacity - casualGap;
+            String assignedStatus = "Confirmed";
             
-            try (ResultSet generatedKeys = stmt.getGeneratedKeys()) {
-                if (generatedKeys.next()) {
-                    order.setOrderId(generatedKeys.getInt(1));
-                    order.setStatus("Confirmed");
-                    return order;
+            if ((currentBooked + order.getVisitorCount()) > availableForPreorder) {
+                assignedStatus = "Waitlisted"; // The park is full for this time slot!
+            }
+
+            // 3. Insert the Order with the perfectly calculated status
+            String insertQuery = "INSERT INTO visit_order (park_id, visitor_id, visit_date, visit_time, visitor_count, order_type, status) VALUES (?, ?, ?, ?, ?, ?, ?)";
+            try (PreparedStatement insertStmt = conn.prepareStatement(insertQuery, java.sql.Statement.RETURN_GENERATED_KEYS)) {
+                
+                insertStmt.setInt(1, order.getParkId());
+                insertStmt.setString(2, order.getVisitorId());
+                insertStmt.setString(3, order.getVisitDate());
+                insertStmt.setString(4, order.getVisitTime());
+                insertStmt.setInt(5, order.getVisitorCount());
+                insertStmt.setString(6, order.getOrderType());
+                insertStmt.setString(7, assignedStatus); 
+                
+                insertStmt.executeUpdate();
+                
+                // Return the order to the client with its new ID and calculated Status
+                try (ResultSet generatedKeys = insertStmt.getGeneratedKeys()) {
+                    if (generatedKeys.next()) {
+                        order.setOrderId(generatedKeys.getInt(1));
+                        order.setStatus(assignedStatus);
+                        return order;
+                    }
                 }
             }
         } catch (SQLException e) {
@@ -133,7 +195,6 @@ public class DBController {
         }
         return null;
     }
-
     // =========================================================================
     // --- 3. GATE ENTRY ---
     // =========================================================================

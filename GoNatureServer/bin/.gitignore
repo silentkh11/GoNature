@@ -1,6 +1,3 @@
-/database/
 /entities/
-/gui/
-/module-info.class
-/ocsf/
+/database/
 /server/

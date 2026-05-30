@@ -55,10 +55,19 @@ public class EchoServer extends AbstractServer {
                 }
 
                 // =========================================================================
-                // --- 2. VISITOR BOOKING ROUTING ---
+                // --- 2. VISITOR BOOKING ROUTING (WITH DUPLICATE SHIELD) ---
                 // =========================================================================
                 else if (request.getCommand().equals("NEW_ORDER_REQUEST")) {
                     entities.VisitOrder newOrder = (entities.VisitOrder) request.getData();
+                    
+                    // 1. THE DUPLICATE SHIELD: Check if they already have a booking for this day
+                    if (DBController.hasDuplicateBooking(newOrder)) {
+                        uiLogger.accept("> Rejected duplicate booking attempt for ID: " + newOrder.getVisitorId() + "\n");
+                        client.sendToClient(new Message("ORDER_FAILED", "You already have an active reservation for this park on this date."));
+                        return; // Stop the code here! Do not proceed to process the order.
+                    }
+
+                    // 2. Process through the Capacity Engine
                     entities.VisitOrder processedOrder = DBController.processNewOrder(newOrder);
                     
                     if (processedOrder != null) {
@@ -180,7 +189,7 @@ public class EchoServer extends AbstractServer {
                         client.sendToClient(new Message("CANCEL_FAILED", "Failed to cancel Order #" + orderIdToCancel + "."));
                     }
                 }
-                
+
                 // =========================================================================
                 // --- UNKNOWN COMMAND FALLBACK ---
                 // =========================================================================
@@ -196,6 +205,10 @@ public class EchoServer extends AbstractServer {
         }
     }
 
+    // =========================================================================
+    // --- SERVER LIFECYCLE HOOKS ---
+    // =========================================================================
+
     @Override
     protected void serverStarted() {
         uiLogger.accept("> Server listening for connections on port " + getPort() + "\n");
@@ -204,6 +217,7 @@ public class EchoServer extends AbstractServer {
     @Override
     protected void serverStopped() {
         uiLogger.accept("> Server has stopped listening for connections.\n");
+        // Cleanly shut down HikariCP when you hit the 'Stop' button!
         DBController.getInstance().closePool();
     }
     
