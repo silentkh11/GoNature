@@ -12,31 +12,25 @@ import javafx.scene.control.TextField;
 
 public class LoginController {
 
-	@FXML
-	private TextField usernameField;
-	@FXML
-	private PasswordField passwordField;
-	@FXML
-	private Button loginBtn;
-	@FXML
-	private Label errorLabel;
+	@FXML private TextField usernameField;
+	@FXML private PasswordField passwordField;
+	@FXML private Button loginBtn;
+	@FXML private Label errorLabel;
+	@FXML private Button themeBtn;
 
 	@FXML
 	public void initialize() {
-		try {
-			// 1. Connect to the server immediately when the login screen opens.
-			// (Assuming server is running on the same machine for now: "localhost")
-			client.ChatClient.getInstance("127.0.0.1", 5555, (Message msg) -> {
-				// We don't need Platform.runLater here because handleServerResponse
-				// already has it built-in from our previous code!
-				handleServerResponse(msg);
-			});
-			System.out.println("Connected to GoNature Server.");
-		} catch (Exception e) {
-			showError("Cannot connect to server at 127.0.0.1:5555");
-			loginBtn.setDisable(true);
-			e.printStackTrace();
-		}
+		themeBtn.setText(ThemeManager.getInstance().toggleLabel());
+		// Connection is attempted lazily on Login click, not here.
+		// This lets the user open the screen, start the server, then login
+		// without having to navigate away and back.
+	}
+
+	@FXML
+	void handleToggleTheme(ActionEvent event) {
+		javafx.scene.Scene scene = ((javafx.scene.Node) event.getSource()).getScene();
+		ThemeManager.getInstance().toggle(scene);
+		themeBtn.setText(ThemeManager.getInstance().toggleLabel());
 	}
 
 	@FXML
@@ -44,28 +38,33 @@ public class LoginController {
 		String username = usernameField.getText().trim();
 		String password = passwordField.getText().trim();
 
-		// 1. Basic empty field validation
 		if (username.isEmpty() || password.isEmpty()) {
 			showError("Please enter both username and password.");
 			return;
 		}
 
-		// 2. Prepare UI for loading
 		errorLabel.setVisible(false);
 		loginBtn.setDisable(true);
+		loginBtn.setText("Connecting...");
+
+		// Connect (or reconnect) here — handles the case where the server
+		// wasn't running when this screen opened.
+		try {
+			ChatClient.getInstance("127.0.0.1", 5555, this::handleServerResponse);
+		} catch (Exception e) {
+			showError("Cannot reach server. Please make sure it is running.");
+			resetLoginButton();
+			return;
+		}
+
 		loginBtn.setText("Authenticating...");
 
-		// 3. Package and send the network request
 		String[] credentials = { username, password };
-		Message loginMessage = new Message("LOGIN_REQUEST", credentials);
-
 		try {
-			// Assuming your ChatClient has a standard way to send messages to the server
-			ChatClient.getInstance().handleMessageFromClientUI(loginMessage);
+			ChatClient.getInstance().handleMessageFromClientUI(new Message("LOGIN_REQUEST", credentials));
 		} catch (Exception e) {
-			showError("Cannot connect to server. Is it running?");
+			showError("Connection lost while sending. Try again.");
 			resetLoginButton();
-			e.printStackTrace();
 		}
 	}
 	

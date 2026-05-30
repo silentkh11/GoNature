@@ -5,42 +5,46 @@
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.TextField?>
 <?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
 
-<VBox alignment="CENTER" prefHeight="650.0" prefWidth="700.0" spacing="20.0" style="-fx-background-color: #f5f6fa;" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="gui.ServiceRepController">
+<VBox alignment="CENTER" prefHeight="650.0" prefWidth="700.0" spacing="20.0" styleClass="page-root" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="gui.ServiceRepController">
    <padding>
-      <Insets bottom="30.0" left="50.0" right="50.0" top="30.0" />
+      <Insets bottom="30.0" left="50.0" right="50.0" top="20.0" />
    </padding>
 
-   <Label style="-fx-text-fill: #2d3436;" text="New Subscriber Registration">
-      <font>
-         <Font name="Segoe UI Bold" size="28.0" />
-      </font>
+   <HBox alignment="CENTER_RIGHT">
+      <Button fx:id="themeBtn" mnemonicParsing="false" onAction="#handleToggleTheme" styleClass="theme-toggle" text="🌙 Dark Mode" />
+      <VBox.margin><Insets bottom="5.0" /></VBox.margin>
+   </HBox>
+
+   <Label styleClass="title-label" text="New Subscriber Registration">
+      <font><Font name="Segoe UI Bold" size="28.0" /></font>
    </Label>
 
-   <VBox spacing="15.0" style="-fx-background-color: white; -fx-background-radius: 8; -fx-padding: 30; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.05), 5, 0, 0, 2);">
-      
+   <VBox spacing="15.0" styleClass="card" style="-fx-padding: 30;">
+
       <GridPane vgap="15.0" hgap="20.0">
-         <Label text="Visitor ID Card:" GridPane.rowIndex="0" GridPane.columnIndex="0"><font><Font name="Segoe UI Bold" size="14.0" /></font></Label>
+         <Label styleClass="body-label" text="Visitor ID Card:" GridPane.rowIndex="0" GridPane.columnIndex="0"><font><Font name="Segoe UI Bold" size="14.0" /></font></Label>
          <TextField fx:id="txtId" promptText="e.g. 123456789" GridPane.rowIndex="0" GridPane.columnIndex="1" />
-         
-         <Label text="First Name:" GridPane.rowIndex="1" GridPane.columnIndex="0"><font><Font name="Segoe UI Bold" size="14.0" /></font></Label>
+
+         <Label styleClass="body-label" text="First Name:" GridPane.rowIndex="1" GridPane.columnIndex="0"><font><Font name="Segoe UI Bold" size="14.0" /></font></Label>
          <TextField fx:id="txtFirst" GridPane.rowIndex="1" GridPane.columnIndex="1" />
-         
-         <Label text="Last Name:" GridPane.rowIndex="2" GridPane.columnIndex="0"><font><Font name="Segoe UI Bold" size="14.0" /></font></Label>
+
+         <Label styleClass="body-label" text="Last Name:" GridPane.rowIndex="2" GridPane.columnIndex="0"><font><Font name="Segoe UI Bold" size="14.0" /></font></Label>
          <TextField fx:id="txtLast" GridPane.rowIndex="2" GridPane.columnIndex="1" />
-         
-         <Label text="Email Address:" GridPane.rowIndex="3" GridPane.columnIndex="0"><font><Font name="Segoe UI Bold" size="14.0" /></font></Label>
+
+         <Label styleClass="body-label" text="Email Address:" GridPane.rowIndex="3" GridPane.columnIndex="0"><font><Font name="Segoe UI Bold" size="14.0" /></font></Label>
          <TextField fx:id="txtEmail" promptText="required@gonature.co.il" GridPane.rowIndex="3" GridPane.columnIndex="1" />
-         
-         <Label text="Phone Number:" GridPane.rowIndex="4" GridPane.columnIndex="0"><font><Font name="Segoe UI Bold" size="14.0" /></font></Label>
+
+         <Label styleClass="body-label" text="Phone Number:" GridPane.rowIndex="4" GridPane.columnIndex="0"><font><Font name="Segoe UI Bold" size="14.0" /></font></Label>
          <TextField fx:id="txtPhone" GridPane.rowIndex="4" GridPane.columnIndex="1" />
 
-         <Label text="Credit Card:" GridPane.rowIndex="5" GridPane.columnIndex="0"><font><Font name="Segoe UI Bold" size="14.0" /></font></Label>
+         <Label styleClass="body-label" text="Credit Card:" GridPane.rowIndex="5" GridPane.columnIndex="0"><font><Font name="Segoe UI Bold" size="14.0" /></font></Label>
          <TextField fx:id="txtCard" promptText="0000-0000-0000-0000" GridPane.rowIndex="5" GridPane.columnIndex="1" />
-         
-         <Label text="Family Size:" GridPane.rowIndex="6" GridPane.columnIndex="0"><font><Font name="Segoe UI Bold" size="14.0" /></font></Label>
+
+         <Label styleClass="body-label" text="Family Size:" GridPane.rowIndex="6" GridPane.columnIndex="0"><font><Font name="Segoe UI Bold" size="14.0" /></font></Label>
          <TextField fx:id="txtFamilySize" promptText="1" GridPane.rowIndex="6" GridPane.columnIndex="1" />
       </GridPane>
 
@@ -49,7 +53,7 @@
          <VBox.margin><Insets top="10.0" bottom="10.0"/></VBox.margin>
       </CheckBox>
 
-      <Button mnemonicParsing="false" onAction="#handleRegister" prefHeight="45.0" maxWidth="Infinity" style="-fx-background-color: #0984e3; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 16px; -fx-cursor: hand; -fx-background-radius: 5;" text="Create Subscriber Profile" />
+      <Button mnemonicParsing="false" onAction="#handleRegister" prefHeight="45.0" maxWidth="Infinity" styleClass="primary-btn" style="-fx-font-size: 16px;" text="Create Subscriber Profile" />
    </VBox>
 
    <Label fx:id="lblStatus" alignment="CENTER" maxWidth="Infinity" wrapText="true">

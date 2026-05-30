@@ -32,12 +32,14 @@ public class GuestPortalController {
     @FXML private TableColumn<VisitOrder, Integer> colVisitors;
     @FXML private TableColumn<VisitOrder, String> colStatus;
     @FXML private Button btnCancelOrder;
+    @FXML private Button themeBtn;
     @FXML private Label lblStatus;
 
     private String currentSearchedId = "";
 
     @FXML
     public void initialize() {
+        themeBtn.setText(ThemeManager.getInstance().toggleLabel());
         // Link columns to VisitOrder entity properties
         colOrderId.setCellValueFactory(new PropertyValueFactory<>("orderId"));
         colParkId.setCellValueFactory(new PropertyValueFactory<>("parkId"));
@@ -57,6 +59,13 @@ public class GuestPortalController {
             showStatus("Error: Cannot connect to the server.", "#d63031");
             e.printStackTrace();
         }
+    }
+
+    @FXML
+    void handleToggleTheme(ActionEvent event) {
+        javafx.scene.Scene scene = ((javafx.scene.Node) event.getSource()).getScene();
+        ThemeManager.getInstance().toggle(scene);
+        themeBtn.setText(ThemeManager.getInstance().toggleLabel());
     }
 
     @FXML

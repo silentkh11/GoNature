@@ -23,9 +23,11 @@ public class CreateOrderController {
     @FXML private ComboBox<String> typeCombo;
     @FXML private Label statusLabel;
     @FXML private Button submitBtn;
+    @FXML private Button themeBtn;
 
     @FXML
     public void initialize() {
+        themeBtn.setText(ThemeManager.getInstance().toggleLabel());
         try {
             // Safely create the connection if it doesn't exist, and set the listener
             ChatClient.getInstance("127.0.0.1", 5555, this::handleServerResponse);
@@ -39,6 +41,13 @@ public class CreateOrderController {
         parkCombo.getItems().addAll("1 - Carmel National Park"); 
         timeCombo.getItems().addAll("08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00");
         typeCombo.getItems().addAll("Solo", "Family", "Group");
+    }
+
+    @FXML
+    void handleToggleTheme(ActionEvent event) {
+        javafx.scene.Scene scene = ((javafx.scene.Node) event.getSource()).getScene();
+        ThemeManager.getInstance().toggle(scene);
+        themeBtn.setText(ThemeManager.getInstance().toggleLabel());
     }
 
     @FXML

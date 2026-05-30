@@ -8,6 +8,7 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TableColumn;
@@ -26,10 +27,12 @@ public class DeptManagerController {
     
     @FXML private Button btnApprove;
     @FXML private Button btnDeny;
+    @FXML private Button themeBtn;
     @FXML private Label lblStatus;
 
     @FXML
     public void initialize() {
+        themeBtn.setText(ThemeManager.getInstance().toggleLabel());
         // 1. Link the columns to the variables inside your ParameterRequest.java file
         colReqId.setCellValueFactory(new PropertyValueFactory<>("requestId"));
         colPark.setCellValueFactory(new PropertyValueFactory<>("parkName"));
@@ -42,6 +45,13 @@ public class DeptManagerController {
         
         // 3. Immediately ask the Server for the pending requests when the screen opens
         ChatClient.getInstance().handleMessageFromClientUI(new Message("FETCH_PENDING_REQUESTS", null));
+    }
+
+    @FXML
+    void handleToggleTheme(ActionEvent event) {
+        javafx.scene.Scene scene = ((Node) event.getSource()).getScene();
+        ThemeManager.getInstance().toggle(scene);
+        themeBtn.setText(ThemeManager.getInstance().toggleLabel());
     }
 
     @FXML
