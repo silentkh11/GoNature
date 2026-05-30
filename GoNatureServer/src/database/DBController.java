@@ -2,34 +2,26 @@ package database;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
-import entities.Employee;
-import entities.Park;
-import entities.VisitOrder;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
 
+/**
+ * Singleton class managing all database transactions using HikariCP for connection pooling.
+ */
 public class DBController {
 
-    // Singleton Instance
     private static DBController instance;
-    
-    // HikariCP Connection Pool
     private HikariDataSource dataSource;
 
-    /**
-     * Private constructor to initialize the database connection pool.
-     */
     private DBController() {
         initPool();
     }
 
-    /**
-     * Retrieves the single active instance of the DBController.
-     */
     public static synchronized DBController getInstance() {
         if (instance == null) {
             instance = new DBController();
@@ -37,98 +29,155 @@ public class DBController {
         return instance;
     }
 
-    /**
-     * Initializes the HikariCP connection pool with your exact MySQL configurations.
-     */
     private void initPool() {
-        HikariConfig config = new HikariConfig();
-        
-        // Your exact localized JDBC URL
-        config.setJdbcUrl("jdbc:mysql://localhost:3306/gonature_db?allowLoadLocalInfile=true&serverTimezone=Asia/Jerusalem&useSSL=false&allowPublicKeyRetrieval=true");
-        
-        // TODO: Ensure your local MySQL username and password match these!
-        config.setUsername("root"); 
-        config.setPassword("root"); // Change this to your actual MySQL root password
-        
-        config.setMaximumPoolSize(10);
-        config.setMinimumIdle(2);
-        config.setIdleTimeout(30000);
-        config.setConnectionTimeout(10000);
+        try {
+            HikariConfig config = new HikariConfig();
+            // Note the updated URL to bypass MySQL 8 security restrictions
+            config.setJdbcUrl("jdbc:mysql://localhost:3306/gonature_db?allowLoadLocalInfile=true&serverTimezone=Asia/Jerusalem&useSSL=false&allowPublicKeyRetrieval=true");
+            config.setUsername("root");
+            config.setPassword("root"); // Adjust to your local MySQL password
+            
+            config.setMaximumPoolSize(10);
+            config.setMinimumIdle(2);
+            config.setIdleTimeout(30000);
+            config.setConnectionTimeout(10000);
 
-        dataSource = new HikariDataSource(config);
-        System.out.println("Database connection pool initialized successfully.");
+            dataSource = new HikariDataSource(config);
+            System.out.println("Database connection pool initialized successfully.");
+        } catch (Exception e) {
+            System.err.println("Failed to initialize database pool: " + e.getMessage());
+        }
     }
 
-    /**
-     * Grabs a connection from the pool. Use this in a try-with-resources block.
-     */
     public Connection getConnection() throws SQLException {
         return dataSource.getConnection();
     }
-    
-    /**
-     * Closes the HikariCP connection pool cleanly.
-     * Call this when the server is shutting down.
-     */
+
     public void closePool() {
         if (dataSource != null && !dataSource.isClosed()) {
             dataSource.close();
-            System.out.println("Database connection pool closed successfully.");
         }
     }
 
     // =========================================================================
-    // --- 1. LOGIN & AUTHENTICATION ---
+    // --- 1. LOGIN ---
     // =========================================================================
-
-    /**
-     * Verifies an employee's login credentials and returns their profile.
-     */
-    public static Employee verifyLogin(String username, String password) {
+    public static entities.Employee verifyLogin(String username, String password) {
         String query = "SELECT * FROM employee WHERE username = ? AND password = ?";
         try (Connection conn = getInstance().getConnection();
              PreparedStatement stmt = conn.prepareStatement(query)) {
-             
             stmt.setString(1, username);
             stmt.setString(2, password);
-            
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
-                    return new Employee(
+                    return new entities.Employee(
                         rs.getInt("employee_id"),
                         rs.getString("first_name"),
                         rs.getString("last_name"),
                         rs.getString("email"),
                         rs.getString("role"),
-                        rs.getInt("park_id"),
-                        rs.getString("username"),
-                        rs.getString("password")
+                        rs.getInt("park_id") == 0 ? null : rs.getInt("park_id")
                     );
                 }
             }
         } catch (SQLException e) {
-            System.err.println("Database Error during Login:");
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+ // =========================================================================
+    // --- 2. BOOKING ---
+    // =========================================================================
+    public static entities.VisitOrder processNewOrder(entities.VisitOrder order) {
+        
+        // 1. THE FIX: Create a "Ghost Profile" for unregistered guests so the Foreign Key doesn't crash!
+        // INSERT IGNORE ensures that if they are already a registered subscriber, it leaves their real profile alone.
+        String ensureVisitorQuery = "INSERT IGNORE INTO visitor (visitor_id, first_name, last_name, email, phone, visitor_type) VALUES (?, 'Guest', 'Visitor', 'Not Provided', 'Not Provided', 'Regular')";
+        
+        try (Connection conn = getInstance().getConnection();
+             PreparedStatement visitorStmt = conn.prepareStatement(ensureVisitorQuery)) {
+             
+            visitorStmt.setString(1, order.getVisitorId());
+            visitorStmt.executeUpdate(); 
+            
+        } catch (SQLException e) {
+            System.err.println("Database Error: Could not create temporary visitor profile - " + e.getMessage());
+            return null; // Stop if we can't satisfy the database constraint
+        }
+
+        // 2. Now that the parent profile is guaranteed to exist, insert the actual order
+        String query = "INSERT INTO visit_order (park_id, visitor_id, visit_date, visit_time, visitor_count, order_type, status) VALUES (?, ?, ?, ?, ?, ?, ?)";
+        try (Connection conn = getInstance().getConnection();
+             PreparedStatement stmt = conn.prepareStatement(query, Statement.RETURN_GENERATED_KEYS)) {
+             
+            stmt.setInt(1, order.getParkId());
+            stmt.setString(2, order.getVisitorId());
+            stmt.setString(3, order.getVisitDate());
+            stmt.setString(4, order.getVisitTime());
+            stmt.setInt(5, order.getVisitorCount());
+            stmt.setString(6, order.getOrderType());
+            stmt.setString(7, "Confirmed"); // For now, defaulting to Confirmed
+            
+            stmt.executeUpdate();
+            
+            try (ResultSet generatedKeys = stmt.getGeneratedKeys()) {
+                if (generatedKeys.next()) {
+                    order.setOrderId(generatedKeys.getInt(1));
+                    order.setStatus("Confirmed");
+                    return order;
+                }
+            }
+        } catch (SQLException e) {
             e.printStackTrace();
         }
         return null;
     }
 
     // =========================================================================
-    // --- 2. PARK PARAMETER MANAGEMENT ---
+    // --- 3. GATE ENTRY ---
     // =========================================================================
+    public static String processParkEntry(int orderId) {
+        String selectQuery = "SELECT status FROM visit_order WHERE order_id = ?";
+        String updateQuery = "UPDATE visit_order SET status = 'In Park' WHERE order_id = ?";
+        
+        try (Connection conn = getInstance().getConnection()) {
+            try (PreparedStatement selectStmt = conn.prepareStatement(selectQuery)) {
+                selectStmt.setInt(1, orderId);
+                try (ResultSet rs = selectStmt.executeQuery()) {
+                    if (rs.next()) {
+                        String status = rs.getString("status");
+                        if (status.equals("Confirmed")) {
+                            try (PreparedStatement updateStmt = conn.prepareStatement(updateQuery)) {
+                                updateStmt.setInt(1, orderId);
+                                updateStmt.executeUpdate();
+                                return "SUCCESS: Visitor admitted to the park.";
+                            }
+                        } else {
+                            return "Order status is '" + status + "', not Confirmed.";
+                        }
+                    } else {
+                        return "Order ID not found.";
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return "Database Error.";
+        }
+    }
 
-    /**
-     * Fetches all details for a specific park.
-     */
-    public static Park getParkById(int parkId) {
+    // =========================================================================
+    // --- 4. PARK MANAGER ---
+    // =========================================================================
+    public static entities.Park getParkById(int parkId) {
         String query = "SELECT * FROM park WHERE park_id = ?";
         try (Connection conn = getInstance().getConnection();
              PreparedStatement stmt = conn.prepareStatement(query)) {
-             
             stmt.setInt(1, parkId);
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
-                    return new Park(
+                    return new entities.Park(
                         rs.getInt("park_id"),
                         rs.getString("name"),
                         rs.getInt("max_capacity"),
@@ -144,310 +193,123 @@ public class DBController {
         return null;
     }
 
-    /**
-     * Updates the three primary parameters of a park.
-     */
-    public static boolean updateParkParameters(Park updatedPark) {
-        String query = "UPDATE park SET max_capacity = ?, casual_gap = ?, estimated_stay_time = ? WHERE park_id = ?";
+    public static boolean submitParameterRequest(entities.Park park) {
+        String query = "INSERT INTO parameter_request (park_id, new_max_capacity, new_casual_gap, new_estimated_stay_time, status) VALUES (?, ?, ?, ?, 'Pending')";
         try (Connection conn = getInstance().getConnection();
              PreparedStatement stmt = conn.prepareStatement(query)) {
-             
-            stmt.setInt(1, updatedPark.getMaxCapacity());
-            stmt.setInt(2, updatedPark.getCasualGap());
-            stmt.setInt(3, updatedPark.getEstimatedStayTime());
-            stmt.setInt(4, updatedPark.getParkId());
-            
+            stmt.setInt(1, park.getParkId());
+            stmt.setInt(2, park.getMaxCapacity());
+            stmt.setInt(3, park.getCasualGap());
+            stmt.setInt(4, park.getEstimatedStayTime());
             return stmt.executeUpdate() > 0;
-            
         } catch (SQLException e) {
             e.printStackTrace();
-            return false;
         }
+        return false;
     }
 
     // =========================================================================
-    // --- 3. VISITOR BOOKING ENGINE ---
+    // --- 5. DEPARTMENT MANAGER ---
     // =========================================================================
-
-    /**
-     * Processes a new booking request. 
-     * Automatically registers new visitors, validates capacity limits, and waitlists if full.
-     */
-    public static VisitOrder processNewOrder(VisitOrder newOrder) {
-        try (Connection conn = getInstance().getConnection()) {
-            
-            // --- STEP 1: AUTO-REGISTER NEW VISITORS ---
-            String checkVisitor = "SELECT visitor_id FROM visitor WHERE visitor_id = ?";
-            try (PreparedStatement checkVisStmt = conn.prepareStatement(checkVisitor)) {
-                checkVisStmt.setString(1, newOrder.getVisitorId());
-                try (ResultSet rsVis = checkVisStmt.executeQuery()) {
-                    
-                    if (!rsVis.next()) { 
-                        System.out.println("> New visitor detected. Auto-registering ID: " + newOrder.getVisitorId());
-                        String insertVisitor = "INSERT INTO visitor (visitor_id, email, visitor_type) VALUES (?, ?, 'Regular')";
-                        try (PreparedStatement insertVisStmt = conn.prepareStatement(insertVisitor)) {
-                            insertVisStmt.setString(1, newOrder.getVisitorId());
-                            insertVisStmt.setString(2, "guest_" + newOrder.getVisitorId() + "@gonature.co.il");
-                            insertVisStmt.executeUpdate();
-                        }
-                    }
-                }
-            }
-
-            // --- STEP 2: GET PARK CAPACITY LIMITS ---
-            Park park = getParkById(newOrder.getParkId());
-            if (park == null) return null; 
-            
-            int onlineBookingLimit = park.getMaxCapacity() - park.getCasualGap();
-            
-            // --- STEP 3: CALCULATE CURRENTLY BOOKED VISITORS ---
-            String checkCapacityQuery = "SELECT SUM(visitor_count) as total_booked FROM visit_order " +
-                                        "WHERE park_id = ? AND visit_date = ? AND visit_time = ? AND status != 'Cancelled'";
-            
-            int currentlyBooked = 0;
-            try (PreparedStatement checkCapStmt = conn.prepareStatement(checkCapacityQuery)) {
-                checkCapStmt.setInt(1, newOrder.getParkId());
-                checkCapStmt.setString(2, newOrder.getVisitDate());
-                checkCapStmt.setString(3, newOrder.getVisitTime());
-                
-                try (ResultSet rs = checkCapStmt.executeQuery()) {
-                    if (rs.next()) {
-                        currentlyBooked = rs.getInt("total_booked");
-                    }
-                }
-            }
-            
-            // --- STEP 4: ALGORITHM DECISION ---
-            if (currentlyBooked + newOrder.getVisitorCount() <= onlineBookingLimit) {
-                newOrder.setStatus("Confirmed");
-            } else {
-                newOrder.setStatus("Waitlisted");
-            }
-            
-            // --- STEP 5: INSERT THE FINAL ORDER ---
-            String insertQuery = "INSERT INTO visit_order (park_id, visitor_id, visit_date, visit_time, visitor_count, order_type, status) " +
-                                 "VALUES (?, ?, ?, ?, ?, ?, ?)";
-                                 
-            try (PreparedStatement insertStmt = conn.prepareStatement(insertQuery, Statement.RETURN_GENERATED_KEYS)) {
-                insertStmt.setInt(1, newOrder.getParkId());
-                insertStmt.setString(2, newOrder.getVisitorId());
-                insertStmt.setString(3, newOrder.getVisitDate());
-                insertStmt.setString(4, newOrder.getVisitTime());
-                insertStmt.setInt(5, newOrder.getVisitorCount());
-                insertStmt.setString(6, newOrder.getOrderType());
-                insertStmt.setString(7, newOrder.getStatus());
-                
-                insertStmt.executeUpdate();
-                
-                try (ResultSet generatedKeys = insertStmt.getGeneratedKeys()) {
-                    if (generatedKeys.next()) {
-                        newOrder.setOrderId(generatedKeys.getInt(1));
-                    }
-                }
-                return newOrder; 
-            }
-            
-        } catch (SQLException e) {
-            System.err.println("Database error during order processing:");
-            e.printStackTrace();
-            return null;
-        }
-    }
-
-    // =========================================================================
-    // --- 4. PARK ENTRANCE GATE LOGIC ---
-    // =========================================================================
-
-    /**
-     * Processes a park entry request at the gate.
-     * Validates the order, updates park capacity, and changes order status.
-     */
-    public static String processParkEntry(int orderId) {
-        try (Connection conn = getInstance().getConnection()) {
-            
-            // --- STEP 1: VERIFY THE ORDER ---
-            String checkOrderQuery = "SELECT park_id, visitor_count, status FROM visit_order WHERE order_id = ?";
-            int parkId = 0;
-            int visitorCount = 0;
-            String status = "";
-            
-            try (PreparedStatement checkStmt = conn.prepareStatement(checkOrderQuery)) {
-                checkStmt.setInt(1, orderId);
-                try (ResultSet rs = checkStmt.executeQuery()) {
-                    if (rs.next()) {
-                        parkId = rs.getInt("park_id");
-                        visitorCount = rs.getInt("visitor_count");
-                        status = rs.getString("status");
-                    } else {
-                        return "Error: Order #" + orderId + " does not exist.";
-                    }
-                }
-            }
-            
-            // --- STEP 2: BUSINESS LOGIC VALIDATION ---
-            if (status.equals("In Park")) {
-                return "Error: This order has already been scanned and admitted.";
-            } else if (status.equals("Waitlisted") || status.equals("Cancelled")) {
-                return "Error: Cannot admit. Order status is: " + status;
-            } else if (!status.equals("Confirmed")) {
-                return "Error: Unrecognized order status.";
-            }
-            
-            // --- STEP 3: UPDATE DATABASE (TRANSACTION) ---
-            String updateOrder = "UPDATE visit_order SET status = 'In Park' WHERE order_id = ?";
-            try (PreparedStatement updateOrderStmt = conn.prepareStatement(updateOrder)) {
-                updateOrderStmt.setInt(1, orderId);
-                updateOrderStmt.executeUpdate();
-            }
-            
-            String updatePark = "UPDATE park SET current_visitors = current_visitors + ? WHERE park_id = ?";
-            try (PreparedStatement updateParkStmt = conn.prepareStatement(updatePark)) {
-                updateParkStmt.setInt(1, visitorCount);
-                updateParkStmt.setInt(2, parkId);
-                updateParkStmt.executeUpdate();
-            }
-            
-            return "SUCCESS: Admitted " + visitorCount + " visitors! (Order #" + orderId + ")";
-            
-        } catch (SQLException e) {
-            e.printStackTrace();
-            return "Error: Database failure during entry processing.";
-        }
-    }
-    
- // =========================================================================
-    // --- 5. DEPARTMENT MANAGER APPROVAL WORKFLOW ---
-    // =========================================================================
-
-    /**
-     * Replaces the old direct update. Now, the Park Manager submits a request to the holding pen.
-     */
-    public static boolean submitParameterRequest(entities.Park requestedUpdate) {
-        String query = "INSERT INTO parameter_request (park_id, new_max_capacity, new_casual_gap, new_estimated_stay_time, status) VALUES (?, ?, ?, ?, 'Pending')";
-        try (java.sql.Connection conn = getInstance().getConnection();
-             java.sql.PreparedStatement stmt = conn.prepareStatement(query)) {
-             
-            stmt.setInt(1, requestedUpdate.getParkId());
-            stmt.setInt(2, requestedUpdate.getMaxCapacity());
-            stmt.setInt(3, requestedUpdate.getCasualGap());
-            stmt.setInt(4, requestedUpdate.getEstimatedStayTime());
-            
-            return stmt.executeUpdate() > 0;
-        } catch (java.sql.SQLException e) {
-            e.printStackTrace();
-            return false;
-        }
-    }
-
-    /**
-     * Fetches all "Pending" requests for the Department Manager to review.
-     * Uses a JOIN to grab the actual Park Name so the manager knows what they are looking at.
-     */
-    public static java.util.ArrayList<entities.ParameterRequest> getPendingRequests() {
-        java.util.ArrayList<entities.ParameterRequest> requests = new java.util.ArrayList<>();
-        String query = "SELECT pr.*, p.name as park_name FROM parameter_request pr JOIN park p ON pr.park_id = p.park_id WHERE pr.status = 'Pending'";
-        
-        try (java.sql.Connection conn = getInstance().getConnection();
-             java.sql.PreparedStatement stmt = conn.prepareStatement(query);
-             java.sql.ResultSet rs = stmt.executeQuery()) {
-             
+    public static ArrayList<entities.ParameterRequest> getPendingRequests() {
+        ArrayList<entities.ParameterRequest> requests = new ArrayList<>();
+        String query = "SELECT pr.*, p.name FROM parameter_request pr JOIN park p ON pr.park_id = p.park_id WHERE pr.status = 'Pending'";
+        try (Connection conn = getInstance().getConnection();
+             PreparedStatement stmt = conn.prepareStatement(query);
+             ResultSet rs = stmt.executeQuery()) {
             while (rs.next()) {
                 requests.add(new entities.ParameterRequest(
                     rs.getInt("request_id"),
                     rs.getInt("park_id"),
-                    rs.getString("park_name"),
+                    rs.getString("name"),
                     rs.getInt("new_max_capacity"),
                     rs.getInt("new_casual_gap"),
                     rs.getInt("new_estimated_stay_time"),
                     rs.getString("status")
                 ));
             }
-        } catch (java.sql.SQLException e) {
+        } catch (SQLException e) {
             e.printStackTrace();
         }
         return requests;
     }
 
-    /**
-     * Handles the Department Manager's decision.
-     * If approved, it updates the actual park table AND marks the request as Approved.
-     */
     public static boolean processParameterDecision(int requestId, String decision) {
-        try (java.sql.Connection conn = getInstance().getConnection()) {
+        String updateReqQuery = "UPDATE parameter_request SET status = ? WHERE request_id = ?";
+        try (Connection conn = getInstance().getConnection()) {
+            conn.setAutoCommit(false); 
             
+            try (PreparedStatement reqStmt = conn.prepareStatement(updateReqQuery)) {
+                reqStmt.setString(1, decision);
+                reqStmt.setInt(2, requestId);
+                reqStmt.executeUpdate();
+            }
+
             if (decision.equals("Approved")) {
-                // 1. Fetch the request details
-                String fetchReq = "SELECT * FROM parameter_request WHERE request_id = ?";
-                try (java.sql.PreparedStatement fetchStmt = conn.prepareStatement(fetchReq)) {
+                String fetchQuery = "SELECT * FROM parameter_request WHERE request_id = ?";
+                int parkId, newMax, newGap, newStay;
+                try (PreparedStatement fetchStmt = conn.prepareStatement(fetchQuery)) {
                     fetchStmt.setInt(1, requestId);
-                    try (java.sql.ResultSet rs = fetchStmt.executeQuery()) {
+                    try (ResultSet rs = fetchStmt.executeQuery()) {
                         if (rs.next()) {
-                            // 2. Update the actual park parameters
-                            String updatePark = "UPDATE park SET max_capacity = ?, casual_gap = ?, estimated_stay_time = ? WHERE park_id = ?";
-                            try (java.sql.PreparedStatement parkStmt = conn.prepareStatement(updatePark)) {
-                                parkStmt.setInt(1, rs.getInt("new_max_capacity"));
-                                parkStmt.setInt(2, rs.getInt("new_casual_gap"));
-                                parkStmt.setInt(3, rs.getInt("new_estimated_stay_time"));
-                                parkStmt.setInt(4, rs.getInt("park_id"));
-                                parkStmt.executeUpdate();
-                            }
+                            parkId = rs.getInt("park_id");
+                            newMax = rs.getInt("new_max_capacity");
+                            newGap = rs.getInt("new_casual_gap");
+                            newStay = rs.getInt("new_estimated_stay_time");
+                        } else {
+                            conn.rollback();
+                            return false;
                         }
                     }
                 }
+                
+                String updateParkQuery = "UPDATE park SET max_capacity = ?, casual_gap = ?, estimated_stay_time = ? WHERE park_id = ?";
+                try (PreparedStatement parkStmt = conn.prepareStatement(updateParkQuery)) {
+                    parkStmt.setInt(1, newMax);
+                    parkStmt.setInt(2, newGap);
+                    parkStmt.setInt(3, newStay);
+                    parkStmt.setInt(4, parkId);
+                    parkStmt.executeUpdate();
+                }
             }
-            
-            // 3. Mark the request as Approved or Denied
-            String updateReq = "UPDATE parameter_request SET status = ? WHERE request_id = ?";
-            try (java.sql.PreparedStatement reqStmt = conn.prepareStatement(updateReq)) {
-                reqStmt.setString(1, decision);
-                reqStmt.setInt(2, requestId);
-                return reqStmt.executeUpdate() > 0;
-            }
-            
-        } catch (java.sql.SQLException e) {
+            conn.commit();
+            return true;
+        } catch (SQLException e) {
             e.printStackTrace();
             return false;
         }
     }
- // =========================================================================
-    // --- 6. SERVICE REPRESENTATIVE REGISTRATION ---
+
     // =========================================================================
-
-    /**
-     * Registers a new Family Subscriber or Tour Guide.
-     * Automatically upserts the visitor profile to ensure foreign keys don't break.
-     */
+    // --- 6. SERVICE REPRESENTATIVE ---
+    // =========================================================================
     public static String registerNewSubscriber(entities.Subscriber sub) {
-        try (java.sql.Connection conn = getInstance().getConnection()) {
+        try (Connection conn = getInstance().getConnection()) {
 
-            // 1. Check if they are ALREADY a subscriber to prevent duplicates
             String checkSubQuery = "SELECT subscriber_id FROM subscriber WHERE visitor_id = ?";
-            try (java.sql.PreparedStatement checkStmt = conn.prepareStatement(checkSubQuery)) {
+            try (PreparedStatement checkStmt = conn.prepareStatement(checkSubQuery)) {
                 checkStmt.setString(1, sub.getVisitorId());
-                try (java.sql.ResultSet rs = checkStmt.executeQuery()) {
+                try (ResultSet rs = checkStmt.executeQuery()) {
                     if (rs.next()) {
                         return "Error: ID " + sub.getVisitorId() + " is already a registered subscriber.";
                     }
                 }
             }
 
-            // 2. Set the correct visitor status type
             String visType = sub.isGuide() ? "Guide" : "Subscriber";
-
-            // 3. Upsert the Visitor Profile
             String checkVisQuery = "SELECT visitor_id FROM visitor WHERE visitor_id = ?";
             boolean visitorExists = false;
-            try (java.sql.PreparedStatement checkVisStmt = conn.prepareStatement(checkVisQuery)) {
+            
+            try (PreparedStatement checkVisStmt = conn.prepareStatement(checkVisQuery)) {
                 checkVisStmt.setString(1, sub.getVisitorId());
-                try (java.sql.ResultSet rs = checkVisStmt.executeQuery()) {
+                try (ResultSet rs = checkVisStmt.executeQuery()) {
                     if (rs.next()) visitorExists = true;
                 }
             }
 
             if (visitorExists) {
-                // Update their existing profile with the new info
                 String updateVis = "UPDATE visitor SET first_name=?, last_name=?, email=?, phone=?, visitor_type=? WHERE visitor_id=?";
-                try (java.sql.PreparedStatement updateStmt = conn.prepareStatement(updateVis)) {
+                try (PreparedStatement updateStmt = conn.prepareStatement(updateVis)) {
                     updateStmt.setString(1, sub.getFirstName());
                     updateStmt.setString(2, sub.getLastName());
                     updateStmt.setString(3, sub.getEmail());
@@ -457,9 +319,8 @@ public class DBController {
                     updateStmt.executeUpdate();
                 }
             } else {
-                // Create a brand new profile
                 String insertVis = "INSERT INTO visitor (visitor_id, first_name, last_name, email, phone, visitor_type) VALUES (?, ?, ?, ?, ?, ?)";
-                try (java.sql.PreparedStatement insertStmt = conn.prepareStatement(insertVis)) {
+                try (PreparedStatement insertStmt = conn.prepareStatement(insertVis)) {
                     insertStmt.setString(1, sub.getVisitorId());
                     insertStmt.setString(2, sub.getFirstName());
                     insertStmt.setString(3, sub.getLastName());
@@ -470,27 +331,72 @@ public class DBController {
                 }
             }
 
-            // 4. Insert the new Subscriber record and grab the auto-generated ID
             String insertSubQuery = "INSERT INTO subscriber (visitor_id, family_size, credit_card, is_guide) VALUES (?, ?, ?, ?)";
-            try (java.sql.PreparedStatement insertSubStmt = conn.prepareStatement(insertSubQuery, java.sql.Statement.RETURN_GENERATED_KEYS)) {
+            try (PreparedStatement insertSubStmt = conn.prepareStatement(insertSubQuery, Statement.RETURN_GENERATED_KEYS)) {
                 insertSubStmt.setString(1, sub.getVisitorId());
                 insertSubStmt.setInt(2, sub.getFamilySize());
                 insertSubStmt.setString(3, sub.getCreditCard());
                 insertSubStmt.setBoolean(4, sub.isGuide());
                 insertSubStmt.executeUpdate();
 
-                try (java.sql.ResultSet generatedKeys = insertSubStmt.getGeneratedKeys()) {
+                try (ResultSet generatedKeys = insertSubStmt.getGeneratedKeys()) {
                     if (generatedKeys.next()) {
                         int newSubId = generatedKeys.getInt(1);
                         return "SUCCESS: " + visType + " registered! (Sub ID: #" + newSubId + ")";
                     }
                 }
             }
-
-        } catch (java.sql.SQLException e) {
+        } catch (SQLException e) {
             e.printStackTrace();
             return "Error: Database failure during registration.";
         }
         return "Error: Registration failed due to an unknown database issue.";
+    }
+
+    // =========================================================================
+    // --- 7. GUEST PORTAL ---
+    // =========================================================================
+    public static ArrayList<entities.VisitOrder> getGuestOrders(String visitorId) {
+        ArrayList<entities.VisitOrder> orders = new ArrayList<>();
+        String query = "SELECT * FROM visit_order WHERE visitor_id = ?"; 
+        
+        try (Connection conn = getInstance().getConnection();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+            
+            stmt.setString(1, visitorId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    entities.VisitOrder order = new entities.VisitOrder(
+                        rs.getInt("order_id"),
+                        rs.getInt("park_id"),
+                        rs.getString("visitor_id"),
+                        rs.getString("visit_date"),
+                        rs.getString("visit_time"),
+                        rs.getInt("visitor_count"),
+                        rs.getString("order_type"),
+                        rs.getString("status")
+                    );
+                    orders.add(order);
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Database error fetching guest orders: " + e.getMessage());
+        }
+        return orders;
+    }
+
+    public static boolean cancelOrder(int orderId) {
+        String query = "UPDATE visit_order SET status = 'Cancelled' WHERE order_id = ?";
+        try (Connection conn = getInstance().getConnection();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+            
+            stmt.setInt(1, orderId);
+            int rowsAffected = stmt.executeUpdate();
+            return rowsAffected > 0;
+            
+        } catch (SQLException e) {
+            System.err.println("Database error canceling order: " + e.getMessage());
+            return false;
+        }
     }
 }
