@@ -31,7 +31,7 @@ public class DBController {
             HikariConfig config = new HikariConfig();
             config.setJdbcUrl("jdbc:mysql://localhost:3306/gonature_db?allowLoadLocalInfile=true&serverTimezone=Asia/Jerusalem&useSSL=false&allowPublicKeyRetrieval=true");
             config.setUsername("root");
-            config.setPassword("root"); // Remember to match your local password!
+            config.setPassword("123456"); // UPDATE THIS IF NECESSARY
             
             config.setMaximumPoolSize(10);
             config.setMinimumIdle(2);
@@ -103,7 +103,6 @@ public class DBController {
 
     public static entities.VisitOrder processNewOrder(entities.VisitOrder order) {
         
-        // 1. Ghost Profile Check
         String ensureVisitorQuery = "INSERT IGNORE INTO visitor (visitor_id, first_name, last_name, email, phone, visitor_type) VALUES (?, 'Guest', 'Visitor', 'Not Provided', 'Not Provided', 'Regular')";
         try (Connection conn = getInstance().getConnection();
              PreparedStatement visitorStmt = conn.prepareStatement(ensureVisitorQuery)) {
@@ -116,7 +115,6 @@ public class DBController {
 
         try (Connection conn = getInstance().getConnection()) {
             
-            // 2. CAPACITY ALGORITHM
             int maxCapacity = 0, casualGap = 0, currentBooked = 0;
             String parkQuery = "SELECT max_capacity, casual_gap FROM park WHERE park_id = ?";
             try (PreparedStatement parkStmt = conn.prepareStatement(parkQuery)) {
@@ -144,13 +142,11 @@ public class DBController {
             int availableForPreorder = maxCapacity - casualGap;
             String assignedStatus = ((currentBooked + order.getVisitorCount()) > availableForPreorder) ? "Waitlisted" : "Confirmed";
             
-            // 3. PRICING ENGINE (GoNature Discount Rules)
             double calculatedPrice = 0.0;
-            int basePrice = 100; // Base ticket is 100 NIS
+            int basePrice = 100;
             boolean isSubscriber = false;
             boolean isGuide = false;
 
-            // Check if the user is a subscriber or guide
             String subQuery = "SELECT is_guide FROM subscriber WHERE visitor_id = ?";
             try (PreparedStatement subStmt = conn.prepareStatement(subQuery)) {
                 subStmt.setString(1, order.getVisitorId());
@@ -162,22 +158,17 @@ public class DBController {
                 }
             }
 
-            // Apply specific discounts based on order type and subscriber status
             if (order.getOrderType().equalsIgnoreCase("Group") || isGuide) {
-                // Tour Guide Logic: Guide enters free, the rest of the group gets 25% off!
                 int payingVisitors = Math.max(0, order.getVisitorCount() - 1); 
                 calculatedPrice = payingVisitors * (basePrice * 0.75); 
             } else if (isSubscriber) {
-                // Subscribers get a flat 20% off
                 calculatedPrice = order.getVisitorCount() * (basePrice * 0.80);
             } else {
-                // Regular online pre-orders get a standard 15% off
                 calculatedPrice = order.getVisitorCount() * (basePrice * 0.85);
             }
             
-            order.setPrice(calculatedPrice); // Save to the object
+            order.setPrice(calculatedPrice); 
 
-            // 4. Save Order + Price to Database
             String insertQuery = "INSERT INTO visit_order (park_id, visitor_id, visit_date, visit_time, visitor_count, order_type, status, price) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
             try (PreparedStatement insertStmt = conn.prepareStatement(insertQuery, Statement.RETURN_GENERATED_KEYS)) {
                 insertStmt.setInt(1, order.getParkId());
@@ -187,7 +178,7 @@ public class DBController {
                 insertStmt.setInt(5, order.getVisitorCount());
                 insertStmt.setString(6, order.getOrderType());
                 insertStmt.setString(7, assignedStatus); 
-                insertStmt.setDouble(8, calculatedPrice); // <-- Saving the price!
+                insertStmt.setDouble(8, calculatedPrice); 
                 
                 insertStmt.executeUpdate();
                 
@@ -206,31 +197,107 @@ public class DBController {
     }
 
     // =========================================================================
-    // --- 3. GATE ENTRY ---
+    // --- 3. GATE ENTRY & EXIT (REAL-TIME CAPACITY TRACKING) ---
     // =========================================================================
     public static String processParkEntry(int orderId) {
-        String selectQuery = "SELECT status FROM visit_order WHERE order_id = ?";
-        String updateQuery = "UPDATE visit_order SET status = 'In Park' WHERE order_id = ?";
+        String selectQuery = "SELECT status, park_id, visitor_count FROM visit_order WHERE order_id = ?";
+        String updateOrderQuery = "UPDATE visit_order SET status = 'In Park' WHERE order_id = ?";
+        String updateParkQuery = "UPDATE park SET current_visitors = current_visitors + ? WHERE park_id = ?";
         
         try (Connection conn = getInstance().getConnection()) {
+            conn.setAutoCommit(false); // Start strict transaction
+            
             try (PreparedStatement selectStmt = conn.prepareStatement(selectQuery)) {
                 selectStmt.setInt(1, orderId);
                 try (ResultSet rs = selectStmt.executeQuery()) {
                     if (rs.next()) {
                         String status = rs.getString("status");
+                        int parkId = rs.getInt("park_id");
+                        int visitors = rs.getInt("visitor_count");
+                        
                         if (status.equals("Confirmed")) {
-                            try (PreparedStatement updateStmt = conn.prepareStatement(updateQuery)) {
+                            
+                            // 1. Mark ticket as Used
+                            try (PreparedStatement updateStmt = conn.prepareStatement(updateOrderQuery)) {
                                 updateStmt.setInt(1, orderId);
                                 updateStmt.executeUpdate();
-                                return "SUCCESS: Visitor admitted to the park.";
                             }
+                            
+                            // 2. Add visitors to the Park's physical count
+                            try (PreparedStatement parkStmt = conn.prepareStatement(updateParkQuery)) {
+                                parkStmt.setInt(1, visitors);
+                                parkStmt.setInt(2, parkId);
+                                parkStmt.executeUpdate();
+                            }
+                            
+                            conn.commit(); // Save both changes permanently
+                            return "SUCCESS: " + visitors + " visitors admitted to the park.";
+                            
                         } else {
+                            conn.rollback();
                             return "Order status is '" + status + "', not Confirmed.";
                         }
                     } else {
+                        conn.rollback();
                         return "Order ID not found.";
                     }
                 }
+            } catch (SQLException e) {
+                conn.rollback();
+                throw e;
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return "Database Error.";
+        }
+    }
+
+    public static String processParkExit(int orderId) {
+        String selectQuery = "SELECT status, park_id, visitor_count FROM visit_order WHERE order_id = ?";
+        String updateOrderQuery = "UPDATE visit_order SET status = 'Completed' WHERE order_id = ?";
+        String updateParkQuery = "UPDATE park SET current_visitors = current_visitors - ? WHERE park_id = ?";
+        
+        try (Connection conn = getInstance().getConnection()) {
+            conn.setAutoCommit(false); // Start strict transaction
+            
+            try (PreparedStatement selectStmt = conn.prepareStatement(selectQuery)) {
+                selectStmt.setInt(1, orderId);
+                try (ResultSet rs = selectStmt.executeQuery()) {
+                    if (rs.next()) {
+                        String status = rs.getString("status");
+                        int parkId = rs.getInt("park_id");
+                        int visitors = rs.getInt("visitor_count");
+                        
+                        if (status.equals("In Park")) {
+                            
+                            // 1. Mark ticket as Completed
+                            try (PreparedStatement updateStmt = conn.prepareStatement(updateOrderQuery)) {
+                                updateStmt.setInt(1, orderId);
+                                updateStmt.executeUpdate();
+                            }
+                            
+                            // 2. Subtract visitors to free up Park capacity!
+                            try (PreparedStatement parkStmt = conn.prepareStatement(updateParkQuery)) {
+                                parkStmt.setInt(1, visitors);
+                                parkStmt.setInt(2, parkId);
+                                parkStmt.executeUpdate();
+                            }
+                            
+                            conn.commit(); // Save both changes permanently
+                            return "SUCCESS: " + visitors + " visitors have safely exited the park.";
+                            
+                        } else {
+                            conn.rollback();
+                            return "Order status is '" + status + "'. Visitor must be 'In Park' to exit.";
+                        }
+                    } else {
+                        conn.rollback();
+                        return "Order ID not found.";
+                    }
+                }
+            } catch (SQLException e) {
+                conn.rollback();
+                throw e;
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -443,7 +510,7 @@ public class DBController {
                         rs.getInt("visitor_count"),
                         rs.getString("order_type"),
                         rs.getString("status"),
-                        rs.getDouble("price") // <-- Read the price back out!
+                        rs.getDouble("price") 
                     );
                     orders.add(order);
                 }
