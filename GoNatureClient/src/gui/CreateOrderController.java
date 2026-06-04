@@ -29,7 +29,6 @@ public class CreateOrderController {
     public void initialize() {
         themeBtn.setText(ThemeManager.getInstance().toggleLabel());
         try {
-            // Safely create the connection if it doesn't exist, and set the listener
             ChatClient.getInstance("127.0.0.1", 5555, this::handleServerResponse);
         } catch (Exception e) {
             showStatus("Error: Cannot connect to the server.", "#d63031");
@@ -37,7 +36,6 @@ public class CreateOrderController {
             e.printStackTrace();
         }
 
-        // 2. Populate the dropdown menus
         parkCombo.getItems().addAll("1 - Carmel National Park"); 
         timeCombo.getItems().addAll("08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00");
         typeCombo.getItems().addAll("Solo", "Family", "Group");
@@ -53,7 +51,6 @@ public class CreateOrderController {
     @FXML
     void handleGoBack(ActionEvent event) {
         try {
-            // Swap the root back to the Main Menu cleanly
             javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(getClass().getResource("/gui/MainMenu.fxml"));
             javafx.scene.Parent root = loader.load();
             
@@ -69,7 +66,6 @@ public class CreateOrderController {
     
     @FXML
     void submitOrder(ActionEvent event) {
-        // --- STRICT UI VALIDATION ---
         if (parkCombo.getValue() == null || timeCombo.getValue() == null || typeCombo.getValue() == null) {
             showStatus("Please make a selection in all dropdown menus.", "#d63031");
             return;
@@ -99,26 +95,20 @@ public class CreateOrderController {
             return;
         }
 
-        // --- PREPARE THE ORDER ---
-        // Extract just the ID number from the park combo box string (e.g., "1 - Carmel" -> 1)
         int parkId = Integer.parseInt(parkCombo.getValue().split(" - ")[0]);
-        String visitDate = selectedDate.toString(); // "YYYY-MM-DD"
-        String visitTime = timeCombo.getValue() + ":00"; // Add seconds for MySQL TIME format (e.g., "08:00:00")
+        String visitDate = selectedDate.toString(); 
+        String visitTime = timeCombo.getValue() + ":00"; 
         String orderType = typeCombo.getValue();
         
-        // We set ID to 0 and Status to "Pending". The Server will calculate the real ones.
-        VisitOrder newOrder = new VisitOrder(0, parkId, visitorId, visitDate, visitTime, visitorCount, orderType, "Pending");
+        // Notice the 0.0 at the end! We send it with a placeholder price. The Server does the real math.
+        VisitOrder newOrder = new VisitOrder(0, parkId, visitorId, visitDate, visitTime, visitorCount, orderType, "Pending", 0.0);
 
         submitBtn.setDisable(true);
-        showStatus("Checking availability with server...", "#0984e3");
+        showStatus("Calculating price and checking availability...", "#0984e3");
         
-        // --- FIRE THE NETWORK REQUEST ---
         ChatClient.getInstance().handleMessageFromClientUI(new Message("NEW_ORDER_REQUEST", newOrder));
     }
 
-    /**
-     * Handles the Server's reply specifically for the booking process.
-     */
     public void handleServerResponse(Message msg) {
         Platform.runLater(() -> {
             submitBtn.setDisable(false);
@@ -129,8 +119,9 @@ public class CreateOrderController {
                 if (finalizedOrder.getStatus().equals("Waitlisted")) {
                     showStatus("Park is full! You are WAITLISTED. Order #" + finalizedOrder.getOrderId(), "#e17055");
                 } else {
-                    showStatus("Booking CONFIRMED! Your receipt is Order #" + finalizedOrder.getOrderId(), "#00b894");
-                    clearForm(); // Clear the form on a successful confirmed booking
+                    // --- NEW: Display the final price calculated by the Server! ---
+                    showStatus("Booking CONFIRMED! Receipt #" + finalizedOrder.getOrderId() + " | Total: ₪" + finalizedOrder.getPrice(), "#00b894");
+                    clearForm(); 
                 }
                 
             } else if (msg.getCommand().equals("ORDER_FAILED")) {
@@ -142,7 +133,7 @@ public class CreateOrderController {
 
     private void showStatus(String message, String hexColor) {
         statusLabel.setText(message);
-        statusLabel.setStyle("-fx-text-fill: " + hexColor + ";");
+        statusLabel.setStyle("-fx-text-fill: " + hexColor + "; -fx-font-weight: bold;");
     }
 
     private void clearForm() {

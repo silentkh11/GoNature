@@ -13,8 +13,10 @@ public class VisitOrder implements Serializable {
     private int visitorCount;
     private String orderType;
     private String status;
+    private double price; // <-- NEW: Holds the final calculated GoNature price
 
-    public VisitOrder(int orderId, int parkId, String visitorId, String visitDate, String visitTime, int visitorCount, String orderType, String status) {
+    // Updated Constructor
+    public VisitOrder(int orderId, int parkId, String visitorId, String visitDate, String visitTime, int visitorCount, String orderType, String status, double price) {
         this.orderId = orderId;
         this.parkId = parkId;
         this.visitorId = visitorId;
@@ -23,6 +25,7 @@ public class VisitOrder implements Serializable {
         this.visitorCount = visitorCount;
         this.orderType = orderType;
         this.status = status;
+        this.price = price;
     }
 
     // --- Getters ---
@@ -34,8 +37,10 @@ public class VisitOrder implements Serializable {
     public int getVisitorCount() { return visitorCount; }
     public String getOrderType() { return orderType; }
     public String getStatus() { return status; }
+    public double getPrice() { return price; } // <-- New Getter
     
-    // --- Setters (Needed for the Server to update the status and ID) ---
+    // --- Setters ---
     public void setOrderId(int orderId) { this.orderId = orderId; }
     public void setStatus(String status) { this.status = status; }
+    public void setPrice(double price) { this.price = price; } // <-- New Setter
 }
