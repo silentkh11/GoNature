@@ -39,7 +39,11 @@ public class CreateOrderController {
         }
 
         parkCombo.getItems().addAll("1 - Carmel National Park"); 
-        timeCombo.getItems().addAll("08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00");
+        timeCombo.getItems().addAll(
+            "08:00", "09:00", "10:00", "11:00", "12:00", 
+            "13:00", "14:00", "15:00", "16:00","16:45", "17:00","17:10","17:25","17:30", 
+            "18:00", "19:00", "20:00"
+        );
         typeCombo.getItems().addAll("Solo", "Family", "Group");
     }
 

@@ -212,6 +212,9 @@ public class EchoServer extends AbstractServer {
     @Override
     protected void serverStarted() {
         uiLogger.accept("> Server listening for connections on port " + getPort() + "\n");
+        // Force the DB singleton to initialize now so the notification engine starts immediately
+        database.DBController.getInstance();
+        uiLogger.accept("> Notification engine started.\n");
     }
 
     @Override
