@@ -9,6 +9,7 @@ module GoNatureServer {
     requires org.slf4j;
     requires mail;
     requires activation;
+    requires java.net.http;
     // Exporting packages so JavaFX can launch the windows
     exports server;
     exports gui; 
