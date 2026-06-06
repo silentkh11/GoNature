@@ -2,6 +2,7 @@ package database;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
+import server.EmailSender; // <-- NEW: Import our Email utility
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -34,7 +35,7 @@ public class DBController {
             HikariConfig config = new HikariConfig();
             config.setJdbcUrl("jdbc:mysql://localhost:3306/gonature_db?allowLoadLocalInfile=true&serverTimezone=Asia/Jerusalem&useSSL=false&allowPublicKeyRetrieval=true");
             config.setUsername("root");
-            config.setPassword("root"); // UPDATE THIS TO YOUR PASSWORD
+            config.setPassword("root");
             
             config.setMaximumPoolSize(10);
             config.setMinimumIdle(2);
@@ -63,7 +64,7 @@ public class DBController {
     }
 
     // =========================================================================
-    // --- 0. AUTOMATED NOTIFICATION ENGINE (SMS/EMAIL SIMULATOR) ---
+    // --- 0. AUTOMATED NOTIFICATION ENGINE (REAL EMAIL INTEGRATION) ---
     // =========================================================================
     private void startAutomatedNotificationEngine() {
         ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
@@ -73,7 +74,7 @@ public class DBController {
             try (Connection conn = getConnection()) {
                 
                 // --- PHASE 1: Send 24-Hour Reminders ---
-                String reminderQuery = "SELECT v.order_id, vis.email, vis.phone FROM visit_order v " +
+                String reminderQuery = "SELECT v.order_id, vis.first_name, vis.email FROM visit_order v " +
                                        "JOIN visitor vis ON v.visitor_id = vis.visitor_id " +
                                        "WHERE v.status = 'Confirmed' AND v.notification_time IS NULL " +
                                        "AND TIMESTAMP(v.visit_date, v.visit_time) BETWEEN NOW() AND NOW() + INTERVAL 24 HOUR";
@@ -85,11 +86,25 @@ public class DBController {
                     
                     while (rs.next()) {
                         int orderId = rs.getInt("order_id");
-                        System.out.println("\n--------------------------------------------------");
-                        System.out.println("✉ [SIMULATED SMS/EMAIL] ALERT: 24-HOUR REMINDER");
-                        System.out.println("To: " + rs.getString("email") + " | " + rs.getString("phone"));
-                        System.out.println("Message: Your GoNature visit is tomorrow! Please log into the Guest Portal to confirm Order #" + orderId + " within 2 hours or your spot will be canceled.");
-                        System.out.println("--------------------------------------------------\n");
+                        String targetEmail = rs.getString("email");
+                        String fName = rs.getString("first_name");
+                        
+                        System.out.println("⚠ SYSTEM ALERT: 24-Hour mark reached for Order #" + orderId + ". Triggering Email Engine...");
+                        
+                        // --- NEW: FIRE THE REAL EMAIL ENGINE ---
+                        if (targetEmail != null && targetEmail.contains("@")) {
+                            String subject = "Action Required: Confirm your GoNature Visit (Order #" + orderId + ")";
+                            String body = "Hello " + fName + ",\n\n"
+                                        + "Your visit to GoNature is tomorrow!\n\n"
+                                        + "Please log into the Guest Portal on our application and confirm your attendance.\n"
+                                        + "IMPORTANT: You must confirm within 2 hours of receiving this email, or your ticket will be automatically canceled to make room for other guests.\n\n"
+                                        + "See you soon,\nThe GoNature Team";
+                            
+                            // Send it over the internet!
+                            EmailSender.sendEmail(targetEmail, subject, body);
+                        } else {
+                            System.out.println(">>> Order #" + orderId + " has no valid email address. Skipping email delivery.");
+                        }
                         
                         try (PreparedStatement updateStmt = conn.prepareStatement(updateReminder)) {
                             updateStmt.setInt(1, orderId);
@@ -114,7 +129,7 @@ public class DBController {
                     cancelOrder(expiredOrderId); 
                 }
 
-            } catch (SQLException e) {
+            } catch (Throwable e) {
                 System.err.println("Notification Engine Error: " + e.getMessage());
             }
         }, 0, 1, TimeUnit.MINUTES);
@@ -167,8 +182,6 @@ public class DBController {
     }
 
     public static entities.VisitOrder processNewOrder(entities.VisitOrder order) {
-        
-        // --- NEW: Safe Upsert Logic for Guest Contacts ---
         String emailToSave = (order.getEmail() != null && !order.getEmail().isEmpty()) ? order.getEmail() : "Not Provided";
         String phoneToSave = (order.getPhone() != null && !order.getPhone().isEmpty()) ? order.getPhone() : "Not Provided";
 
@@ -635,13 +648,19 @@ public class DBController {
             int availableSpace = (maxCapacity - casualGap) - currentBooked;
             if (availableSpace <= 0) return; 
 
-            String waitlistQuery = "SELECT order_id, visitor_count FROM visit_order WHERE park_id = ? AND visit_date = ? AND visit_time = ? AND status = 'Waitlisted' ORDER BY order_id ASC";
+            String waitlistQuery = "SELECT v.order_id, v.visitor_count, vis.first_name, vis.email " +
+                                   "FROM visit_order v JOIN visitor vis ON v.visitor_id = vis.visitor_id " +
+                                   "WHERE v.park_id = ? AND v.visit_date = ? AND v.visit_time = ? AND v.status = 'Waitlisted' " +
+                                   "ORDER BY v.order_id ASC";
+                                   
             try (java.sql.PreparedStatement waitStmt = conn.prepareStatement(waitlistQuery)) {
                 waitStmt.setInt(1, parkId); waitStmt.setString(2, date); waitStmt.setString(3, time);
                 try (java.sql.ResultSet rs = waitStmt.executeQuery()) {
                     while (rs.next()) {
                         int waitlistOrderId = rs.getInt("order_id");
                         int groupSize = rs.getInt("visitor_count");
+                        String targetEmail = rs.getString("email");
+                        String fName = rs.getString("first_name");
 
                         if (groupSize <= availableSpace) {
                             String promoteQuery = "UPDATE visit_order SET status = 'Confirmed' WHERE order_id = ?";
@@ -649,10 +668,18 @@ public class DBController {
                                 promoteStmt.setInt(1, waitlistOrderId);
                                 promoteStmt.executeUpdate();
                                 
-                                System.out.println("\n--------------------------------------------------");
-                                System.out.println("📱 SMS ALERT SENT TO WAITLISTED VISITOR");
-                                System.out.println("Order #" + waitlistOrderId + " has been promoted to Confirmed! Enjoy your visit!");
-                                System.out.println("--------------------------------------------------\n");
+                                System.out.println("⚠ SYSTEM ALERT: Order #" + waitlistOrderId + " promoted from waitlist. Sending Email...");
+                                
+                                // --- NEW: FIRE REAL EMAIL ENGINE FOR WAITLIST ---
+                                if (targetEmail != null && targetEmail.contains("@")) {
+                                    String subject = "Good News: Your Waitlist Status is now CONFIRMED! (Order #" + waitlistOrderId + ")";
+                                    String body = "Hello " + fName + ",\n\n"
+                                                + "Great news! Space has opened up at GoNature on " + date + " at " + time + ".\n\n"
+                                                + "Your Waitlisted order has been automatically upgraded to 'Confirmed'.\n"
+                                                + "You will receive a final reminder email 24 hours before your visit.\n\n"
+                                                + "Enjoy your trip,\nThe GoNature Team";
+                                    EmailSender.sendEmail(targetEmail, subject, body);
+                                }
                                 
                                 availableSpace -= groupSize; 
                             }
