@@ -1,5 +1,7 @@
 package server;
 
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.util.Properties;
 import javax.mail.Authenticator;
 import javax.mail.Message;
@@ -12,13 +14,26 @@ import javax.mail.internet.MimeMessage;
 
 public class EmailSender {
 
-    // --- YOUR GMAIL CREDENTIALS HERE ---
-    private static final String SENDER_EMAIL = "hamkh1221@gmail.com"; 
-    private static final String APP_PASSWORD = "dbipyposejziyrxk"; // NO SPACES!
+    private static final String SENDER_EMAIL;
+    private static final String APP_PASSWORD;
+
+    static {
+        Properties props = new Properties();
+        try (FileInputStream fis = new FileInputStream("credentials.properties")) {
+            props.load(fis);
+        } catch (IOException e) {
+            System.err.println(">>> EmailSender: credentials.properties not found — email will be disabled.");
+        }
+        SENDER_EMAIL = props.getProperty("gmail.sender_email", "");
+        APP_PASSWORD = props.getProperty("gmail.app_password",  "");
+    }
 
     public static void sendEmail(String recipientEmail, String subject, String body) {
-        
-        // 1. Setup the Google SMTP Server properties for a secure TLS connection
+        if (SENDER_EMAIL.isEmpty() || APP_PASSWORD.isEmpty()) {
+            System.err.println(">>> Email skipped: Gmail credentials not configured.");
+            return;
+        }
+
         Properties properties = new Properties();
         properties.put("mail.smtp.auth", "true");
         properties.put("mail.smtp.ssl.enable", "true");
@@ -26,7 +41,6 @@ public class EmailSender {
         properties.put("mail.smtp.port", "465");
         properties.put("mail.smtp.ssl.protocols", "TLSv1.2");
 
-        // 2. Authenticate the GoNature Server with Google
         Session session = Session.getInstance(properties, new Authenticator() {
             @Override
             protected PasswordAuthentication getPasswordAuthentication() {
@@ -35,14 +49,12 @@ public class EmailSender {
         });
 
         try {
-            // 3. Draft the Email
             Message message = new MimeMessage(session);
             message.setFrom(new InternetAddress(SENDER_EMAIL));
             message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(recipientEmail));
             message.setSubject(subject);
             message.setText(body);
 
-            // 4. Send it over the internet!
             System.out.println(">>> Transmitting email to " + recipientEmail + "...");
             Transport.send(message);
             System.out.println(">>> Email successfully sent!");
