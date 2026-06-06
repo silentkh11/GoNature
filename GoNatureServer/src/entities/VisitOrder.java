@@ -8,14 +8,18 @@ public class VisitOrder implements Serializable {
     private int orderId;
     private int parkId;
     private String visitorId;
-    private String visitDate; // Format: "YYYY-MM-DD"
-    private String visitTime; // Format: "HH:mm"
+    private String visitDate; 
+    private String visitTime; 
     private int visitorCount;
     private String orderType;
     private String status;
-    private double price; // <-- NEW: Holds the final calculated GoNature price
+    private double price;
+    
+    // --- NEW: Contact info for Guest Notifications ---
+    private String email;
+    private String phone;
 
-    // Updated Constructor
+    // Constructor 1: Used by Server & Guest Portal (Standard DB Fetch)
     public VisitOrder(int orderId, int parkId, String visitorId, String visitDate, String visitTime, int visitorCount, String orderType, String status, double price) {
         this.orderId = orderId;
         this.parkId = parkId;
@@ -28,6 +32,13 @@ public class VisitOrder implements Serializable {
         this.price = price;
     }
 
+    // Constructor 2: Used by CreateOrderController (Includes Email/Phone for fresh bookings)
+    public VisitOrder(int orderId, int parkId, String visitorId, String visitDate, String visitTime, int visitorCount, String orderType, String status, double price, String email, String phone) {
+        this(orderId, parkId, visitorId, visitDate, visitTime, visitorCount, orderType, status, price); // Call base constructor
+        this.email = email;
+        this.phone = phone;
+    }
+
     // --- Getters ---
     public int getOrderId() { return orderId; }
     public int getParkId() { return parkId; }
@@ -37,10 +48,14 @@ public class VisitOrder implements Serializable {
     public int getVisitorCount() { return visitorCount; }
     public String getOrderType() { return orderType; }
     public String getStatus() { return status; }
-    public double getPrice() { return price; } // <-- New Getter
+    public double getPrice() { return price; }
+    public String getEmail() { return email; }
+    public String getPhone() { return phone; }
     
     // --- Setters ---
     public void setOrderId(int orderId) { this.orderId = orderId; }
     public void setStatus(String status) { this.status = status; }
-    public void setPrice(double price) { this.price = price; } // <-- New Setter
+    public void setPrice(double price) { this.price = price; }
+    public void setEmail(String email) { this.email = email; }
+    public void setPhone(String phone) { this.phone = phone; }
 }

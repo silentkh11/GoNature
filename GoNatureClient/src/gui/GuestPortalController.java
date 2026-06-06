@@ -31,6 +31,8 @@ public class GuestPortalController {
     @FXML private TableColumn<VisitOrder, String> colTime;
     @FXML private TableColumn<VisitOrder, Integer> colVisitors;
     @FXML private TableColumn<VisitOrder, String> colStatus;
+    
+    @FXML private Button btnConfirmOrder;
     @FXML private Button btnCancelOrder;
     @FXML private Button themeBtn;
     @FXML private Label lblStatus;
@@ -40,7 +42,6 @@ public class GuestPortalController {
     @FXML
     public void initialize() {
         themeBtn.setText(ThemeManager.getInstance().toggleLabel());
-        // Link columns to VisitOrder entity properties
         colOrderId.setCellValueFactory(new PropertyValueFactory<>("orderId"));
         colParkId.setCellValueFactory(new PropertyValueFactory<>("parkId"));
         colDate.setCellValueFactory(new PropertyValueFactory<>("visitDate"));
@@ -48,51 +49,49 @@ public class GuestPortalController {
         colVisitors.setCellValueFactory(new PropertyValueFactory<>("visitorCount"));
         colStatus.setCellValueFactory(new PropertyValueFactory<>("status"));
 
-        // Enable cancel button only when an order is selected
-        ordersTable.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
-            btnCancelOrder.setDisable(newSelection == null);
-        });
-
-        try {
-            ChatClient.getInstance("127.0.0.1", 5555, this::handleServerResponse);
-        } catch (Exception e) {
-            showStatus("Error: Cannot connect to the server.", "#d63031");
-            e.printStackTrace();
-        }
+        ChatClient.getInstance().setResponseHandler(this::handleServerResponse);
     }
 
     @FXML
     void handleToggleTheme(ActionEvent event) {
-        javafx.scene.Scene scene = ((javafx.scene.Node) event.getSource()).getScene();
+        javafx.scene.Scene scene = ((Node) event.getSource()).getScene();
         ThemeManager.getInstance().toggle(scene);
         themeBtn.setText(ThemeManager.getInstance().toggleLabel());
     }
 
     @FXML
     void handleSearch(ActionEvent event) {
-        String visitorId = txtVisitorId.getText().trim();
-        if (visitorId.isEmpty()) {
-            showStatus("Please enter an ID number.", "#d63031");
+        currentSearchedId = txtVisitorId.getText().trim();
+        if (currentSearchedId.isEmpty()) {
+            showStatus("Please enter a Visitor ID to search.", "#d63031");
             return;
         }
+        showStatus("Fetching your orders...", "#0984e3");
+        ChatClient.getInstance().handleMessageFromClientUI(new Message("FETCH_GUEST_ORDERS", currentSearchedId));
+    }
 
-        currentSearchedId = visitorId;
-        showStatus("Fetching orders...", "#0984e3");
-        ChatClient.getInstance().handleMessageFromClientUI(new Message("FETCH_GUEST_ORDERS", visitorId));
+    @FXML
+    void handleConfirmOrder(ActionEvent event) {
+        VisitOrder selected = ordersTable.getSelectionModel().getSelectedItem();
+        if (selected == null) {
+            showStatus("Please select an order to confirm.", "#d63031");
+            return;
+        }
+        if (!selected.getStatus().equals("Pending Confirm")) {
+            showStatus("Only orders marked as 'Pending Confirm' need to be verified.", "#d63031");
+            return;
+        }
+        ChatClient.getInstance().handleMessageFromClientUI(new Message("CONFIRM_ORDER_REQUEST", selected.getOrderId()));
     }
 
     @FXML
     void handleCancelOrder(ActionEvent event) {
         VisitOrder selected = ordersTable.getSelectionModel().getSelectedItem();
-        if (selected == null) return;
-
-        if (selected.getStatus().equals("Cancelled")) {
-            showStatus("This order is already cancelled.", "#d63031");
+        if (selected == null) {
+            showStatus("Please select an order to cancel.", "#d63031");
             return;
         }
-
-        showStatus("Canceling order...", "#0984e3");
-        ChatClient.getInstance().handleMessageFromClientUI(new Message("CANCEL_ORDER", selected.getOrderId()));
+        ChatClient.getInstance().handleMessageFromClientUI(new Message("CANCEL_ORDER_REQUEST", selected.getOrderId()));
     }
 
     @FXML
@@ -120,12 +119,11 @@ public class GuestPortalController {
                 ObservableList<VisitOrder> observableList = FXCollections.observableArrayList(list);
                 ordersTable.setItems(observableList);
                 
-            } else if (msg.getCommand().equals("CANCEL_SUCCESS")) {
+            } else if (msg.getCommand().equals("CANCEL_SUCCESS") || msg.getCommand().equals("CONFIRM_SUCCESS")) {
                 showStatus((String) msg.getData(), "#00b894");
-                // Refresh the table automatically
                 ChatClient.getInstance().handleMessageFromClientUI(new Message("FETCH_GUEST_ORDERS", currentSearchedId));
                 
-            } else if (msg.getCommand().equals("CANCEL_FAILED")) {
+            } else if (msg.getCommand().equals("CANCEL_FAILED") || msg.getCommand().equals("CONFIRM_FAILED")) {
                 showStatus((String) msg.getData(), "#d63031");
             }
         });
@@ -133,6 +131,6 @@ public class GuestPortalController {
 
     private void showStatus(String message, String hexColor) {
         lblStatus.setText(message);
-        lblStatus.setStyle("-fx-text-fill: " + hexColor + ";");
+        lblStatus.setStyle("-fx-text-fill: " + hexColor + "; -fx-font-weight: bold;");
     }
 }

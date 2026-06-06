@@ -17,6 +17,8 @@ public class CreateOrderController {
 
     @FXML private ComboBox<String> parkCombo;
     @FXML private TextField visitorIdField;
+    @FXML private TextField emailField;
+    @FXML private TextField phoneField;
     @FXML private DatePicker datePicker;
     @FXML private ComboBox<String> timeCombo;
     @FXML private TextField visitorsField;
@@ -59,7 +61,6 @@ public class CreateOrderController {
             stage.setTitle("GoNature - Welcome");
             
         } catch (Exception e) {
-            System.err.println("Error returning to Main Menu.");
             e.printStackTrace();
         }
     }
@@ -72,8 +73,16 @@ public class CreateOrderController {
         }
         
         String visitorId = visitorIdField.getText().trim();
-        if (visitorId.isEmpty()) {
-            showStatus("Visitor ID cannot be empty.", "#d63031");
+        String email = emailField.getText().trim();
+        String phone = phoneField.getText().trim();
+
+        if (visitorId.isEmpty() || email.isEmpty() || phone.isEmpty()) {
+            showStatus("ID, Email, and Phone fields cannot be empty.", "#d63031");
+            return;
+        }
+
+        if (!email.contains("@")) {
+            showStatus("Please enter a valid email address.", "#d63031");
             return;
         }
 
@@ -100,11 +109,11 @@ public class CreateOrderController {
         String visitTime = timeCombo.getValue() + ":00"; 
         String orderType = typeCombo.getValue();
         
-        // Notice the 0.0 at the end! We send it with a placeholder price. The Server does the real math.
-        VisitOrder newOrder = new VisitOrder(0, parkId, visitorId, visitDate, visitTime, visitorCount, orderType, "Pending", 0.0);
+        // --- NEW: Injecting the email and phone using our new constructor! ---
+        VisitOrder newOrder = new VisitOrder(0, parkId, visitorId, visitDate, visitTime, visitorCount, orderType, "Pending", 0.0, email, phone);
 
         submitBtn.setDisable(true);
-        showStatus("Calculating price and checking availability...", "#0984e3");
+        showStatus("Checking availability with server...", "#0984e3");
         
         ChatClient.getInstance().handleMessageFromClientUI(new Message("NEW_ORDER_REQUEST", newOrder));
     }
@@ -119,7 +128,6 @@ public class CreateOrderController {
                 if (finalizedOrder.getStatus().equals("Waitlisted")) {
                     showStatus("Park is full! You are WAITLISTED. Order #" + finalizedOrder.getOrderId(), "#e17055");
                 } else {
-                    // --- NEW: Display the final price calculated by the Server! ---
                     showStatus("Booking CONFIRMED! Receipt #" + finalizedOrder.getOrderId() + " | Total: ₪" + finalizedOrder.getPrice(), "#00b894");
                     clearForm(); 
                 }
@@ -139,6 +147,8 @@ public class CreateOrderController {
     private void clearForm() {
         parkCombo.setValue(null);
         visitorIdField.clear();
+        emailField.clear();
+        phoneField.clear();
         datePicker.setValue(null);
         timeCombo.setValue(null);
         visitorsField.clear();
