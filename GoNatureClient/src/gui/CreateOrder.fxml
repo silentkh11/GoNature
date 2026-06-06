@@ -25,18 +25,18 @@
    </top>
 
    <center>
-      <VBox alignment="CENTER" maxWidth="500.0" spacing="20.0" BorderPane.alignment="CENTER">
+      <VBox alignment="CENTER" maxWidth="500.0" spacing="15.0" BorderPane.alignment="CENTER">
          <children>
             <Label styleClass="title-label" text="New Visitor Booking">
                <font><Font name="Segoe UI Bold" size="28.0" /></font>
             </Label>
 
-            <Label styleClass="subtitle-label" text="Enter the visit details to check availability.">
+            <Label styleClass="subtitle-label" text="Enter your details below. You will be notified 24 hours before your visit.">
                <font><Font name="Segoe UI" size="14.0" /></font>
             </Label>
 
-            <VBox spacing="20.0" styleClass="card" style="-fx-padding: 30;">
-               <GridPane hgap="15.0" vgap="20.0">
+            <VBox spacing="15.0" styleClass="card" style="-fx-padding: 25;">
+               <GridPane hgap="15.0" vgap="12.0">
                   <Label styleClass="body-label" text="Select Park:" GridPane.columnIndex="0" GridPane.rowIndex="0">
                      <font><Font name="Segoe UI Bold" size="14.0" /></font>
                   </Label>
@@ -47,25 +47,35 @@
                   </Label>
                   <TextField fx:id="visitorIdField" prefWidth="250.0" promptText="Your ID Number" GridPane.columnIndex="1" GridPane.rowIndex="1" />
 
-                  <Label styleClass="body-label" text="Visit Date:" GridPane.columnIndex="0" GridPane.rowIndex="2">
+                  <Label styleClass="body-label" text="Email Address:" GridPane.columnIndex="0" GridPane.rowIndex="2">
                      <font><Font name="Segoe UI Bold" size="14.0" /></font>
                   </Label>
-                  <DatePicker fx:id="datePicker" prefWidth="250.0" promptText="Select Date" GridPane.columnIndex="1" GridPane.rowIndex="2" />
+                  <TextField fx:id="emailField" prefWidth="250.0" promptText="For ticket confirmation" GridPane.columnIndex="1" GridPane.rowIndex="2" />
 
-                  <Label styleClass="body-label" text="Time Slot:" GridPane.columnIndex="0" GridPane.rowIndex="3">
+                  <Label styleClass="body-label" text="Phone Number:" GridPane.columnIndex="0" GridPane.rowIndex="3">
                      <font><Font name="Segoe UI Bold" size="14.0" /></font>
                   </Label>
-                  <ComboBox fx:id="timeCombo" prefWidth="250.0" promptText="Select Time" GridPane.columnIndex="1" GridPane.rowIndex="3" />
+                  <TextField fx:id="phoneField" prefWidth="250.0" promptText="05X-XXXXXXX" GridPane.columnIndex="1" GridPane.rowIndex="3" />
 
-                  <Label styleClass="body-label" text="Total Visitors:" GridPane.columnIndex="0" GridPane.rowIndex="4">
+                  <Label styleClass="body-label" text="Visit Date:" GridPane.columnIndex="0" GridPane.rowIndex="4">
                      <font><Font name="Segoe UI Bold" size="14.0" /></font>
                   </Label>
-                  <TextField fx:id="visitorsField" prefWidth="250.0" promptText="Number of people" GridPane.columnIndex="1" GridPane.rowIndex="4" />
+                  <DatePicker fx:id="datePicker" prefWidth="250.0" promptText="Select Date" GridPane.columnIndex="1" GridPane.rowIndex="4" />
 
-                  <Label styleClass="body-label" text="Order Type:" GridPane.columnIndex="0" GridPane.rowIndex="5">
+                  <Label styleClass="body-label" text="Time Slot:" GridPane.columnIndex="0" GridPane.rowIndex="5">
                      <font><Font name="Segoe UI Bold" size="14.0" /></font>
                   </Label>
-                  <ComboBox fx:id="typeCombo" prefWidth="250.0" promptText="Type of visit" GridPane.columnIndex="1" GridPane.rowIndex="5" />
+                  <ComboBox fx:id="timeCombo" prefWidth="250.0" promptText="Select Time" GridPane.columnIndex="1" GridPane.rowIndex="5" />
+
+                  <Label styleClass="body-label" text="Total Visitors:" GridPane.columnIndex="0" GridPane.rowIndex="6">
+                     <font><Font name="Segoe UI Bold" size="14.0" /></font>
+                  </Label>
+                  <TextField fx:id="visitorsField" prefWidth="250.0" promptText="Number of people" GridPane.columnIndex="1" GridPane.rowIndex="6" />
+
+                  <Label styleClass="body-label" text="Order Type:" GridPane.columnIndex="0" GridPane.rowIndex="7">
+                     <font><Font name="Segoe UI Bold" size="14.0" /></font>
+                  </Label>
+                  <ComboBox fx:id="typeCombo" prefWidth="250.0" promptText="Type of visit" GridPane.columnIndex="1" GridPane.rowIndex="7" />
                </GridPane>
 
                <Label fx:id="statusLabel" alignment="CENTER" maxWidth="Infinity" style="-fx-font-weight: bold;" wrapText="true" />
@@ -74,7 +84,7 @@
             </VBox>
          </children>
          <BorderPane.margin>
-            <Insets bottom="40.0" />
+            <Insets bottom="30.0" />
          </BorderPane.margin>
       </VBox>
    </center>

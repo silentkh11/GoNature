@@ -9,6 +9,9 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 public class DBController {
 
@@ -31,7 +34,7 @@ public class DBController {
             HikariConfig config = new HikariConfig();
             config.setJdbcUrl("jdbc:mysql://localhost:3306/gonature_db?allowLoadLocalInfile=true&serverTimezone=Asia/Jerusalem&useSSL=false&allowPublicKeyRetrieval=true");
             config.setUsername("root");
-            config.setPassword("123456"); // UPDATE THIS IF NECESSARY
+            config.setPassword("root"); // UPDATE THIS TO YOUR PASSWORD
             
             config.setMaximumPoolSize(10);
             config.setMinimumIdle(2);
@@ -40,6 +43,10 @@ public class DBController {
 
             dataSource = new HikariDataSource(config);
             System.out.println("Database connection pool initialized successfully.");
+            
+            // --- BOOT THE AUTOMATED NOTIFICATION ENGINE ---
+            startAutomatedNotificationEngine();
+            
         } catch (Exception e) {
             System.err.println("Failed to initialize database pool: " + e.getMessage());
         }
@@ -53,6 +60,64 @@ public class DBController {
         if (dataSource != null && !dataSource.isClosed()) {
             dataSource.close();
         }
+    }
+
+    // =========================================================================
+    // --- 0. AUTOMATED NOTIFICATION ENGINE (SMS/EMAIL SIMULATOR) ---
+    // =========================================================================
+    private void startAutomatedNotificationEngine() {
+        ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+        
+        // This background thread runs silently every 60 seconds
+        scheduler.scheduleAtFixedRate(() -> {
+            try (Connection conn = getConnection()) {
+                
+                // --- PHASE 1: Send 24-Hour Reminders ---
+                String reminderQuery = "SELECT v.order_id, vis.email, vis.phone FROM visit_order v " +
+                                       "JOIN visitor vis ON v.visitor_id = vis.visitor_id " +
+                                       "WHERE v.status = 'Confirmed' AND v.notification_time IS NULL " +
+                                       "AND TIMESTAMP(v.visit_date, v.visit_time) BETWEEN NOW() AND NOW() + INTERVAL 24 HOUR";
+                
+                String updateReminder = "UPDATE visit_order SET status = 'Pending Confirm', notification_time = NOW() WHERE order_id = ?";
+                
+                try (PreparedStatement checkStmt = conn.prepareStatement(reminderQuery);
+                     ResultSet rs = checkStmt.executeQuery()) {
+                    
+                    while (rs.next()) {
+                        int orderId = rs.getInt("order_id");
+                        System.out.println("\n--------------------------------------------------");
+                        System.out.println("✉ [SIMULATED SMS/EMAIL] ALERT: 24-HOUR REMINDER");
+                        System.out.println("To: " + rs.getString("email") + " | " + rs.getString("phone"));
+                        System.out.println("Message: Your GoNature visit is tomorrow! Please log into the Guest Portal to confirm Order #" + orderId + " within 2 hours or your spot will be canceled.");
+                        System.out.println("--------------------------------------------------\n");
+                        
+                        try (PreparedStatement updateStmt = conn.prepareStatement(updateReminder)) {
+                            updateStmt.setInt(1, orderId);
+                            updateStmt.executeUpdate();
+                        }
+                    }
+                }
+
+                // --- PHASE 2: Auto-Cancel orders that ignored the message for 2 hours ---
+                String cancelQuery = "SELECT order_id FROM visit_order WHERE status = 'Pending Confirm' AND notification_time <= NOW() - INTERVAL 2 HOUR";
+                ArrayList<Integer> ordersToCancel = new ArrayList<>();
+                
+                try (PreparedStatement cancelStmt = conn.prepareStatement(cancelQuery);
+                     ResultSet rs = cancelStmt.executeQuery()) {
+                    while (rs.next()) {
+                        ordersToCancel.add(rs.getInt("order_id"));
+                    }
+                }
+                
+                for (int expiredOrderId : ordersToCancel) {
+                    System.out.println("⚠ SYSTEM ALERT: Order #" + expiredOrderId + " ignored the 2-hour confirmation window. Auto-canceling...");
+                    cancelOrder(expiredOrderId); 
+                }
+
+            } catch (SQLException e) {
+                System.err.println("Notification Engine Error: " + e.getMessage());
+            }
+        }, 0, 1, TimeUnit.MINUTES);
     }
 
     // =========================================================================
@@ -86,7 +151,7 @@ public class DBController {
     // --- 2. BOOKING & PRICING ENGINE ---
     // =========================================================================
     public static boolean hasDuplicateBooking(entities.VisitOrder order) {
-        String query = "SELECT order_id FROM visit_order WHERE visitor_id = ? AND park_id = ? AND visit_date = ? AND status IN ('Confirmed', 'Waitlisted', 'In Park')";
+        String query = "SELECT order_id FROM visit_order WHERE visitor_id = ? AND park_id = ? AND visit_date = ? AND status IN ('Confirmed', 'Waitlisted', 'In Park', 'Pending Confirm')";
         try (Connection conn = getInstance().getConnection();
              PreparedStatement stmt = conn.prepareStatement(query)) {
             stmt.setString(1, order.getVisitorId());
@@ -103,18 +168,28 @@ public class DBController {
 
     public static entities.VisitOrder processNewOrder(entities.VisitOrder order) {
         
-        String ensureVisitorQuery = "INSERT IGNORE INTO visitor (visitor_id, first_name, last_name, email, phone, visitor_type) VALUES (?, 'Guest', 'Visitor', 'Not Provided', 'Not Provided', 'Regular')";
+        // --- NEW: Safe Upsert Logic for Guest Contacts ---
+        String emailToSave = (order.getEmail() != null && !order.getEmail().isEmpty()) ? order.getEmail() : "Not Provided";
+        String phoneToSave = (order.getPhone() != null && !order.getPhone().isEmpty()) ? order.getPhone() : "Not Provided";
+
+        String ensureVisitorQuery = "INSERT INTO visitor (visitor_id, first_name, last_name, email, phone, visitor_type) " +
+                                    "VALUES (?, 'Guest', 'Visitor', ?, ?, 'Regular') " +
+                                    "ON DUPLICATE KEY UPDATE " +
+                                    "email = IF(email='Not Provided', VALUES(email), email), " +
+                                    "phone = IF(phone='Not Provided', VALUES(phone), phone)";
+        
         try (Connection conn = getInstance().getConnection();
              PreparedStatement visitorStmt = conn.prepareStatement(ensureVisitorQuery)) {
             visitorStmt.setString(1, order.getVisitorId());
+            visitorStmt.setString(2, emailToSave);
+            visitorStmt.setString(3, phoneToSave);
             visitorStmt.executeUpdate(); 
         } catch (SQLException e) {
-            System.err.println("Database Error: Could not create temporary visitor profile - " + e.getMessage());
+            System.err.println("Database Error: Could not create/update visitor profile - " + e.getMessage());
             return null; 
         }
 
         try (Connection conn = getInstance().getConnection()) {
-            
             int maxCapacity = 0, casualGap = 0, currentBooked = 0;
             String parkQuery = "SELECT max_capacity, casual_gap FROM park WHERE park_id = ?";
             try (PreparedStatement parkStmt = conn.prepareStatement(parkQuery)) {
@@ -127,7 +202,7 @@ public class DBController {
                 }
             }
 
-            String sumQuery = "SELECT SUM(visitor_count) AS total_visitors FROM visit_order WHERE park_id = ? AND visit_date = ? AND visit_time = ? AND status IN ('Confirmed', 'In Park')";
+            String sumQuery = "SELECT SUM(visitor_count) AS total_visitors FROM visit_order WHERE park_id = ? AND visit_date = ? AND visit_time = ? AND status IN ('Confirmed', 'In Park', 'Pending Confirm')";
             try (PreparedStatement sumStmt = conn.prepareStatement(sumQuery)) {
                 sumStmt.setInt(1, order.getParkId());
                 sumStmt.setString(2, order.getVisitDate());
@@ -197,7 +272,7 @@ public class DBController {
     }
 
     // =========================================================================
-    // --- 3. GATE ENTRY & EXIT (REAL-TIME CAPACITY TRACKING) ---
+    // --- 3. GATE ENTRY & EXIT ---
     // =========================================================================
     public static String processParkEntry(int orderId) {
         String selectQuery = "SELECT status, park_id, visitor_count FROM visit_order WHERE order_id = ?";
@@ -205,8 +280,7 @@ public class DBController {
         String updateParkQuery = "UPDATE park SET current_visitors = current_visitors + ? WHERE park_id = ?";
         
         try (Connection conn = getInstance().getConnection()) {
-            conn.setAutoCommit(false); // Start strict transaction
-            
+            conn.setAutoCommit(false); 
             try (PreparedStatement selectStmt = conn.prepareStatement(selectQuery)) {
                 selectStmt.setInt(1, orderId);
                 try (ResultSet rs = selectStmt.executeQuery()) {
@@ -216,23 +290,17 @@ public class DBController {
                         int visitors = rs.getInt("visitor_count");
                         
                         if (status.equals("Confirmed")) {
-                            
-                            // 1. Mark ticket as Used
                             try (PreparedStatement updateStmt = conn.prepareStatement(updateOrderQuery)) {
                                 updateStmt.setInt(1, orderId);
                                 updateStmt.executeUpdate();
                             }
-                            
-                            // 2. Add visitors to the Park's physical count
                             try (PreparedStatement parkStmt = conn.prepareStatement(updateParkQuery)) {
                                 parkStmt.setInt(1, visitors);
                                 parkStmt.setInt(2, parkId);
                                 parkStmt.executeUpdate();
                             }
-                            
-                            conn.commit(); // Save both changes permanently
+                            conn.commit(); 
                             return "SUCCESS: " + visitors + " visitors admitted to the park.";
-                            
                         } else {
                             conn.rollback();
                             return "Order status is '" + status + "', not Confirmed.";
@@ -258,8 +326,7 @@ public class DBController {
         String updateParkQuery = "UPDATE park SET current_visitors = current_visitors - ? WHERE park_id = ?";
         
         try (Connection conn = getInstance().getConnection()) {
-            conn.setAutoCommit(false); // Start strict transaction
-            
+            conn.setAutoCommit(false);
             try (PreparedStatement selectStmt = conn.prepareStatement(selectQuery)) {
                 selectStmt.setInt(1, orderId);
                 try (ResultSet rs = selectStmt.executeQuery()) {
@@ -269,23 +336,17 @@ public class DBController {
                         int visitors = rs.getInt("visitor_count");
                         
                         if (status.equals("In Park")) {
-                            
-                            // 1. Mark ticket as Completed
                             try (PreparedStatement updateStmt = conn.prepareStatement(updateOrderQuery)) {
                                 updateStmt.setInt(1, orderId);
                                 updateStmt.executeUpdate();
                             }
-                            
-                            // 2. Subtract visitors to free up Park capacity!
                             try (PreparedStatement parkStmt = conn.prepareStatement(updateParkQuery)) {
                                 parkStmt.setInt(1, visitors);
                                 parkStmt.setInt(2, parkId);
                                 parkStmt.executeUpdate();
                             }
-                            
-                            conn.commit(); // Save both changes permanently
+                            conn.commit();
                             return "SUCCESS: " + visitors + " visitors have safely exited the park.";
-                            
                         } else {
                             conn.rollback();
                             return "Order status is '" + status + "'. Visitor must be 'In Park' to exit.";
@@ -494,93 +555,80 @@ public class DBController {
     public static ArrayList<entities.VisitOrder> getGuestOrders(String visitorId) {
         ArrayList<entities.VisitOrder> orders = new ArrayList<>();
         String query = "SELECT * FROM visit_order WHERE visitor_id = ?"; 
-        
         try (Connection conn = getInstance().getConnection();
              PreparedStatement stmt = conn.prepareStatement(query)) {
-            
             stmt.setString(1, visitorId);
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
-                    entities.VisitOrder order = new entities.VisitOrder(
-                        rs.getInt("order_id"),
-                        rs.getInt("park_id"),
-                        rs.getString("visitor_id"),
-                        rs.getString("visit_date"),
-                        rs.getString("visit_time"),
-                        rs.getInt("visitor_count"),
-                        rs.getString("order_type"),
-                        rs.getString("status"),
-                        rs.getDouble("price") 
-                    );
-                    orders.add(order);
+                    orders.add(new entities.VisitOrder(
+                        rs.getInt("order_id"), rs.getInt("park_id"), rs.getString("visitor_id"),
+                        rs.getString("visit_date"), rs.getString("visit_time"), rs.getInt("visitor_count"),
+                        rs.getString("order_type"), rs.getString("status"), rs.getDouble("price") 
+                    ));
                 }
             }
         } catch (SQLException e) {
-            System.err.println("Database error fetching guest orders: " + e.getMessage());
+            e.printStackTrace();
         }
         return orders;
+    }
+
+    public static boolean confirmOrder(int orderId) {
+        String query = "UPDATE visit_order SET status = 'Confirmed' WHERE order_id = ?";
+        try (java.sql.Connection conn = getInstance().getConnection();
+             java.sql.PreparedStatement stmt = conn.prepareStatement(query)) {
+            stmt.setInt(1, orderId);
+            return stmt.executeUpdate() > 0;
+        } catch (java.sql.SQLException e) {
+            e.printStackTrace();
+        }
+        return false;
     }
 
     public static boolean cancelOrder(int orderId) {
         String getDetailsQuery = "SELECT park_id, visit_date, visit_time FROM visit_order WHERE order_id = ?";
         String cancelQuery = "UPDATE visit_order SET status = 'Cancelled' WHERE order_id = ?";
-        
-        int parkId = -1;
-        String vDate = null;
-        String vTime = null;
+        int parkId = -1; String vDate = null; String vTime = null;
 
         try (java.sql.Connection conn = getInstance().getConnection()) {
-            
             try (java.sql.PreparedStatement detailsStmt = conn.prepareStatement(getDetailsQuery)) {
                 detailsStmt.setInt(1, orderId);
                 try (java.sql.ResultSet rs = detailsStmt.executeQuery()) {
                     if (rs.next()) {
-                        parkId = rs.getInt("park_id");
-                        vDate = rs.getString("visit_date");
-                        vTime = rs.getString("visit_time");
+                        parkId = rs.getInt("park_id"); vDate = rs.getString("visit_date"); vTime = rs.getString("visit_time");
                     }
                 }
             }
-
             try (java.sql.PreparedStatement cancelStmt = conn.prepareStatement(cancelQuery)) {
                 cancelStmt.setInt(1, orderId);
                 int rowsAffected = cancelStmt.executeUpdate();
-                
                 if (rowsAffected > 0 && parkId != -1) {
                     promoteFromWaitlist(parkId, vDate, vTime);
                     return true;
                 }
             }
         } catch (java.sql.SQLException e) {
-            System.err.println("Database error canceling order: " + e.getMessage());
+            e.printStackTrace();
         }
         return false;
     }
 
     private static void promoteFromWaitlist(int parkId, String date, String time) {
         try (java.sql.Connection conn = getInstance().getConnection()) {
-            
             int maxCapacity = 0, casualGap = 0, currentBooked = 0;
             String parkQuery = "SELECT max_capacity, casual_gap FROM park WHERE park_id = ?";
             try (java.sql.PreparedStatement parkStmt = conn.prepareStatement(parkQuery)) {
                 parkStmt.setInt(1, parkId);
                 try (java.sql.ResultSet rs = parkStmt.executeQuery()) {
-                    if (rs.next()) {
-                        maxCapacity = rs.getInt("max_capacity");
-                        casualGap = rs.getInt("casual_gap");
-                    }
+                    if (rs.next()) { maxCapacity = rs.getInt("max_capacity"); casualGap = rs.getInt("casual_gap"); }
                 }
             }
 
-            String sumQuery = "SELECT SUM(visitor_count) AS total_visitors FROM visit_order WHERE park_id = ? AND visit_date = ? AND visit_time = ? AND status IN ('Confirmed', 'In Park')";
+            String sumQuery = "SELECT SUM(visitor_count) AS total_visitors FROM visit_order WHERE park_id = ? AND visit_date = ? AND visit_time = ? AND status IN ('Confirmed', 'In Park', 'Pending Confirm')";
             try (java.sql.PreparedStatement sumStmt = conn.prepareStatement(sumQuery)) {
-                sumStmt.setInt(1, parkId);
-                sumStmt.setString(2, date);
-                sumStmt.setString(3, time);
+                sumStmt.setInt(1, parkId); sumStmt.setString(2, date); sumStmt.setString(3, time);
                 try (java.sql.ResultSet rs = sumStmt.executeQuery()) {
-                    if (rs.next()) {
-                        currentBooked = rs.getInt("total_visitors");
-                    }
+                    if (rs.next()) { currentBooked = rs.getInt("total_visitors"); }
                 }
             }
 
@@ -589,10 +637,7 @@ public class DBController {
 
             String waitlistQuery = "SELECT order_id, visitor_count FROM visit_order WHERE park_id = ? AND visit_date = ? AND visit_time = ? AND status = 'Waitlisted' ORDER BY order_id ASC";
             try (java.sql.PreparedStatement waitStmt = conn.prepareStatement(waitlistQuery)) {
-                waitStmt.setInt(1, parkId);
-                waitStmt.setString(2, date);
-                waitStmt.setString(3, time);
-                
+                waitStmt.setInt(1, parkId); waitStmt.setString(2, date); waitStmt.setString(3, time);
                 try (java.sql.ResultSet rs = waitStmt.executeQuery()) {
                     while (rs.next()) {
                         int waitlistOrderId = rs.getInt("order_id");
@@ -603,7 +648,12 @@ public class DBController {
                             try (java.sql.PreparedStatement promoteStmt = conn.prepareStatement(promoteQuery)) {
                                 promoteStmt.setInt(1, waitlistOrderId);
                                 promoteStmt.executeUpdate();
-                                System.out.println(">>> WAITLIST ENGINE: Space opened up! Order #" + waitlistOrderId + " automatically promoted to Confirmed!");
+                                
+                                System.out.println("\n--------------------------------------------------");
+                                System.out.println("📱 SMS ALERT SENT TO WAITLISTED VISITOR");
+                                System.out.println("Order #" + waitlistOrderId + " has been promoted to Confirmed! Enjoy your visit!");
+                                System.out.println("--------------------------------------------------\n");
+                                
                                 availableSpace -= groupSize; 
                             }
                         }
