@@ -698,4 +698,162 @@ public class DBController {
             System.err.println("Waitlist Engine Error: " + e.getMessage());
         }
     }
+    
+ // =========================================================================
+    // --- 8. STATISTICAL REPORTING ENGINE ---
+    // =========================================================================
+    public static entities.ReportData generateMonthlyReport(int parkId, String month, String year) {
+        entities.ReportData report = new entities.ReportData(parkId, month, year);
+        
+        // We only want to count people who actually visited the park!
+        String query = "SELECT order_type, SUM(visitor_count) as total_visitors, SUM(price) as total_income " +
+                       "FROM visit_order " +
+                       "WHERE park_id = ? AND MONTH(visit_date) = ? AND YEAR(visit_date) = ? " +
+                       "AND status IN ('Completed', 'In Park') " +
+                       "GROUP BY order_type";
+
+        try (java.sql.Connection conn = getInstance().getConnection();
+             java.sql.PreparedStatement stmt = conn.prepareStatement(query)) {
+            
+            stmt.setInt(1, parkId);
+            stmt.setInt(2, Integer.parseInt(month));
+            stmt.setInt(3, Integer.parseInt(year));
+            
+            try (java.sql.ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    String type = rs.getString("order_type");
+                    int visitors = rs.getInt("total_visitors");
+                    double income = rs.getDouble("total_income");
+                    
+                    report.addVisitorData(type, visitors);
+                    report.addIncomeData(type, income);
+                }
+            }
+            return report;
+        } catch (java.sql.SQLException e) {
+            System.err.println("Reporting Engine Error: " + e.getMessage());
+            return null;
+        }
+    }
+    
+    public static String saveMonthlyReport(entities.ReportData report) {
+        // Extract the map values safely. If a category had 0 visitors, it defaults to 0 instead of crashing.
+        int solo = report.getVisitorBreakdown().getOrDefault("Solo", 0);
+        int family = report.getVisitorBreakdown().getOrDefault("Family", 0);
+        int group = report.getVisitorBreakdown().getOrDefault("Group", 0);
+        int subscriber = report.getVisitorBreakdown().getOrDefault("Subscriber", 0);
+
+        String query = "INSERT INTO monthly_reports (park_id, report_month, report_year, total_visitors, total_income, solo_visitors, family_visitors, group_visitors, subscriber_visitors) " +
+                       "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) " +
+                       "ON DUPLICATE KEY UPDATE " +
+                       "total_visitors=VALUES(total_visitors), total_income=VALUES(total_income), " +
+                       "solo_visitors=VALUES(solo_visitors), family_visitors=VALUES(family_visitors), " +
+                       "group_visitors=VALUES(group_visitors), subscriber_visitors=VALUES(subscriber_visitors)";
+
+        try (java.sql.Connection conn = getInstance().getConnection();
+             java.sql.PreparedStatement stmt = conn.prepareStatement(query)) {
+            
+            stmt.setInt(1, report.getParkId());
+            stmt.setString(2, report.getMonth());
+            stmt.setString(3, report.getYear());
+            stmt.setInt(4, report.getTotalVisitors());
+            stmt.setDouble(5, report.getTotalIncome());
+            stmt.setInt(6, solo);
+            stmt.setInt(7, family);
+            stmt.setInt(8, group);
+            stmt.setInt(9, subscriber);
+            
+            stmt.executeUpdate();
+            return "SUCCESS: Report successfully submitted to the Department Manager.";
+            
+        } catch (java.sql.SQLException e) {
+            System.err.println("Database Error Saving Report: " + e.getMessage());
+            return "ERROR: Could not save the report to the database.";
+        }
+    }
+    
+ // =========================================================================
+    // --- 6. SERVICE REPRESENTATIVE REGISTRATION ---
+    // =========================================================================
+
+    /**
+     * Registers a new Family Subscriber or Tour Guide.
+     * Automatically upserts the visitor profile to ensure foreign keys don't break.
+     */
+    public static String registerNewSubscriber(entities.Subscriber sub) {
+        try (java.sql.Connection conn = getInstance().getConnection()) {
+
+            // 1. Check if they are ALREADY a subscriber to prevent duplicates
+            String checkSubQuery = "SELECT subscriber_id FROM subscriber WHERE visitor_id = ?";
+            try (java.sql.PreparedStatement checkStmt = conn.prepareStatement(checkSubQuery)) {
+                checkStmt.setString(1, sub.getVisitorId());
+                try (java.sql.ResultSet rs = checkStmt.executeQuery()) {
+                    if (rs.next()) {
+                        return "Error: ID " + sub.getVisitorId() + " is already a registered subscriber.";
+                    }
+                }
+            }
+
+            // 2. Set the correct visitor status type
+            String visType = sub.isGuide() ? "Guide" : "Subscriber";
+
+            // 3. Upsert the Visitor Profile
+            String checkVisQuery = "SELECT visitor_id FROM visitor WHERE visitor_id = ?";
+            boolean visitorExists = false;
+            try (java.sql.PreparedStatement checkVisStmt = conn.prepareStatement(checkVisQuery)) {
+                checkVisStmt.setString(1, sub.getVisitorId());
+                try (java.sql.ResultSet rs = checkVisStmt.executeQuery()) {
+                    if (rs.next()) visitorExists = true;
+                }
+            }
+
+            if (visitorExists) {
+                // Update their existing profile with the new info
+                String updateVis = "UPDATE visitor SET first_name=?, last_name=?, email=?, phone=?, visitor_type=? WHERE visitor_id=?";
+                try (java.sql.PreparedStatement updateStmt = conn.prepareStatement(updateVis)) {
+                    updateStmt.setString(1, sub.getFirstName());
+                    updateStmt.setString(2, sub.getLastName());
+                    updateStmt.setString(3, sub.getEmail());
+                    updateStmt.setString(4, sub.getPhone());
+                    updateStmt.setString(5, visType);
+                    updateStmt.setString(6, sub.getVisitorId());
+                    updateStmt.executeUpdate();
+                }
+            } else {
+                // Create a brand new profile
+                String insertVis = "INSERT INTO visitor (visitor_id, first_name, last_name, email, phone, visitor_type) VALUES (?, ?, ?, ?, ?, ?)";
+                try (java.sql.PreparedStatement insertStmt = conn.prepareStatement(insertVis)) {
+                    insertStmt.setString(1, sub.getVisitorId());
+                    insertStmt.setString(2, sub.getFirstName());
+                    insertStmt.setString(3, sub.getLastName());
+                    insertStmt.setString(4, sub.getEmail());
+                    insertStmt.setString(5, sub.getPhone());
+                    insertStmt.setString(6, visType);
+                    insertStmt.executeUpdate();
+                }
+            }
+
+            // 4. Insert the new Subscriber record and grab the auto-generated ID
+            String insertSubQuery = "INSERT INTO subscriber (visitor_id, family_size, credit_card, is_guide) VALUES (?, ?, ?, ?)";
+            try (java.sql.PreparedStatement insertSubStmt = conn.prepareStatement(insertSubQuery, java.sql.Statement.RETURN_GENERATED_KEYS)) {
+                insertSubStmt.setString(1, sub.getVisitorId());
+                insertSubStmt.setInt(2, sub.getFamilySize());
+                insertSubStmt.setString(3, sub.getCreditCard());
+                insertSubStmt.setBoolean(4, sub.isGuide());
+                insertSubStmt.executeUpdate();
+
+                try (java.sql.ResultSet generatedKeys = insertSubStmt.getGeneratedKeys()) {
+                    if (generatedKeys.next()) {
+                        int newSubId = generatedKeys.getInt(1);
+                        return "SUCCESS: " + visType + " registered! (Sub ID: #" + newSubId + ")";
+                    }
+                }
+            }
+
+        } catch (java.sql.SQLException e) {
+            e.printStackTrace();
+            return "Error: Database failure during registration.";
+        }
+        return "Error: Registration failed due to an unknown database issue.";
+    }
 }

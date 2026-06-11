@@ -13,7 +13,8 @@
       <Insets bottom="40.0" left="40.0" right="40.0" top="20.0" />
    </padding>
 
-   <HBox alignment="CENTER_RIGHT">
+   <HBox alignment="CENTER_RIGHT" spacing="15.0">
+      <Button mnemonicParsing="false" onAction="#handleViewReports" styleClass="primary-btn" style="-fx-font-size: 14px;" text="📊 View Statistical Reports" />
       <Button fx:id="themeBtn" mnemonicParsing="false" onAction="#handleToggleTheme" styleClass="theme-toggle" text="🌙 Dark Mode" />
       <VBox.margin><Insets bottom="5.0" /></VBox.margin>
    </HBox>

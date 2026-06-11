@@ -176,7 +176,37 @@ public class EchoServer extends AbstractServer {
                     java.util.ArrayList<entities.VisitOrder> orders = DBController.getGuestOrders(visitorId);
                     client.sendToClient(new Message("GUEST_ORDERS_DATA", orders));
                 }
-                
+                // =========================================================================
+                // --- 8. STATISTICAL REPORTING ROUTING ---
+                // =========================================================================
+                else if (request.getCommand().equals("GENERATE_MONTHLY_REPORT")) {
+                    // The client will send a String array: [parkId, month, year]
+                    String[] requestData = (String[]) request.getData();
+                    int parkId = Integer.parseInt(requestData[0]);
+                    String month = requestData[1];
+                    String year = requestData[2];
+                    
+                    uiLogger.accept("> Generating Monthly Report for Park " + parkId + " (" + month + "/" + year + ")\n");
+                    
+                    entities.ReportData generatedReport = DBController.generateMonthlyReport(parkId, month, year);
+                    
+                    if (generatedReport != null) {
+                        client.sendToClient(new Message("REPORT_DATA_SUCCESS", generatedReport));
+                    } else {
+                        client.sendToClient(new Message("REPORT_DATA_FAILED", "Could not generate the report. Database error."));
+                    }
+                }else if (request.getCommand().equals("SAVE_MONTHLY_REPORT")) {
+                    entities.ReportData reportToSave = (entities.ReportData) request.getData();
+                    uiLogger.accept("> Park Manager submitting report for Park " + reportToSave.getParkId() + "\n");
+                    
+                    String resultMsg = DBController.saveMonthlyReport(reportToSave);
+                    
+                    if (resultMsg.startsWith("SUCCESS")) {
+                        client.sendToClient(new Message("SAVE_REPORT_SUCCESS", resultMsg));
+                    } else {
+                        client.sendToClient(new Message("SAVE_REPORT_FAILED", resultMsg));
+                    }
+                }
                 else if (request.getCommand().equals("CANCEL_ORDER")) {
                     int orderIdToCancel = (int) request.getData();
                     uiLogger.accept("> Request to cancel Order ID: " + orderIdToCancel + "\n");
