@@ -128,4 +128,21 @@ public class ParkManagerController {
         lblStatus.setText(message);
         lblStatus.setStyle("-fx-text-fill: " + hexColor + "; -fx-font-weight: bold;");
     }
+    
+    @FXML
+    void handleViewReports(ActionEvent event) {
+        try {
+            javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(getClass().getResource("/gui/ParkManagerReports.fxml"));
+            javafx.scene.Parent root = loader.load();
+            
+            // Pass the user to the reports controller
+            ParkManagerReportsController reportsController = loader.getController();
+            reportsController.setUser(currentUser);
+            
+            javafx.stage.Stage stage = (javafx.stage.Stage) ((Node) event.getSource()).getScene().getWindow();
+            stage.getScene().setRoot(root);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
 }

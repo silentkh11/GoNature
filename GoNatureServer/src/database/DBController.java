@@ -698,4 +698,77 @@ public class DBController {
             System.err.println("Waitlist Engine Error: " + e.getMessage());
         }
     }
+    
+ // =========================================================================
+    // --- 8. STATISTICAL REPORTING ENGINE ---
+    // =========================================================================
+    public static entities.ReportData generateMonthlyReport(int parkId, String month, String year) {
+        entities.ReportData report = new entities.ReportData(parkId, month, year);
+        
+        // We only want to count people who actually visited the park!
+        String query = "SELECT order_type, SUM(visitor_count) as total_visitors, SUM(price) as total_income " +
+                       "FROM visit_order " +
+                       "WHERE park_id = ? AND MONTH(visit_date) = ? AND YEAR(visit_date) = ? " +
+                       "AND status IN ('Completed', 'In Park') " +
+                       "GROUP BY order_type";
+
+        try (java.sql.Connection conn = getInstance().getConnection();
+             java.sql.PreparedStatement stmt = conn.prepareStatement(query)) {
+            
+            stmt.setInt(1, parkId);
+            stmt.setInt(2, Integer.parseInt(month));
+            stmt.setInt(3, Integer.parseInt(year));
+            
+            try (java.sql.ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    String type = rs.getString("order_type");
+                    int visitors = rs.getInt("total_visitors");
+                    double income = rs.getDouble("total_income");
+                    
+                    report.addVisitorData(type, visitors);
+                    report.addIncomeData(type, income);
+                }
+            }
+            return report;
+        } catch (java.sql.SQLException e) {
+            System.err.println("Reporting Engine Error: " + e.getMessage());
+            return null;
+        }
+    }
+    
+    public static String saveMonthlyReport(entities.ReportData report) {
+        // Extract the map values safely. If a category had 0 visitors, it defaults to 0 instead of crashing.
+        int solo = report.getVisitorBreakdown().getOrDefault("Solo", 0);
+        int family = report.getVisitorBreakdown().getOrDefault("Family", 0);
+        int group = report.getVisitorBreakdown().getOrDefault("Group", 0);
+        int subscriber = report.getVisitorBreakdown().getOrDefault("Subscriber", 0);
+
+        String query = "INSERT INTO monthly_reports (park_id, report_month, report_year, total_visitors, total_income, solo_visitors, family_visitors, group_visitors, subscriber_visitors) " +
+                       "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) " +
+                       "ON DUPLICATE KEY UPDATE " +
+                       "total_visitors=VALUES(total_visitors), total_income=VALUES(total_income), " +
+                       "solo_visitors=VALUES(solo_visitors), family_visitors=VALUES(family_visitors), " +
+                       "group_visitors=VALUES(group_visitors), subscriber_visitors=VALUES(subscriber_visitors)";
+
+        try (java.sql.Connection conn = getInstance().getConnection();
+             java.sql.PreparedStatement stmt = conn.prepareStatement(query)) {
+            
+            stmt.setInt(1, report.getParkId());
+            stmt.setString(2, report.getMonth());
+            stmt.setString(3, report.getYear());
+            stmt.setInt(4, report.getTotalVisitors());
+            stmt.setDouble(5, report.getTotalIncome());
+            stmt.setInt(6, solo);
+            stmt.setInt(7, family);
+            stmt.setInt(8, group);
+            stmt.setInt(9, subscriber);
+            
+            stmt.executeUpdate();
+            return "SUCCESS: Report successfully submitted to the Department Manager.";
+            
+        } catch (java.sql.SQLException e) {
+            System.err.println("Database Error Saving Report: " + e.getMessage());
+            return "ERROR: Could not save the report to the database.";
+        }
+    }
 }
