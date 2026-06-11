@@ -202,10 +202,20 @@
     -fx-background-color: rgba(33, 150, 243, 0.25);
 }
 
+.date-picker {
+    -fx-background-color: rgba(255, 255, 255, 0.05);
+    -fx-border-color: rgba(255, 255, 255, 0.10);
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+}
 .date-picker .text-field {
-    -fx-background-color: transparent;
+    -fx-background-color: rgba(255, 255, 255, 0.05);
     -fx-text-fill: #e0e0e0;
+    -fx-prompt-text-fill: #4a4a4a;
     -fx-font-size: 13px;
+    -fx-border-color: transparent;
+    -fx-background-insets: 0;
+    -fx-background-radius: 8;
 }
 .date-picker .arrow-button {
     -fx-background-color: transparent;
