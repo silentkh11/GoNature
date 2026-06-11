@@ -10,7 +10,7 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
 
-<BorderPane prefHeight="650.0" prefWidth="850.0" styleClass="page-root" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="gui.CreateOrderController">
+<BorderPane prefHeight="680.0" prefWidth="850.0" styleClass="page-root" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="gui.CreateOrderController">
 
    <top>
       <BorderPane BorderPane.alignment="CENTER">
@@ -45,12 +45,12 @@
                   <Label styleClass="body-label" text="Visitor ID:" GridPane.columnIndex="0" GridPane.rowIndex="1">
                      <font><Font name="Segoe UI Bold" size="14.0" /></font>
                   </Label>
-                  <TextField fx:id="visitorIdField" prefWidth="250.0" promptText="Your ID Number" GridPane.columnIndex="1" GridPane.rowIndex="1" />
+                  <TextField fx:id="visitorIdField" prefWidth="250.0" promptText="9-digit ID number" GridPane.columnIndex="1" GridPane.rowIndex="1" />
 
                   <Label styleClass="body-label" text="Email Address:" GridPane.columnIndex="0" GridPane.rowIndex="2">
                      <font><Font name="Segoe UI Bold" size="14.0" /></font>
                   </Label>
-                  <TextField fx:id="emailField" prefWidth="250.0" promptText="For ticket confirmation" GridPane.columnIndex="1" GridPane.rowIndex="2" />
+                  <TextField fx:id="emailField" prefWidth="250.0" promptText="example@email.com" GridPane.columnIndex="1" GridPane.rowIndex="2" />
 
                   <Label styleClass="body-label" text="Phone Number:" GridPane.columnIndex="0" GridPane.rowIndex="3">
                      <font><Font name="Segoe UI Bold" size="14.0" /></font>
@@ -70,12 +70,19 @@
                   <Label styleClass="body-label" text="Total Visitors:" GridPane.columnIndex="0" GridPane.rowIndex="6">
                      <font><Font name="Segoe UI Bold" size="14.0" /></font>
                   </Label>
-                  <TextField fx:id="visitorsField" prefWidth="250.0" promptText="Number of people" GridPane.columnIndex="1" GridPane.rowIndex="6" />
+                  <TextField fx:id="visitorsField" prefWidth="250.0" promptText="1 – 15 people" GridPane.columnIndex="1" GridPane.rowIndex="6" />
 
                   <Label styleClass="body-label" text="Order Type:" GridPane.columnIndex="0" GridPane.rowIndex="7">
                      <font><Font name="Segoe UI Bold" size="14.0" /></font>
                   </Label>
                   <ComboBox fx:id="typeCombo" prefWidth="250.0" promptText="Type of visit" GridPane.columnIndex="1" GridPane.rowIndex="7" />
+
+                  <Label styleClass="body-label" text="Est. Price:" GridPane.columnIndex="0" GridPane.rowIndex="8">
+                     <font><Font name="Segoe UI Bold" size="14.0" /></font>
+                  </Label>
+                  <Label fx:id="priceEstimateLabel" prefWidth="250.0" styleClass="section-blue" wrapText="true" GridPane.columnIndex="1" GridPane.rowIndex="8">
+                     <font><Font name="Segoe UI" size="13.0" /></font>
+                  </Label>
                </GridPane>
 
                <Label fx:id="statusLabel" alignment="CENTER" maxWidth="Infinity" style="-fx-font-weight: bold;" wrapText="true" />
