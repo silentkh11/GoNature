@@ -49,7 +49,14 @@ public class GuestPortalController {
         colVisitors.setCellValueFactory(new PropertyValueFactory<>("visitorCount"));
         colStatus.setCellValueFactory(new PropertyValueFactory<>("status"));
 
-        ChatClient.getInstance().setResponseHandler(this::handleServerResponse);
+        // THE FIX: Safely create the connection if it doesn't exist yet
+        try {
+            ChatClient.getInstance("127.0.0.1", 5555, this::handleServerResponse);
+        } catch (Exception e) {
+            showStatus("Error: Cannot connect to the server.", "#d63031");
+            btnConfirmOrder.setDisable(true);
+            btnCancelOrder.setDisable(true);
+        }
     }
 
     @FXML

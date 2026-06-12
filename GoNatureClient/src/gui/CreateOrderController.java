@@ -46,9 +46,9 @@ public class CreateOrderController {
         try {
             ChatClient.getInstance("127.0.0.1", 5555, this::handleServerResponse);
         } catch (Exception e) {
-            showStatus("Error: Cannot connect to the server.", "#d63031");
+        	System.err.println("Client could not connect to server on startup: " + e.getMessage());
+            showStatus("Server offline. Please start the server.", "#d63031");
             submitBtn.setDisable(true);
-            e.printStackTrace();
         }
 
         parkCombo.getItems().addAll("1 - Carmel National Park");
