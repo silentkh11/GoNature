@@ -25,6 +25,7 @@ public class ServerPortFrameController {
     @FXML private Button stopBtn;
     @FXML private Button themeBtn;
     @FXML private TextArea consoleText;
+    @FXML private javafx.scene.control.PasswordField dbPassField;
 
     @FXML private TableView<ClientInfo> clientsTable;
     @FXML private TableColumn<ClientInfo, String> ipCol;
@@ -61,12 +62,27 @@ public class ServerPortFrameController {
 
     @FXML
     void startServer(ActionEvent event) {
+        // Grab the password typed by the user on the screen
+        String dbPass = dbPassField != null ? dbPassField.getText().trim() : "";
+        
+        if (dbPass.isEmpty()) {
+            consoleText.appendText("> ERROR: Please enter the MySQL Database password.\n");
+            return;
+        }
+
         try {
             int port = DEFAULT_PORT;
 
-            DBController.getInstance();
+            // 1. Try to connect to the database first using the password!
+            boolean dbConnected = DBController.connect(dbPass);
+            if (!dbConnected) {
+                consoleText.appendText("> ERROR: Database connection failed. Incorrect password or MySQL is offline.\n");
+                return; // Stop the server from booting if DB fails
+            }
+            
             consoleText.appendText("> Database connected successfully.\n");
 
+            // 2. Start the Network Server
             server = new EchoServer(port,
                 (String logMsg) -> Platform.runLater(() -> consoleText.appendText(logMsg)),
                 (ConnectionToClient client) -> Platform.runLater(() -> connectedClients.add(new ClientInfo(client))),
@@ -76,11 +92,12 @@ public class ServerPortFrameController {
 
             server.listen();
 
-            statusIndicator.setText("ONLINE  ·  Port " + port);
+            statusIndicator.setText("ONLINE  Â·  Port " + port);
             statusIndicator.setStyle("-fx-text-fill: #66bb6a; -fx-font-weight: bold;");
 
             startBtn.setDisable(true);
             stopBtn.setDisable(false);
+            if (dbPassField != null) dbPassField.setDisable(true); // Lock the password box while running
 
         } catch (Exception ex) {
             consoleText.appendText("> ERROR: " + ex.getMessage() + "\n");
