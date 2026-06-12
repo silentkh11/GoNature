@@ -91,7 +91,7 @@ public class ParkManagerReportsController {
 			controller.setUser(currentUser);
 
 			Stage stage = (Stage) ((Node) event.getSource()).getScene().getWindow();
-			stage.getScene().setRoot(root);
+			WindowChrome.setContent(stage, root, "GoNature - Park Manager");
 		} catch (Exception e) {
 			e.printStackTrace();
 		}

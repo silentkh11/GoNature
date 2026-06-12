@@ -140,7 +140,7 @@ public class ParkManagerController {
             reportsController.setUser(currentUser);
             
             javafx.stage.Stage stage = (javafx.stage.Stage) ((Node) event.getSource()).getScene().getWindow();
-            stage.getScene().setRoot(root);
+            WindowChrome.setContent(stage, root, "GoNature - Park Manager Reports");
         } catch (Exception e) {
             e.printStackTrace();
         }

@@ -59,8 +59,7 @@ public class MainMenuController {
             Parent root = FXMLLoader.load(getClass().getResource(fxmlPath));
             Stage stage = (Stage) ((Node) event.getSource()).getScene().getWindow();
             
-            stage.getScene().setRoot(root); 
-            stage.setTitle(title);
+            WindowChrome.setContent(stage, root, title);
             
         } catch (IOException e) {
             System.err.println("CRITICAL ERROR: Could not load FXML file -> " + fxmlPath);

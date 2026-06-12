@@ -76,8 +76,7 @@ public class LoginController {
 			javafx.scene.Parent root = loader.load();
 			
 			javafx.stage.Stage stage = (javafx.stage.Stage) ((javafx.scene.Node) event.getSource()).getScene().getWindow();
-			stage.getScene().setRoot(root);
-			stage.setTitle("GoNature - Welcome");
+			WindowChrome.setContent(stage, root, "GoNature - Welcome");
 			
 		} catch (Exception e) {
 			System.err.println("Error returning to Main Menu.");
@@ -138,9 +137,8 @@ public class LoginController {
 
 					// 4. Grab the current window and swap the ROOT smoothly
 					javafx.stage.Stage stage = (javafx.stage.Stage) loginBtn.getScene().getWindow();
-					
-                    stage.getScene().setRoot(root); // Swap the content without resizing!
-					stage.setTitle(windowTitle);
+
+                    WindowChrome.setContent(stage, root, windowTitle); // Swap the content without resizing!
                     
                     // Removed stage.centerOnScreen() here as well!
 

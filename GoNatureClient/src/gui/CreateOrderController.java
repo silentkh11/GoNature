@@ -129,8 +129,7 @@ public class CreateOrderController {
             javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(getClass().getResource("/gui/MainMenu.fxml"));
             javafx.scene.Parent root = loader.load();
             javafx.stage.Stage stage = (javafx.stage.Stage) ((javafx.scene.Node) event.getSource()).getScene().getWindow();
-            stage.getScene().setRoot(root);
-            stage.setTitle("GoNature - Welcome");
+            WindowChrome.setContent(stage, root, "GoNature - Welcome");
         } catch (Exception e) {
             e.printStackTrace();
         }

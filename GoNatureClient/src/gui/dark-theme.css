@@ -12,6 +12,61 @@
     -fx-background-color: #212121;
 }
 
+/* ===== CUSTOM WINDOW CHROME ===== */
+.app-shell {
+    -fx-background-color: #212121;
+    -fx-border-color: rgba(255, 255, 255, 0.08);
+    -fx-border-width: 1;
+}
+
+.title-bar {
+    -fx-background-color: #1a1a1a;
+    -fx-border-color: transparent transparent rgba(255, 255, 255, 0.06) transparent;
+    -fx-border-width: 0 0 1 0;
+    -fx-min-height: 36;
+    -fx-pref-height: 36;
+}
+
+.title-bar-label {
+    -fx-text-fill: #9e9e9e;
+    -fx-font-size: 12px;
+    -fx-font-weight: 600;
+}
+
+.title-bar-btn {
+    -fx-background-color: transparent;
+    -fx-text-fill: #9e9e9e;
+    -fx-font-family: "Segoe UI", sans-serif;
+    -fx-font-size: 11px;
+    -fx-background-radius: 0;
+    -fx-min-width: 44;
+    -fx-min-height: 36;
+    -fx-pref-width: 44;
+    -fx-pref-height: 36;
+    -fx-cursor: hand;
+}
+.title-bar-btn:hover {
+    -fx-background-color: rgba(255, 255, 255, 0.08);
+    -fx-text-fill: #f0f0f0;
+}
+.title-bar-btn-close:hover {
+    -fx-background-color: #e81123;
+    -fx-text-fill: #ffffff;
+}
+
+.title-bar-icon, .title-bar-icon-stroke {
+    -fx-stroke: #9e9e9e;
+    -fx-stroke-width: 1.1;
+}
+.title-bar-btn:hover .title-bar-icon,
+.title-bar-btn:hover .title-bar-icon-stroke {
+    -fx-stroke: #f0f0f0;
+}
+.title-bar-btn-close:hover .title-bar-icon,
+.title-bar-btn-close:hover .title-bar-icon-stroke {
+    -fx-stroke: #ffffff;
+}
+
 /* ===== GLASS CARD ===== */
 /* Simulates frosted glass: translucent fill + hair-line border + soft glow */
 .card {
