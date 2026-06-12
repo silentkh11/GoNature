@@ -89,8 +89,7 @@ public class RegisterController {
         try {
             Parent root = FXMLLoader.load(getClass().getResource("/gui/MainMenu.fxml"));
             Stage stage = (Stage) ((Node) event.getSource()).getScene().getWindow();
-            stage.getScene().setRoot(root);
-            stage.setTitle("GoNature - Welcome");
+            WindowChrome.setContent(stage, root, "GoNature - Welcome");
         } catch (Exception e) {
             e.printStackTrace();
         }
