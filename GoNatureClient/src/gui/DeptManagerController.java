@@ -101,6 +101,21 @@ public class DeptManagerController {
         });
     }
 
+    @FXML
+    void handleViewReports(ActionEvent event) {
+        try {
+            javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(
+                getClass().getResource("/gui/DeptManagerReports.fxml"));
+            javafx.scene.Parent root = loader.load();
+            javafx.stage.Stage stage = (javafx.stage.Stage) ((Node) event.getSource()).getScene().getWindow();
+            stage.getScene().setRoot(root);
+            stage.setTitle("GoNature - Department Manager Reports");
+        } catch (Exception e) {
+            showStatus("Error opening reports screen.", "#d63031");
+            e.printStackTrace();
+        }
+    }
+
     private void showStatus(String message, String hexColor) {
         lblStatus.setText(message);
         lblStatus.setStyle("-fx-text-fill: " + hexColor + ";");

@@ -249,12 +249,20 @@ public class DBController {
                 }
             }
 
-            if (order.getOrderType().equalsIgnoreCase("Group") || isGuide) {
-                int payingVisitors = Math.max(0, order.getVisitorCount() - 1); 
-                calculatedPrice = payingVisitors * (basePrice * 0.75); 
+            // Group booking requires a registered guide; reject if not
+            if (order.getOrderType().equalsIgnoreCase("Group") && !isGuide) {
+                return null; // Caller distinguishes null = DB error; use flag via special marker
+            }
+
+            if (isGuide || order.getOrderType().equalsIgnoreCase("Group")) {
+                // Pre-booked group: 25% off full price, guide goes free
+                int payingVisitors = Math.max(0, order.getVisitorCount() - 1);
+                calculatedPrice = payingVisitors * (basePrice * 0.75);
             } else if (isSubscriber) {
-                calculatedPrice = order.getVisitorCount() * (basePrice * 0.80);
+                // Pre-booked personal/family + subscriber: 15% off then extra 10% off
+                calculatedPrice = order.getVisitorCount() * (basePrice * 0.85 * 0.90);
             } else {
+                // Pre-booked personal/family: 15% off full price
                 calculatedPrice = order.getVisitorCount() * (basePrice * 0.85);
             }
             
@@ -751,6 +759,204 @@ public class DBController {
         }
     }
     
+    // =========================================================================
+    // --- 9. GUIDE VERIFICATION ---
+    // =========================================================================
+    public static boolean isRegisteredGuide(String visitorId) {
+        String query = "SELECT is_guide FROM subscriber WHERE visitor_id = ? AND is_guide = true";
+        try (Connection conn = getInstance().getConnection();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+            stmt.setString(1, visitorId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                return rs.next();
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    // =========================================================================
+    // --- 10. WALK-IN VISITOR ENGINE ---
+    // =========================================================================
+    public static entities.VisitOrder processWalkIn(int parkId, int visitorCount, String orderType) {
+        try (Connection conn = getInstance().getConnection()) {
+            int maxCapacity = 0, currentVisitors = 0;
+            String parkQuery = "SELECT max_capacity, current_visitors FROM park WHERE park_id = ?";
+            try (PreparedStatement parkStmt = conn.prepareStatement(parkQuery)) {
+                parkStmt.setInt(1, parkId);
+                try (ResultSet rs = parkStmt.executeQuery()) {
+                    if (rs.next()) {
+                        maxCapacity = rs.getInt("max_capacity");
+                        currentVisitors = rs.getInt("current_visitors");
+                    }
+                }
+            }
+
+            int availableNow = maxCapacity - currentVisitors;
+            if (availableNow < visitorCount) {
+                return null; // No space
+            }
+
+            // Walk-in pricing: full price for personal/family; 10% off for walk-in group (guide pays)
+            int basePrice = 100;
+            double price;
+            if (orderType.equalsIgnoreCase("Group")) {
+                price = visitorCount * (basePrice * 0.90);
+            } else {
+                price = visitorCount * basePrice;
+            }
+
+            String today = java.time.LocalDate.now().toString();
+            String now = java.time.LocalTime.now()
+                .format(java.time.format.DateTimeFormatter.ofPattern("HH:mm")) + ":00";
+
+            // Generate a unique walk-in visitor ID
+            String walkInId = "WI" + (System.currentTimeMillis() % 1000000);
+
+            String ensureVisitor = "INSERT INTO visitor (visitor_id, first_name, last_name, email, phone, visitor_type) " +
+                                   "VALUES (?, 'Walk-in', 'Visitor', 'Not Provided', 'Not Provided', 'Regular') " +
+                                   "ON DUPLICATE KEY UPDATE visitor_id=visitor_id";
+            try (PreparedStatement visStmt = conn.prepareStatement(ensureVisitor)) {
+                visStmt.setString(1, walkInId);
+                visStmt.executeUpdate();
+            }
+
+            String insertQuery = "INSERT INTO visit_order (park_id, visitor_id, visit_date, visit_time, " +
+                                 "visitor_count, order_type, status, price) VALUES (?, ?, ?, ?, ?, ?, 'In Park', ?)";
+            try (PreparedStatement insertStmt = conn.prepareStatement(insertQuery, Statement.RETURN_GENERATED_KEYS)) {
+                insertStmt.setInt(1, parkId);
+                insertStmt.setString(2, walkInId);
+                insertStmt.setString(3, today);
+                insertStmt.setString(4, now);
+                insertStmt.setInt(5, visitorCount);
+                insertStmt.setString(6, orderType);
+                insertStmt.setDouble(7, price);
+                insertStmt.executeUpdate();
+
+                try (ResultSet keys = insertStmt.getGeneratedKeys()) {
+                    if (keys.next()) {
+                        int newId = keys.getInt(1);
+                        String updatePark = "UPDATE park SET current_visitors = current_visitors + ? WHERE park_id = ?";
+                        try (PreparedStatement parkUpd = conn.prepareStatement(updatePark)) {
+                            parkUpd.setInt(1, visitorCount);
+                            parkUpd.setInt(2, parkId);
+                            parkUpd.executeUpdate();
+                        }
+                        return new entities.VisitOrder(newId, parkId, walkInId, today, now,
+                                                       visitorCount, orderType, "In Park", price);
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    // =========================================================================
+    // --- 11. DEPARTMENT MANAGER REPORTS ---
+    // =========================================================================
+    public static ArrayList<entities.Park> getAllParks() {
+        ArrayList<entities.Park> parks = new ArrayList<>();
+        String query = "SELECT * FROM park";
+        try (Connection conn = getInstance().getConnection();
+             PreparedStatement stmt = conn.prepareStatement(query);
+             ResultSet rs = stmt.executeQuery()) {
+            while (rs.next()) {
+                parks.add(new entities.Park(
+                    rs.getInt("park_id"), rs.getString("name"),
+                    rs.getInt("max_capacity"), rs.getInt("casual_gap"),
+                    rs.getInt("estimated_stay_time"), rs.getInt("current_visitors")
+                ));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return parks;
+    }
+
+    public static entities.ReportData getDeptMonthlyReport(int parkId, String month, String year) {
+        String query = "SELECT * FROM monthly_reports WHERE park_id = ? AND report_month = ? AND report_year = ?";
+        try (Connection conn = getInstance().getConnection();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+            stmt.setInt(1, parkId);
+            stmt.setString(2, month);
+            stmt.setString(3, year);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    entities.ReportData report = new entities.ReportData(parkId, month, year);
+                    report.addVisitorData("Solo", rs.getInt("solo_visitors"));
+                    report.addVisitorData("Family", rs.getInt("family_visitors"));
+                    report.addVisitorData("Group", rs.getInt("group_visitors"));
+                    report.addVisitorData("Subscriber", rs.getInt("subscriber_visitors"));
+                    report.addIncomeData("Income", rs.getDouble("total_income"));
+                    return report;
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    public static entities.ReportData getCancellationsReport(String month, String year) {
+        entities.ReportData report = new entities.ReportData(0, month, year);
+        String query = "SELECT order_type, COUNT(*) as cnt FROM visit_order " +
+                       "WHERE status = 'Cancelled' AND MONTH(visit_date) = ? AND YEAR(visit_date) = ? " +
+                       "GROUP BY order_type";
+        try (Connection conn = getInstance().getConnection();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+            stmt.setInt(1, Integer.parseInt(month));
+            stmt.setInt(2, Integer.parseInt(year));
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    report.addVisitorData(rs.getString("order_type"), rs.getInt("cnt"));
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return report;
+    }
+
+    // =========================================================================
+    // --- 12. AVAILABLE SLOTS (for rejected/waitlisted bookings) ---
+    // =========================================================================
+    public static ArrayList<String> getAvailableSlots(int parkId, String date) {
+        ArrayList<String> slots = new ArrayList<>();
+        String[] allSlots = {"08:00:00","09:00:00","10:00:00","11:00:00","12:00:00",
+                             "13:00:00","14:00:00","15:00:00","16:00:00","17:00:00"};
+        try (Connection conn = getInstance().getConnection()) {
+            int maxCapacity = 0, casualGap = 0;
+            String parkQ = "SELECT max_capacity, casual_gap FROM park WHERE park_id = ?";
+            try (PreparedStatement ps = conn.prepareStatement(parkQ)) {
+                ps.setInt(1, parkId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) { maxCapacity = rs.getInt("max_capacity"); casualGap = rs.getInt("casual_gap"); }
+                }
+            }
+            int available = maxCapacity - casualGap;
+            for (String slot : allSlots) {
+                String sumQ = "SELECT COALESCE(SUM(visitor_count),0) as booked FROM visit_order " +
+                              "WHERE park_id=? AND visit_date=? AND visit_time=? " +
+                              "AND status IN ('Confirmed','In Park','Pending Confirm')";
+                try (PreparedStatement ps = conn.prepareStatement(sumQ)) {
+                    ps.setInt(1, parkId); ps.setString(2, date); ps.setString(3, slot);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (rs.next()) {
+                            int free = available - rs.getInt("booked");
+                            if (free > 0) slots.add(slot.substring(0, 5) + " (" + free + " spots free)");
+                        }
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return slots;
+    }
+
     public static String saveMonthlyReport(entities.ReportData report) {
         // Extract the map values safely. If a category had 0 visitors, it defaults to 0 instead of crashing.
         int solo = report.getVisitorBreakdown().getOrDefault("Solo", 0);

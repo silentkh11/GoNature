@@ -47,4 +47,9 @@
    <Label fx:id="lblStatus" alignment="CENTER" prefWidth="600.0" style="-fx-font-weight: bold; -fx-font-size: 14px;">
       <VBox.margin><Insets top="10.0" /></VBox.margin>
    </Label>
+
+   <Button mnemonicParsing="false" onAction="#handleViewReports" prefHeight="45.0" prefWidth="300.0"
+           styleClass="primary-btn" style="-fx-font-size: 14px;" text="📊 View System Reports">
+      <VBox.margin><Insets top="10.0" /></VBox.margin>
+   </Button>
 </VBox>
