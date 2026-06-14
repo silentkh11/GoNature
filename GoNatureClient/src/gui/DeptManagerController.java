@@ -167,6 +167,10 @@ public class DeptManagerController {
                 case "KICK_FAILED":
                     showStatus((String) msg.getData(), "#d63031");
                     break;
+
+                case "REPORT_SUBMITTED_NOTIFICATION":
+                    showStatus((String) msg.getData(), "#0984e3");
+                    break;
             }
         });
     }

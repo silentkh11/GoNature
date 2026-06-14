@@ -24,6 +24,10 @@ public class EchoServer extends AbstractServer {
     private final java.util.Map<ConnectionToClient, String> clientUserMap =
         java.util.Collections.synchronizedMap(new java.util.HashMap<>());
 
+    // Real-time sync: track the full Employee object so we can push by role/park
+    private final java.util.Map<ConnectionToClient, entities.Employee> clientEmployeeMap =
+        java.util.Collections.synchronizedMap(new java.util.HashMap<>());
+
     /**
      * Constructs an instance of the echo server.
      */
@@ -60,6 +64,7 @@ public class EchoServer extends AbstractServer {
                         } else {
                             loggedInUsers.add(username);
                             clientUserMap.put(client, username);
+                            clientEmployeeMap.put(client, user);
                             client.sendToClient(new Message("LOGIN_SUCCESS", user));
                             uiLogger.accept("> " + user.getRole() + " (" + username + ") logged in.\n");
                         }
@@ -113,6 +118,7 @@ public class EchoServer extends AbstractServer {
                     if (resultMessage.startsWith("SUCCESS")) {
                         client.sendToClient(new Message("ENTRY_APPROVED", resultMessage));
                         uiLogger.accept("> Gate Entry APPROVED.\n");
+                        pushParkUpdate(orderIdToAdmit);
                     } else {
                         client.sendToClient(new Message("ENTRY_DENIED", resultMessage));
                         uiLogger.accept("> Gate Entry DENIED: " + resultMessage + "\n");
@@ -126,6 +132,7 @@ public class EchoServer extends AbstractServer {
                     if (resultMessage.startsWith("SUCCESS")) {
                         client.sendToClient(new Message("EXIT_APPROVED", resultMessage));
                         uiLogger.accept("> Gate Exit APPROVED.\n");
+                        pushParkUpdate(orderIdToExit);
                     } else {
                         client.sendToClient(new Message("EXIT_DENIED", resultMessage));
                         uiLogger.accept("> Gate Exit DENIED: " + resultMessage + "\n");
@@ -142,6 +149,9 @@ public class EchoServer extends AbstractServer {
                     if (walkin != null) {
                         client.sendToClient(new Message("WALKIN_APPROVED", walkin));
                         uiLogger.accept("> Walk-in APPROVED. Ticket #" + walkin.getOrderId() + "\n");
+                        // Push live visitor count to ParkManagers of this park
+                        entities.Park updatedPark = DBController.getParkById(parkId);
+                        if (updatedPark != null) broadcastToPark(parkId, new Message("PARK_DETAILS_DATA", updatedPark));
                     } else {
                         client.sendToClient(new Message("WALKIN_DENIED", "Park is at full capacity. Cannot admit walk-in visitors."));
                         uiLogger.accept("> Walk-in DENIED — park full.\n");
@@ -172,6 +182,9 @@ public class EchoServer extends AbstractServer {
                     
                     if (success) {
                         client.sendToClient(new Message("UPDATE_PARAMS_SUCCESS", "Request forwarded to Department Manager for approval."));
+                        // Push live update: DeptManagers see the new request immediately
+                        java.util.ArrayList<entities.ParameterRequest> freshRequests = DBController.getPendingRequests();
+                        broadcastToRole("DeptManager", new Message("PENDING_REQUESTS_DATA", freshRequests));
                     } else {
                         client.sendToClient(new Message("UPDATE_PARAMS_FAILED", "Failed to submit request."));
                     }
@@ -196,6 +209,8 @@ public class EchoServer extends AbstractServer {
                     
                     if (success) {
                         client.sendToClient(new Message("DECISION_SUCCESS", decision));
+                        // Push live update: ParkManagers re-fetch their park data to see if their request was processed
+                        broadcastToRole("ParkManager", new Message("PARAMETER_DECISION_MADE", decision));
                     } else {
                         client.sendToClient(new Message("DECISION_FAILED", "Database error."));
                     }
@@ -254,6 +269,9 @@ public class EchoServer extends AbstractServer {
                     
                     if (resultMsg.startsWith("SUCCESS")) {
                         client.sendToClient(new Message("SAVE_REPORT_SUCCESS", resultMsg));
+                        // Push live update: DeptManagers are notified a new report is available
+                        broadcastToRole("DeptManager", new Message("REPORT_SUBMITTED_NOTIFICATION",
+                            "📋 A new monthly report was submitted by Park " + reportToSave.getParkId() + "."));
                     } else {
                         client.sendToClient(new Message("SAVE_REPORT_FAILED", resultMsg));
                     }
@@ -401,6 +419,7 @@ public class EchoServer extends AbstractServer {
     @Override
     protected void clientDisconnected(ConnectionToClient client) {
         String username = clientUserMap.remove(client);
+        clientEmployeeMap.remove(client);
         if (username != null) {
             loggedInUsers.remove(username);
             uiLogger.accept("> " + username + " disconnected — session released.\n");
@@ -409,6 +428,44 @@ public class EchoServer extends AbstractServer {
         }
         if (clientDisconnectedHandler != null) {
             clientDisconnectedHandler.accept(client);
+        }
+    }
+
+    // =========================================================================
+    // --- REAL-TIME BROADCAST HELPERS ---
+    // =========================================================================
+
+    /** Push a message to every connected client of the given role. */
+    private void broadcastToRole(String role, Message msg) {
+        synchronized (clientEmployeeMap) {
+            for (java.util.Map.Entry<ConnectionToClient, entities.Employee> entry : clientEmployeeMap.entrySet()) {
+                if (role.equals(entry.getValue().getRole())) {
+                    try { entry.getKey().sendToClient(msg); } catch (Exception ignored) {}
+                }
+            }
+        }
+    }
+
+    /** Push a message to every ParkManager whose park matches parkId. */
+    private void broadcastToPark(int parkId, Message msg) {
+        synchronized (clientEmployeeMap) {
+            for (java.util.Map.Entry<ConnectionToClient, entities.Employee> entry : clientEmployeeMap.entrySet()) {
+                entities.Employee emp = entry.getValue();
+                if ("ParkManager".equals(emp.getRole())
+                        && emp.getParkId() != null
+                        && emp.getParkId().intValue() == parkId) {
+                    try { entry.getKey().sendToClient(msg); } catch (Exception ignored) {}
+                }
+            }
+        }
+    }
+
+    /** Look up the park for an order and push fresh park data to that park's managers. */
+    private void pushParkUpdate(int orderId) {
+        int parkId = DBController.getOrderParkId(orderId);
+        if (parkId > 0) {
+            entities.Park updatedPark = DBController.getParkById(parkId);
+            if (updatedPark != null) broadcastToPark(parkId, new Message("PARK_DETAILS_DATA", updatedPark));
         }
     }
 }

@@ -19,6 +19,7 @@ public class ParkManagerController {
     @FXML private Label lblMaxCapacity;
     @FXML private Label lblCasualGap;
     @FXML private Label lblEstStay;
+    @FXML private Label lblCurrentVisitors;
 
     // --- Request Update (Right Side) ---
     @FXML private TextField txtNewMaxCapacity;
@@ -101,11 +102,20 @@ public class ParkManagerController {
                 
                 case "PARK_DETAILS_DATA":
                     this.currentPark = (Park) msg.getData();
-                    // Populate the left side of the UI!
                     lblParkName.setText(currentPark.getName());
                     lblMaxCapacity.setText(String.valueOf(currentPark.getMaxCapacity()));
                     lblCasualGap.setText(String.valueOf(currentPark.getCasualGap()));
                     lblEstStay.setText(String.valueOf(currentPark.getEstimatedStayTime()));
+                    lblCurrentVisitors.setText(currentPark.getCurrentVisitors() + " / " + currentPark.getMaxCapacity());
+                    break;
+
+                case "PARAMETER_DECISION_MADE":
+                    // DeptManager approved or denied a request — re-fetch to see if ours was affected
+                    if (currentUser != null && currentUser.getParkId() != null) {
+                        ChatClient.getInstance().handleMessageFromClientUI(
+                            new Message("FETCH_PARK_DETAILS", currentUser.getParkId()));
+                        showStatus("Department Manager processed a parameter request. Parameters updated.", "#00b894");
+                    }
                     break;
                     
                 case "UPDATE_PARAMS_SUCCESS":

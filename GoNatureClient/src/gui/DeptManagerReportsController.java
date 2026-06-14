@@ -121,6 +121,10 @@ public class DeptManagerReportsController {
                     ReportData cancellations = (ReportData) msg.getData();
                     renderCharts(cancellations, "Cancellations Report");
                     break;
+
+                case "REPORT_SUBMITTED_NOTIFICATION":
+                    showStatus((String) msg.getData(), "#0984e3");
+                    break;
             }
         });
     }

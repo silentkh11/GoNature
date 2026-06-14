@@ -989,10 +989,24 @@ public class DBController {
             
             stmt.executeUpdate();
             return "SUCCESS: Report successfully submitted to the Department Manager.";
-            
+
         } catch (java.sql.SQLException e) {
             System.err.println("Database Error Saving Report: " + e.getMessage());
             return "ERROR: Could not save the report to the database.";
         }
+    }
+
+    public static int getOrderParkId(int orderId) {
+        String query = "SELECT park_id FROM visit_order WHERE order_id = ?";
+        try (java.sql.Connection conn = getInstance().getConnection();
+             java.sql.PreparedStatement stmt = conn.prepareStatement(query)) {
+            stmt.setInt(1, orderId);
+            try (java.sql.ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) return rs.getInt("park_id");
+            }
+        } catch (java.sql.SQLException e) {
+            e.printStackTrace();
+        }
+        return -1;
     }
 }

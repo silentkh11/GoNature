@@ -46,6 +46,9 @@
 
             <Label styleClass="body-label" text="Est. Stay (Hours):" GridPane.rowIndex="3" GridPane.columnIndex="0"><font><Font name="Segoe UI Bold" size="14.0" /></font></Label>
             <Label fx:id="lblEstStay" styleClass="body-label" text="-" GridPane.rowIndex="3" GridPane.columnIndex="1"><font><Font name="Segoe UI" size="14.0" /></font></Label>
+
+            <Label styleClass="body-label" text="Current Visitors:" GridPane.rowIndex="4" GridPane.columnIndex="0"><font><Font name="Segoe UI Bold" size="14.0" /></font></Label>
+            <Label fx:id="lblCurrentVisitors" styleClass="body-label" text="-" GridPane.rowIndex="4" GridPane.columnIndex="1"><font><Font name="Segoe UI" size="14.0" /></font></Label>
          </GridPane>
       </VBox>
 
