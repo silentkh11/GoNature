@@ -12,6 +12,7 @@ import javafx.scene.control.DatePicker;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.regex.Pattern;
 
 public class CreateOrderController {
@@ -106,10 +107,12 @@ public class CreateOrderController {
             if (type.equals("Group")) {
                 int paying = Math.max(0, count - 1);
                 price = paying * 75.0;
-                priceEstimateLabel.setText(String.format("~₪%.0f  (group: %d paying × ₪75)", price, paying));
+                priceEstimateLabel.setText(String.format(
+                    "~₪%.0f  (group: %d paying × ₪75)  |  Subscriber? Final price will be ×0.90", price, paying));
             } else {
                 price = count * 85.0;
-                priceEstimateLabel.setText(String.format("~₪%.0f  (%d visitor%s × ₪85)", price, count, count > 1 ? "s" : ""));
+                priceEstimateLabel.setText(String.format(
+                    "~₪%.0f  (%d visitor%s × ₪85)  |  Subscriber? Final price will be ×0.90", price, count, count > 1 ? "s" : ""));
             }
         } catch (NumberFormatException e) {
             priceEstimateLabel.setText("");
@@ -204,6 +207,11 @@ public class CreateOrderController {
         ChatClient.getInstance().handleMessageFromClientUI(new Message("NEW_ORDER_REQUEST", newOrder));
     }
 
+    // Store waitlisted order details for the follow-up slots fetch
+    private int pendingWaitlistParkId = -1;
+    private String pendingWaitlistDate = null;
+
+    @SuppressWarnings("unchecked")
     public void handleServerResponse(Message msg) {
         Platform.runLater(() -> {
             submitBtn.setDisable(false);
@@ -212,8 +220,17 @@ public class CreateOrderController {
                 VisitOrder finalizedOrder = (VisitOrder) msg.getData();
 
                 if (finalizedOrder.getStatus().equals("Waitlisted")) {
-                    showStatus("Park is full — you are WAITLISTED. Order #" + finalizedOrder.getOrderId()
-                        + "  |  You will be notified by email & SMS if a spot opens.", "#e17055");
+                    showStatus("Park is full for that time — you are on the WAITLIST. Order #"
+                        + finalizedOrder.getOrderId()
+                        + "  |  You will be notified by email & SMS if a spot opens."
+                        + "\nFetching other available time slots on that day...", "#e17055");
+
+                    // Ask server for alternative slots
+                    pendingWaitlistParkId = finalizedOrder.getParkId();
+                    pendingWaitlistDate = finalizedOrder.getVisitDate();
+                    String[] slotReq = { String.valueOf(pendingWaitlistParkId), pendingWaitlistDate };
+                    ChatClient.getInstance().handleMessageFromClientUI(
+                        new Message("FETCH_AVAILABLE_SLOTS", slotReq));
                 } else {
                     showStatus("Booking CONFIRMED!  Order #" + finalizedOrder.getOrderId()
                         + "  |  Total: ₪" + String.format("%.0f", finalizedOrder.getPrice())
@@ -222,8 +239,17 @@ public class CreateOrderController {
                 }
 
             } else if (msg.getCommand().equals("ORDER_FAILED")) {
-                String errorMsg = (String) msg.getData();
-                showStatus("Error: " + errorMsg, "#d63031");
+                showStatus("Error: " + (String) msg.getData(), "#d63031");
+
+            } else if (msg.getCommand().equals("AVAILABLE_SLOTS_DATA")) {
+                ArrayList<String> slots = (ArrayList<String>) msg.getData();
+                if (slots.isEmpty()) {
+                    priceEstimateLabel.setText("No other available slots found for " + pendingWaitlistDate + ".");
+                } else {
+                    priceEstimateLabel.setText("Other available slots on " + pendingWaitlistDate
+                        + ":\n" + String.join("  |  ", slots));
+                }
+                priceEstimateLabel.setStyle("-fx-text-fill: #64b5f6; -fx-font-weight: bold;");
             }
         });
     }

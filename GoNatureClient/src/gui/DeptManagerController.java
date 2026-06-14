@@ -10,41 +10,62 @@ import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
+import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
+import javafx.scene.control.ListView;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.stage.Stage;
+
 import java.util.ArrayList;
 
 public class DeptManagerController {
 
     @FXML private TableView<ParameterRequest> requestsTable;
     @FXML private TableColumn<ParameterRequest, Integer> colReqId;
-    @FXML private TableColumn<ParameterRequest, String> colPark;
+    @FXML private TableColumn<ParameterRequest, String>  colPark;
     @FXML private TableColumn<ParameterRequest, Integer> colCapacity;
     @FXML private TableColumn<ParameterRequest, Integer> colGap;
     @FXML private TableColumn<ParameterRequest, Integer> colTime;
-    
+
     @FXML private Button btnApprove;
     @FXML private Button btnDeny;
     @FXML private Button themeBtn;
-    @FXML private Label lblStatus;
+    @FXML private Label  lblStatus;
+
+    @FXML private ListView<String> connectedUsersList;
+    @FXML private Label lblUserCount;
 
     @FXML
     public void initialize() {
         themeBtn.setText(ThemeManager.getInstance().toggleLabel());
-        // 1. Link the columns to the variables inside your ParameterRequest.java file
+
         colReqId.setCellValueFactory(new PropertyValueFactory<>("requestId"));
         colPark.setCellValueFactory(new PropertyValueFactory<>("parkName"));
         colCapacity.setCellValueFactory(new PropertyValueFactory<>("newMaxCapacity"));
         colGap.setCellValueFactory(new PropertyValueFactory<>("newCasualGap"));
         colTime.setCellValueFactory(new PropertyValueFactory<>("newEstimatedStayTime"));
 
-        // 2. Set up the network listener
         ChatClient.getInstance().setResponseHandler(this::handleServerResponse);
-        
-        // 3. Immediately ask the Server for the pending requests when the screen opens
         ChatClient.getInstance().handleMessageFromClientUI(new Message("FETCH_PENDING_REQUESTS", null));
+
+        // Right-click context menu on connected users list
+        ContextMenu contextMenu = new ContextMenu();
+        MenuItem kickItem = new MenuItem("🔌 Force Disconnect");
+        kickItem.setOnAction(e -> {
+            String selected = connectedUsersList.getSelectionModel().getSelectedItem();
+            if (selected != null) {
+                showStatus("Disconnecting " + selected + "...", "#e17055");
+                ChatClient.getInstance().handleMessageFromClientUI(new Message("KICK_USER", selected));
+            }
+        });
+        contextMenu.getItems().add(kickItem);
+        connectedUsersList.setContextMenu(contextMenu);
+
+        // Load connected users on open
+        ChatClient.getInstance().handleMessageFromClientUI(new Message("FETCH_CONNECTED_USERS", null));
     }
 
     @FXML
@@ -52,6 +73,12 @@ public class DeptManagerController {
         javafx.scene.Scene scene = ((Node) event.getSource()).getScene();
         ThemeManager.getInstance().toggle(scene);
         themeBtn.setText(ThemeManager.getInstance().toggleLabel());
+    }
+
+    @FXML
+    void handleRefreshUsers(ActionEvent event) {
+        showStatus("Refreshing connected users...", "#0984e3");
+        ChatClient.getInstance().handleMessageFromClientUI(new Message("FETCH_CONNECTED_USERS", null));
     }
 
     @FXML
@@ -65,38 +92,85 @@ public class DeptManagerController {
     }
 
     private void processDecision(String decision) {
-        // Grab the row the manager clicked on
         ParameterRequest selected = requestsTable.getSelectionModel().getSelectedItem();
-        
         if (selected == null) {
             showStatus("Please select a request from the table first.", "#d63031");
             return;
         }
-
-        // Send a String array to the Server: ["RequestID", "Decision"]
-        String[] data = {String.valueOf(selected.getRequestId()), decision};
+        String[] data = { String.valueOf(selected.getRequestId()), decision };
         ChatClient.getInstance().handleMessageFromClientUI(new Message("PROCESS_REQUEST_DECISION", data));
+    }
+
+    @FXML
+    void handleViewReports(ActionEvent event) {
+        try {
+            javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(
+                getClass().getResource("/gui/DeptManagerReports.fxml"));
+            javafx.scene.Parent root = loader.load();
+            Stage stage = (Stage) ((Node) event.getSource()).getScene().getWindow();
+            WindowChrome.setContent(stage, root, "GoNature - Dept Manager Reports");
+        } catch (Exception e) {
+            showStatus("Error opening reports screen.", "#d63031");
+            e.printStackTrace();
+        }
+    }
+
+    @FXML
+    void handleLogout(ActionEvent event) {
+        try {
+            ChatClient.getInstance().handleMessageFromClientUI(new Message("LOGOUT_REQUEST", null));
+        } catch (Exception ignored) {}
+        try {
+            javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(
+                getClass().getResource("/gui/MainMenu.fxml"));
+            javafx.scene.Parent root = loader.load();
+            Stage stage = (Stage) ((Node) event.getSource()).getScene().getWindow();
+            WindowChrome.setContent(stage, root, "GoNature - Welcome");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     @SuppressWarnings("unchecked")
     public void handleServerResponse(Message msg) {
         Platform.runLater(() -> {
-            
-            if (msg.getCommand().equals("PENDING_REQUESTS_DATA")) {
-                // Populate the table with the data from the database
-                ArrayList<ParameterRequest> list = (ArrayList<ParameterRequest>) msg.getData();
-                ObservableList<ParameterRequest> observableList = FXCollections.observableArrayList(list);
-                requestsTable.setItems(observableList);
-                
-            } else if (msg.getCommand().equals("DECISION_SUCCESS")) {
-                String decision = (String) msg.getData();
-                showStatus("Request successfully " + decision + "!", "#00b894");
-                
-                // Refresh the table to remove the request we just processed
-                ChatClient.getInstance().handleMessageFromClientUI(new Message("FETCH_PENDING_REQUESTS", null));
-                
-            } else if (msg.getCommand().equals("DECISION_FAILED")) {
-                showStatus("Error: Database failed to process the decision.", "#d63031");
+            switch (msg.getCommand()) {
+                case "PENDING_REQUESTS_DATA":
+                    ArrayList<ParameterRequest> list = (ArrayList<ParameterRequest>) msg.getData();
+                    ObservableList<ParameterRequest> obs = FXCollections.observableArrayList(list);
+                    requestsTable.setItems(obs);
+                    break;
+
+                case "DECISION_SUCCESS":
+                    showStatus("Request successfully " + msg.getData() + "!", "#00b894");
+                    ChatClient.getInstance().handleMessageFromClientUI(new Message("FETCH_PENDING_REQUESTS", null));
+                    break;
+
+                case "DECISION_FAILED":
+                    showStatus("Error: Database failed to process the decision.", "#d63031");
+                    break;
+
+                case "CONNECTED_USERS_DATA":
+                    ArrayList<String> users = (ArrayList<String>) msg.getData();
+                    connectedUsersList.setItems(FXCollections.observableArrayList(users));
+                    lblUserCount.setText(users.size() + " user(s) online");
+                    if (lblStatus.getText().equals("Refreshing connected users..."))
+                        showStatus("", "");
+                    break;
+
+                case "KICK_SUCCESS":
+                    showStatus((String) msg.getData(), "#00b894");
+                    // Refresh the list after kicking
+                    ChatClient.getInstance().handleMessageFromClientUI(new Message("FETCH_CONNECTED_USERS", null));
+                    break;
+
+                case "KICK_FAILED":
+                    showStatus((String) msg.getData(), "#d63031");
+                    break;
+
+                case "REPORT_SUBMITTED_NOTIFICATION":
+                    showStatus((String) msg.getData(), "#0984e3");
+                    break;
             }
         });
     }

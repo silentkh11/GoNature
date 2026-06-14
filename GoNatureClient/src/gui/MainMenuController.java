@@ -14,7 +14,6 @@ public class MainMenuController {
 
     @FXML private Button guestBtn;
     @FXML private Button loginBtn;
-    @FXML private Button registerBtn;
     @FXML private Button manageOrdersBtn;
     @FXML private Button themeBtn;
 
@@ -40,12 +39,6 @@ public class MainMenuController {
         switchScene(event, "/gui/Login.fxml", "GoNature - Employee Login");
     }
 
-    @FXML
-    void handleRegister(ActionEvent event) {
-        switchScene(event, "/gui/Register.fxml", "GoNature - Registration");
-    }
-
-    // --- 2. Added the routing method for the Guest Portal ---
     @FXML
     void handleManageOrders(ActionEvent event) {
         switchScene(event, "/gui/GuestPortal.fxml", "GoNature - Manage Orders");

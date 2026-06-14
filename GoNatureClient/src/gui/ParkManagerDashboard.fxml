@@ -13,9 +13,10 @@
       <Insets bottom="40.0" left="40.0" right="40.0" top="20.0" />
    </padding>
 
-   <HBox alignment="CENTER_RIGHT" spacing="15.0">
+   <HBox alignment="CENTER_RIGHT" spacing="10.0">
       <Button mnemonicParsing="false" onAction="#handleViewReports" styleClass="primary-btn" style="-fx-font-size: 14px;" text="📊 View Statistical Reports" />
       <Button fx:id="themeBtn" mnemonicParsing="false" onAction="#handleToggleTheme" styleClass="theme-toggle" text="🌙 Dark Mode" />
+      <Button mnemonicParsing="false" onAction="#handleLogout" styleClass="danger-btn" style="-fx-font-size: 13px; -fx-padding: 5 14;" text="🚪 Logout" />
       <VBox.margin><Insets bottom="5.0" /></VBox.margin>
    </HBox>
 
@@ -45,6 +46,9 @@
 
             <Label styleClass="body-label" text="Est. Stay (Hours):" GridPane.rowIndex="3" GridPane.columnIndex="0"><font><Font name="Segoe UI Bold" size="14.0" /></font></Label>
             <Label fx:id="lblEstStay" styleClass="body-label" text="-" GridPane.rowIndex="3" GridPane.columnIndex="1"><font><Font name="Segoe UI" size="14.0" /></font></Label>
+
+            <Label styleClass="body-label" text="Current Visitors:" GridPane.rowIndex="4" GridPane.columnIndex="0"><font><Font name="Segoe UI Bold" size="14.0" /></font></Label>
+            <Label fx:id="lblCurrentVisitors" styleClass="body-label" text="-" GridPane.rowIndex="4" GridPane.columnIndex="1"><font><Font name="Segoe UI" size="14.0" /></font></Label>
          </GridPane>
       </VBox>
 
