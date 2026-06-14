@@ -53,6 +53,21 @@ public class ParkEntranceController {
     }
 
     @FXML
+    void handleLogout(ActionEvent event) {
+        try {
+            ChatClient.getInstance().handleMessageFromClientUI(new Message("LOGOUT_REQUEST", null));
+        } catch (Exception ignored) {}
+        try {
+            javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(getClass().getResource("/gui/MainMenu.fxml"));
+            javafx.scene.Parent root = loader.load();
+            javafx.stage.Stage stage = (javafx.stage.Stage) ((Node) event.getSource()).getScene().getWindow();
+            WindowChrome.setContent(stage, root, "GoNature - Welcome");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    @FXML
     void handleAdmit(ActionEvent event) {
         processGateAction("ENTER_PARK_REQUEST", "Verifying ticket...", true);
     }
@@ -146,6 +161,16 @@ public class ParkEntranceController {
                     break;
                 case "WALKIN_DENIED":
                     showWalkInStatus((String) msg.getData(), "#d63031");
+                    break;
+                case "KICKED":
+                    showStatus("Disconnected by the Department Manager.", "#d63031");
+                    try {
+                        javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(
+                            getClass().getResource("/gui/MainMenu.fxml"));
+                        javafx.scene.Parent root = loader.load();
+                        javafx.stage.Stage stage = (javafx.stage.Stage) lblStatus.getScene().getWindow();
+                        WindowChrome.setContent(stage, root, "GoNature - Welcome");
+                    } catch (Exception e) { e.printStackTrace(); }
                     break;
             }
         });

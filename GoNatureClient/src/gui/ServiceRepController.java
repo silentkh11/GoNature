@@ -39,6 +39,21 @@ public class ServiceRepController {
     }
 
     @FXML
+    void handleLogout(ActionEvent event) {
+        try {
+            ChatClient.getInstance().handleMessageFromClientUI(new Message("LOGOUT_REQUEST", null));
+        } catch (Exception ignored) {}
+        try {
+            javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(getClass().getResource("/gui/MainMenu.fxml"));
+            javafx.scene.Parent root = loader.load();
+            javafx.stage.Stage stage = (javafx.stage.Stage) ((Node) event.getSource()).getScene().getWindow();
+            WindowChrome.setContent(stage, root, "GoNature - Welcome");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    @FXML
     void handleRegister(ActionEvent event) {
         String id = txtId.getText().trim();
         String email = txtEmail.getText().trim();
@@ -82,7 +97,16 @@ public class ServiceRepController {
                 txtFamilySize.clear(); chkGuide.setSelected(false);
                 
             } else if (msg.getCommand().equals("REGISTER_FAILED")) {
-                showStatus((String) msg.getData(), "#d63031"); // Red error
+                showStatus((String) msg.getData(), "#d63031");
+            } else if (msg.getCommand().equals("KICKED")) {
+                showStatus("Disconnected by the Department Manager.", "#d63031");
+                try {
+                    javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(
+                        getClass().getResource("/gui/MainMenu.fxml"));
+                    javafx.scene.Parent root = loader.load();
+                    javafx.stage.Stage stage = (javafx.stage.Stage) lblStatus.getScene().getWindow();
+                    WindowChrome.setContent(stage, root, "GoNature - Welcome");
+                } catch (Exception e) { e.printStackTrace(); }
             }
         });
     }

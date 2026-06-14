@@ -64,8 +64,7 @@ public class DeptManagerReportsController {
                 getClass().getResource("/gui/DeptManagerDashboard.fxml"));
             javafx.scene.Parent root = loader.load();
             Stage stage = (Stage) ((Node) event.getSource()).getScene().getWindow();
-            stage.getScene().setRoot(root);
-            stage.setTitle("GoNature - Department Manager");
+            WindowChrome.setContent(stage, root, "GoNature - Department Manager");
         } catch (Exception e) {
             e.printStackTrace();
         }

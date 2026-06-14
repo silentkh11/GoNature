@@ -2,19 +2,24 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ListView?>
 <?import javafx.scene.control.TableColumn?>
 <?import javafx.scene.control.TableView?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
 
-<VBox alignment="TOP_CENTER" prefHeight="600.0" prefWidth="800.0" spacing="20.0" styleClass="page-root" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="gui.DeptManagerController">
-   <padding>
-      <Insets bottom="30.0" left="40.0" right="40.0" top="20.0" />
-   </padding>
+<VBox alignment="TOP_CENTER" prefHeight="780.0" prefWidth="800.0" spacing="14.0" styleClass="page-root"
+      xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="gui.DeptManagerController">
+   <padding><Insets bottom="30.0" left="40.0" right="40.0" top="20.0" /></padding>
 
-   <HBox alignment="CENTER_RIGHT">
-      <Button fx:id="themeBtn" mnemonicParsing="false" onAction="#handleToggleTheme" styleClass="theme-toggle" text="🌙 Dark Mode" />
+   <!-- Top bar: theme + logout -->
+   <HBox alignment="CENTER_RIGHT" spacing="10.0">
+      <Button fx:id="themeBtn" mnemonicParsing="false" onAction="#handleToggleTheme"
+              styleClass="theme-toggle" text="🌙 Dark Mode" />
+      <Button mnemonicParsing="false" onAction="#handleLogout"
+              styleClass="danger-btn" style="-fx-font-size: 13px; -fx-padding: 5 14;" text="🚪 Logout" />
       <VBox.margin><Insets bottom="5.0" /></VBox.margin>
    </HBox>
 
@@ -26,30 +31,49 @@
       <font><Font name="Segoe UI" size="14.0" /></font>
    </Label>
 
-   <TableView fx:id="requestsTable" prefHeight="350.0" prefWidth="720.0">
-     <columns>
-       <TableColumn fx:id="colReqId" prefWidth="70.0" text="Req ID" />
-       <TableColumn fx:id="colPark" prefWidth="200.0" text="Park Name" />
-       <TableColumn fx:id="colCapacity" prefWidth="150.0" text="New Max Capacity" />
-       <TableColumn fx:id="colGap" prefWidth="150.0" text="New Casual Gap" />
-       <TableColumn fx:id="colTime" prefWidth="145.0" text="New Stay Time (Hrs)" />
-     </columns>
+   <!-- Parameter Requests Table -->
+   <TableView fx:id="requestsTable" prefHeight="210.0" prefWidth="720.0">
+      <columns>
+         <TableColumn fx:id="colReqId"    prefWidth="70.0"  text="Req ID" />
+         <TableColumn fx:id="colPark"     prefWidth="200.0" text="Park Name" />
+         <TableColumn fx:id="colCapacity" prefWidth="150.0" text="New Max Capacity" />
+         <TableColumn fx:id="colGap"      prefWidth="150.0" text="New Casual Gap" />
+         <TableColumn fx:id="colTime"     prefWidth="145.0" text="New Stay Time (Hrs)" />
+      </columns>
    </TableView>
 
    <HBox alignment="CENTER" spacing="30.0">
-      <children>
-         <Button fx:id="btnApprove" mnemonicParsing="false" onAction="#handleApprove" prefHeight="45.0" prefWidth="150.0" styleClass="success-btn" style="-fx-font-size: 14px;" text="✔ Approve Request" />
-         <Button fx:id="btnDeny" mnemonicParsing="false" onAction="#handleDeny" prefHeight="45.0" prefWidth="150.0" styleClass="danger-btn" style="-fx-font-size: 14px;" text="✖ Deny Request" />
-      </children>
-      <VBox.margin><Insets top="10.0" /></VBox.margin>
+      <Button fx:id="btnApprove" mnemonicParsing="false" onAction="#handleApprove"
+              prefHeight="40.0" prefWidth="160.0" styleClass="success-btn"
+              style="-fx-font-size: 14px;" text="✔ Approve Request" />
+      <Button fx:id="btnDeny" mnemonicParsing="false" onAction="#handleDeny"
+              prefHeight="40.0" prefWidth="160.0" styleClass="danger-btn"
+              style="-fx-font-size: 14px;" text="✖ Deny Request" />
    </HBox>
 
-   <Label fx:id="lblStatus" alignment="CENTER" prefWidth="600.0" style="-fx-font-weight: bold; -fx-font-size: 14px;">
-      <VBox.margin><Insets top="10.0" /></VBox.margin>
-   </Label>
+   <Label fx:id="lblStatus" alignment="CENTER" prefWidth="600.0"
+          style="-fx-font-weight: bold; -fx-font-size: 13px;" />
 
-   <Button mnemonicParsing="false" onAction="#handleViewReports" prefHeight="45.0" prefWidth="300.0"
-           styleClass="primary-btn" style="-fx-font-size: 14px;" text="📊 View System Reports">
-      <VBox.margin><Insets top="10.0" /></VBox.margin>
+   <!-- Connected Users section (right-click to kick) -->
+   <VBox spacing="8.0" styleClass="card" style="-fx-padding: 16;">
+      <HBox alignment="CENTER_LEFT" spacing="12.0">
+         <Label styleClass="section-blue" text="🔌 Connected Users (Live)">
+            <font><Font name="Segoe UI Bold" size="14.0" /></font>
+         </Label>
+         <Button mnemonicParsing="false" onAction="#handleRefreshUsers"
+                 styleClass="theme-toggle" style="-fx-font-size: 12px; -fx-padding: 3 10;" text="↻ Refresh" />
+         <Label fx:id="lblUserCount" styleClass="body-label" style="-fx-font-size: 12px; -fx-opacity: 0.7;" text="" />
+      </HBox>
+      <Label styleClass="body-label"
+             style="-fx-font-size: 11px; -fx-opacity: 0.6;"
+             text="Right-click a user to force-disconnect them." />
+      <ListView fx:id="connectedUsersList" prefHeight="100.0" prefWidth="720.0" />
+   </VBox>
+
+   <!-- View Reports button -->
+   <Button mnemonicParsing="false" onAction="#handleViewReports"
+           prefHeight="40.0" prefWidth="300.0" styleClass="primary-btn"
+           style="-fx-font-size: 14px;" text="📊 View System Reports">
+      <VBox.margin><Insets top="4.0" /></VBox.margin>
    </Button>
 </VBox>

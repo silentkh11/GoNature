@@ -316,6 +316,46 @@ public class EchoServer extends AbstractServer {
                     client.sendToClient(new Message("CANCELLATIONS_REPORT_DATA", report));
                 }
 
+                else if (request.getCommand().equals("LOGOUT_REQUEST")) {
+                    String username = clientUserMap.get(client);
+                    if (username != null) {
+                        loggedInUsers.remove(username);
+                        clientUserMap.remove(client);
+                        uiLogger.accept("> " + username + " logged out gracefully.\n");
+                    }
+                }
+
+                else if (request.getCommand().equals("FETCH_CONNECTED_USERS")) {
+                    java.util.ArrayList<String> users = new java.util.ArrayList<>(loggedInUsers);
+                    client.sendToClient(new Message("CONNECTED_USERS_DATA", users));
+                    uiLogger.accept("> Dept Manager requested connected users list (" + users.size() + " active).\n");
+                }
+
+                else if (request.getCommand().equals("KICK_USER")) {
+                    String targetUsername = (String) request.getData();
+                    ConnectionToClient targetClient = null;
+                    synchronized (clientUserMap) {
+                        for (java.util.Map.Entry<ConnectionToClient, String> entry : clientUserMap.entrySet()) {
+                            if (entry.getValue().equals(targetUsername)) {
+                                targetClient = entry.getKey();
+                                break;
+                            }
+                        }
+                    }
+                    if (targetClient != null) {
+                        loggedInUsers.remove(targetUsername);
+                        clientUserMap.remove(targetClient);
+                        try {
+                            targetClient.sendToClient(new Message("KICKED", "Your session was terminated by the Department Manager."));
+                            targetClient.close();
+                        } catch (Exception ignored) {}
+                        client.sendToClient(new Message("KICK_SUCCESS", targetUsername + " has been disconnected."));
+                        uiLogger.accept("> Dept Manager force-disconnected: " + targetUsername + "\n");
+                    } else {
+                        client.sendToClient(new Message("KICK_FAILED", "User '" + targetUsername + "' is not connected."));
+                    }
+                }
+
                 // =========================================================================
                 // --- UNKNOWN COMMAND FALLBACK ---
                 // =========================================================================
