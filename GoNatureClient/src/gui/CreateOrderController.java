@@ -107,10 +107,12 @@ public class CreateOrderController {
             if (type.equals("Group")) {
                 int paying = Math.max(0, count - 1);
                 price = paying * 75.0;
-                priceEstimateLabel.setText(String.format("~₪%.0f  (group: %d paying × ₪75)", price, paying));
+                priceEstimateLabel.setText(String.format(
+                    "~₪%.0f  (group: %d paying × ₪75)  |  Subscriber? Final price will be ×0.90", price, paying));
             } else {
                 price = count * 85.0;
-                priceEstimateLabel.setText(String.format("~₪%.0f  (%d visitor%s × ₪85)", price, count, count > 1 ? "s" : ""));
+                priceEstimateLabel.setText(String.format(
+                    "~₪%.0f  (%d visitor%s × ₪85)  |  Subscriber? Final price will be ×0.90", price, count, count > 1 ? "s" : ""));
             }
         } catch (NumberFormatException e) {
             priceEstimateLabel.setText("");

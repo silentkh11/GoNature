@@ -16,8 +16,7 @@
          </padding>
          <children>
             <Button fx:id="themeBtn" mnemonicParsing="false" onAction="#handleToggleTheme" prefWidth="120.0" styleClass="theme-toggle" text="🌙 Dark Mode" />
-            <Button fx:id="registerBtn" mnemonicParsing="false" onAction="#handleRegister" prefWidth="100.0" styleClass="secondary-btn" style="-fx-padding: 8 15;" text="Register" />
-            <Button fx:id="loginBtn" mnemonicParsing="false" onAction="#handleEmployeeLogin" prefWidth="100.0" styleClass="secondary-btn" style="-fx-padding: 8 15;" text="Login" />
+            <Button fx:id="loginBtn" mnemonicParsing="false" onAction="#handleEmployeeLogin" prefWidth="140.0" styleClass="secondary-btn" style="-fx-padding: 8 15;" text="Employee Login" />
          </children>
       </HBox>
    </top>

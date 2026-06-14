@@ -98,6 +98,19 @@ public class GuestPortalController {
             showStatus("Please select an order to cancel.", "#d63031");
             return;
         }
+        String status = selected.getStatus();
+        if (status.equals("Cancelled")) {
+            showStatus("This order is already cancelled.", "#d63031");
+            return;
+        }
+        if (status.equals("In Park")) {
+            showStatus("Cannot cancel — visitor is currently inside the park.", "#d63031");
+            return;
+        }
+        if (status.equals("Completed")) {
+            showStatus("Cannot cancel a completed visit.", "#d63031");
+            return;
+        }
         ChatClient.getInstance().handleMessageFromClientUI(new Message("CANCEL_ORDER_REQUEST", selected.getOrderId()));
     }
 
