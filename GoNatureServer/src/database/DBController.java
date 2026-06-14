@@ -20,23 +20,37 @@ public class DBController {
     private static DBController instance;
     private HikariDataSource dataSource;
 
-    private DBController() {
-        initPool();
+    // 1. Constructor now requires the dynamic password
+    private DBController(String dbPassword) {
+        initPool(dbPassword);
+    }
+
+    // 2. New connect method called by the Start button on your UI
+    public static synchronized boolean connect(String dbPassword) {
+        if (instance == null) {
+            instance = new DBController(dbPassword);
+            if (instance.dataSource == null) {
+                instance = null; // Reset if connection failed so user can try again
+                return false;
+            }
+        }
+        return true;
     }
 
     public static synchronized DBController getInstance() {
         if (instance == null) {
-            instance = new DBController();
+            System.err.println("CRITICAL: Database not connected!");
         }
         return instance;
     }
 
-    private void initPool() {
+    // 3. Pool initialization using the password typed by the grader
+    private void initPool(String dbPassword) {
         try {
             HikariConfig config = new HikariConfig();
             config.setJdbcUrl("jdbc:mysql://localhost:3306/gonature_db?allowLoadLocalInfile=true&serverTimezone=Asia/Jerusalem&useSSL=false&allowPublicKeyRetrieval=true");
             config.setUsername("root");
-            config.setPassword("root");
+            config.setPassword(dbPassword); // <--- DYNAMIC PASSWORD APPLIED HERE
             
             config.setMaximumPoolSize(10);
             config.setMinimumIdle(2);
@@ -51,6 +65,7 @@ public class DBController {
             
         } catch (Exception e) {
             System.err.println("Failed to initialize database pool: " + e.getMessage());
+            dataSource = null; // Ensure the system knows the connection failed
         }
     }
 
@@ -61,6 +76,7 @@ public class DBController {
     public void closePool() {
         if (dataSource != null && !dataSource.isClosed()) {
             dataSource.close();
+            instance = null; // Fully reset the instance so it can be reconnected later if needed
         }
     }
 
@@ -506,15 +522,9 @@ public class DBController {
  // =========================================================================
     // --- 6. SERVICE REPRESENTATIVE REGISTRATION ---
     // =========================================================================
-
-    /**
-     * Registers a new Family Subscriber or Tour Guide.
-     * Automatically upserts the visitor profile to ensure foreign keys don't break.
-     */
     public static String registerNewSubscriber(entities.Subscriber sub) {
         try (java.sql.Connection conn = getInstance().getConnection()) {
 
-            // 1. Check if they are ALREADY a subscriber to prevent duplicates
             String checkSubQuery = "SELECT subscriber_id FROM subscriber WHERE visitor_id = ?";
             try (java.sql.PreparedStatement checkStmt = conn.prepareStatement(checkSubQuery)) {
                 checkStmt.setString(1, sub.getVisitorId());
@@ -525,10 +535,8 @@ public class DBController {
                 }
             }
 
-            // 2. Set the correct visitor status type
             String visType = sub.isGuide() ? "Guide" : "Subscriber";
 
-            // 3. Upsert the Visitor Profile
             String checkVisQuery = "SELECT visitor_id FROM visitor WHERE visitor_id = ?";
             boolean visitorExists = false;
             try (java.sql.PreparedStatement checkVisStmt = conn.prepareStatement(checkVisQuery)) {
@@ -539,7 +547,6 @@ public class DBController {
             }
 
             if (visitorExists) {
-                // Update their existing profile with the new info
                 String updateVis = "UPDATE visitor SET first_name=?, last_name=?, email=?, phone=?, visitor_type=? WHERE visitor_id=?";
                 try (java.sql.PreparedStatement updateStmt = conn.prepareStatement(updateVis)) {
                     updateStmt.setString(1, sub.getFirstName());
@@ -551,7 +558,6 @@ public class DBController {
                     updateStmt.executeUpdate();
                 }
             } else {
-                // Create a brand new profile
                 String insertVis = "INSERT INTO visitor (visitor_id, first_name, last_name, email, phone, visitor_type) VALUES (?, ?, ?, ?, ?, ?)";
                 try (java.sql.PreparedStatement insertStmt = conn.prepareStatement(insertVis)) {
                     insertStmt.setString(1, sub.getVisitorId());
@@ -564,7 +570,6 @@ public class DBController {
                 }
             }
 
-            // 4. Insert the new Subscriber record and grab the auto-generated ID
             String insertSubQuery = "INSERT INTO subscriber (visitor_id, family_size, credit_card, is_guide) VALUES (?, ?, ?, ?)";
             try (java.sql.PreparedStatement insertSubStmt = conn.prepareStatement(insertSubQuery, java.sql.Statement.RETURN_GENERATED_KEYS)) {
                 insertSubStmt.setString(1, sub.getVisitorId());
@@ -722,13 +727,12 @@ public class DBController {
         }
     }
     
- // =========================================================================
+    // =========================================================================
     // --- 8. STATISTICAL REPORTING ENGINE ---
     // =========================================================================
     public static entities.ReportData generateMonthlyReport(int parkId, String month, String year) {
         entities.ReportData report = new entities.ReportData(parkId, month, year);
         
-        // We only want to count people who actually visited the park!
         String query = "SELECT order_type, SUM(visitor_count) as total_visitors, SUM(price) as total_income " +
                        "FROM visit_order " +
                        "WHERE park_id = ? AND MONTH(visit_date) = ? AND YEAR(visit_date) = ? " +
@@ -958,7 +962,6 @@ public class DBController {
     }
 
     public static String saveMonthlyReport(entities.ReportData report) {
-        // Extract the map values safely. If a category had 0 visitors, it defaults to 0 instead of crashing.
         int solo = report.getVisitorBreakdown().getOrDefault("Solo", 0);
         int family = report.getVisitorBreakdown().getOrDefault("Family", 0);
         int group = report.getVisitorBreakdown().getOrDefault("Group", 0);
@@ -992,6 +995,4 @@ public class DBController {
             return "ERROR: Could not save the report to the database.";
         }
     }
-    
- 
 }

@@ -17,11 +17,10 @@ public class ServerUI extends Application {
     public void start(Stage primaryStage) throws Exception {
         // Loads the visual design from the gui package
         Parent root = FXMLLoader.load(getClass().getResource("/gui/ServerPort.fxml"));
-        
-        Scene scene = new Scene(root, 850, 550);
+
+        Scene scene = gui.WindowChrome.install(primaryStage, root, 850, 550, "GoNature Server Configuration");
         gui.ThemeManager.getInstance().applyTo(scene);
-        primaryStage.setTitle("GoNature Server Configuration");
-        
+
         // --- ADD THIS BLOCK ---
         // This forces the entire application and all background threads to close when the X is clicked.
         primaryStage.setOnCloseRequest(event -> {

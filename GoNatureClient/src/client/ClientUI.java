@@ -16,12 +16,11 @@ public class ClientUI extends Application {
     @Override
     public void start(Stage primaryStage) throws Exception {
         Parent root = FXMLLoader.load(getClass().getResource("/gui/MainMenu.fxml"));
-        
+
         // Set a fixed window size here (e.g., 850x650) so the window never changes size!
-        Scene scene = new Scene(root, 850, 650);
+        Scene scene = gui.WindowChrome.install(primaryStage, root, 850, 650, "GoNature - Welcome");
         gui.ThemeManager.getInstance().applyTo(scene);
 
-        primaryStage.setTitle("GoNature - Welcome");
         primaryStage.setScene(scene);
         primaryStage.setResizable(false); // Optional: Prevents the user from dragging the window size
         
