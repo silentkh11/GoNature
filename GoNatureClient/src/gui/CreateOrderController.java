@@ -106,9 +106,9 @@ public class CreateOrderController {
             double price;
             if (type.equals("Group")) {
                 int paying = Math.max(0, count - 1);
-                price = paying * 75.0;
+                price = paying * 100.0 * 0.75 * 0.88; // 25% off + 12% advance payment; guide free
                 priceEstimateLabel.setText(String.format(
-                    "~₪%.0f  (group: %d paying × ₪75)  |  Subscriber? Final price will be ×0.90", price, paying));
+                    "~₪%.0f  (group: %d paying × ₪66)  |  25%% + 12%% advance discount applied. Guide goes free.", price, paying));
             } else {
                 price = count * 85.0;
                 priceEstimateLabel.setText(String.format(
