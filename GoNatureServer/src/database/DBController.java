@@ -145,7 +145,19 @@ public class DBController {
                 
                 for (int expiredOrderId : ordersToCancel) {
                     System.out.println("⚠ SYSTEM ALERT: Order #" + expiredOrderId + " ignored the 2-hour confirmation window. Auto-canceling...");
-                    cancelOrder(expiredOrderId); 
+                    cancelOrder(expiredOrderId);
+                }
+
+                // --- PHASE 3: Expire waitlist slots not confirmed within 1 hour ---
+                String waitlistExpireQuery = "SELECT order_id FROM visit_order WHERE status = 'Waitlist Pending' AND notification_time <= NOW() - INTERVAL 1 HOUR";
+                ArrayList<Integer> waitlistToExpire = new ArrayList<>();
+                try (PreparedStatement expireStmt = conn.prepareStatement(waitlistExpireQuery);
+                     ResultSet rs = expireStmt.executeQuery()) {
+                    while (rs.next()) waitlistToExpire.add(rs.getInt("order_id"));
+                }
+                for (int expiredWaitlistId : waitlistToExpire) {
+                    System.out.println("⚠ SYSTEM ALERT: Order #" + expiredWaitlistId + " missed the 1-hour waitlist window. Passing to next in line...");
+                    cancelOrder(expiredWaitlistId);
                 }
 
             } catch (Throwable e) {
@@ -234,7 +246,7 @@ public class DBController {
                 }
             }
 
-            String sumQuery = "SELECT SUM(visitor_count) AS total_visitors FROM visit_order WHERE park_id = ? AND visit_date = ? AND visit_time = ? AND status IN ('Confirmed', 'In Park', 'Pending Confirm')";
+            String sumQuery = "SELECT SUM(visitor_count) AS total_visitors FROM visit_order WHERE park_id = ? AND visit_date = ? AND visit_time = ? AND status IN ('Confirmed', 'In Park', 'Pending Confirm', 'Waitlist Pending')";
             try (PreparedStatement sumStmt = conn.prepareStatement(sumQuery)) {
                 sumStmt.setInt(1, order.getParkId());
                 sumStmt.setString(2, order.getVisitDate());
@@ -271,9 +283,9 @@ public class DBController {
             }
 
             if (isGuide || order.getOrderType().equalsIgnoreCase("Group")) {
-                // Pre-booked group: 25% off full price, guide goes free
+                // Pre-booked group: 25% off + 12% advance-payment discount; guide goes free
                 int payingVisitors = Math.max(0, order.getVisitorCount() - 1);
-                calculatedPrice = payingVisitors * (basePrice * 0.75);
+                calculatedPrice = payingVisitors * (basePrice * 0.75 * 0.88);
             } else if (isSubscriber) {
                 // Pre-booked personal/family + subscriber: 15% off then extra 10% off
                 calculatedPrice = order.getVisitorCount() * (basePrice * 0.85 * 0.90);
@@ -668,7 +680,7 @@ public class DBController {
                 }
             }
 
-            String sumQuery = "SELECT SUM(visitor_count) AS total_visitors FROM visit_order WHERE park_id = ? AND visit_date = ? AND visit_time = ? AND status IN ('Confirmed', 'In Park', 'Pending Confirm')";
+            String sumQuery = "SELECT SUM(visitor_count) AS total_visitors FROM visit_order WHERE park_id = ? AND visit_date = ? AND visit_time = ? AND status IN ('Confirmed', 'In Park', 'Pending Confirm', 'Waitlist Pending')";
             try (java.sql.PreparedStatement sumStmt = conn.prepareStatement(sumQuery)) {
                 sumStmt.setInt(1, parkId); sumStmt.setString(2, date); sumStmt.setString(3, time);
                 try (java.sql.ResultSet rs = sumStmt.executeQuery()) {
@@ -695,28 +707,29 @@ public class DBController {
                         String fName = rs.getString("first_name");
 
                         if (groupSize <= availableSpace) {
-                            String promoteQuery = "UPDATE visit_order SET status = 'Confirmed' WHERE order_id = ?";
+                            // Promote to 'Waitlist Pending' — visitor has 1 hour to confirm
+                            String promoteQuery = "UPDATE visit_order SET status = 'Waitlist Pending', notification_time = NOW() WHERE order_id = ?";
                             try (java.sql.PreparedStatement promoteStmt = conn.prepareStatement(promoteQuery)) {
                                 promoteStmt.setInt(1, waitlistOrderId);
                                 promoteStmt.executeUpdate();
-                                
-                                System.out.println("⚠ SYSTEM ALERT: Order #" + waitlistOrderId + " promoted from waitlist. Sending Email...");
-                                
+
+                                System.out.println("⚠ SYSTEM ALERT: Order #" + waitlistOrderId + " promoted from waitlist. 1-hour confirmation window started.");
+
                                 if (targetEmail != null && targetEmail.contains("@")) {
-                                    String subject = "Good News: Your Waitlist Status is now CONFIRMED! (Order #" + waitlistOrderId + ")";
+                                    String subject = "A spot opened up! Confirm your GoNature visit within 1 hour (Order #" + waitlistOrderId + ")";
                                     String body = "Hello " + fName + ",\n\n"
-                                                + "Great news! Space has opened up at GoNature on " + date + " at " + time + ".\n\n"
-                                                + "Your Waitlisted order has been automatically upgraded to 'Confirmed'.\n"
-                                                + "You will receive a final reminder email 24 hours before your visit.\n\n"
-                                                + "Enjoy your trip,\nThe GoNature Team";
+                                                + "Great news! A spot has opened at GoNature on " + date + " at " + time + ".\n\n"
+                                                + "Your waitlisted order has been selected. Please log into the Guest Portal and confirm your visit.\n"
+                                                + "IMPORTANT: You must confirm within 1 hour or the spot will be passed to the next person in line.\n\n"
+                                                + "The GoNature Team";
                                     EmailSender.sendEmail(targetEmail, subject, body);
                                 }
 
                                 SmsSender.sendSms(targetPhone,
-                                    "GoNature: Great news! Order #" + waitlistOrderId +
-                                    " is now CONFIRMED for " + date + " at " + time + ". See you there!");
-                                
-                                availableSpace -= groupSize; 
+                                    "GoNature: A spot opened for Order #" + waitlistOrderId +
+                                    " on " + date + " at " + time + ". Open the Guest Portal and confirm within 1 hour!");
+
+                                availableSpace -= groupSize;
                             }
                         }
                     }
@@ -1008,5 +1021,41 @@ public class DBController {
             e.printStackTrace();
         }
         return -1;
+    }
+
+    // =========================================================================
+    // --- 13. USAGE REPORT (below max capacity) ---
+    // =========================================================================
+    public static ArrayList<String[]> getUsageReport(int parkId, int month, int year) {
+        ArrayList<String[]> rows = new ArrayList<>();
+        String query =
+            "SELECT vo.visit_date, COALESCE(SUM(vo.visitor_count), 0) AS daily_total, p.max_capacity " +
+            "FROM visit_order vo " +
+            "JOIN park p ON vo.park_id = p.park_id " +
+            "WHERE vo.park_id = ? AND MONTH(vo.visit_date) = ? AND YEAR(vo.visit_date) = ? " +
+            "  AND vo.status IN ('Confirmed','In Park','Completed','Pending Confirm','Waitlist Pending') " +
+            "GROUP BY vo.visit_date, p.max_capacity " +
+            "HAVING daily_total < p.max_capacity " +
+            "ORDER BY vo.visit_date";
+        try (java.sql.Connection conn = getInstance().getConnection();
+             java.sql.PreparedStatement stmt = conn.prepareStatement(query)) {
+            stmt.setInt(1, parkId);
+            stmt.setInt(2, month);
+            stmt.setInt(3, year);
+            try (java.sql.ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    String date      = rs.getString("visit_date");
+                    int    visitors  = rs.getInt("daily_total");
+                    int    maxCap    = rs.getInt("max_capacity");
+                    int    available = maxCap - visitors;
+                    double pct       = maxCap > 0 ? (visitors * 100.0 / maxCap) : 0;
+                    rows.add(new String[]{ date, String.valueOf(visitors), String.valueOf(maxCap),
+                                          String.valueOf(available), String.format("%.1f", pct) });
+                }
+            }
+        } catch (java.sql.SQLException e) {
+            e.printStackTrace();
+        }
+        return rows;
     }
 }
