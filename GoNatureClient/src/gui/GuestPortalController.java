@@ -84,8 +84,9 @@ public class GuestPortalController {
             showStatus("Please select an order to confirm.", "#d63031");
             return;
         }
-        if (!selected.getStatus().equals("Pending Confirm")) {
-            showStatus("Only orders marked as 'Pending Confirm' need to be verified.", "#d63031");
+        String status = selected.getStatus();
+        if (!status.equals("Pending Confirm") && !status.equals("Waitlist Pending")) {
+            showStatus("Only 'Pending Confirm' or 'Waitlist Pending' orders can be confirmed here.", "#d63031");
             return;
         }
         ChatClient.getInstance().handleMessageFromClientUI(new Message("CONFIRM_ORDER_REQUEST", selected.getOrderId()));

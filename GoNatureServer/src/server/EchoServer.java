@@ -298,6 +298,16 @@ public class EchoServer extends AbstractServer {
                     }
                 }
 
+                else if (request.getCommand().equals("FETCH_USAGE_REPORT")) {
+                    String[] data = (String[]) request.getData();
+                    int parkId = Integer.parseInt(data[0]);
+                    int month  = Integer.parseInt(data[1]);
+                    int year   = Integer.parseInt(data[2]);
+                    java.util.ArrayList<String[]> rows = DBController.getUsageReport(parkId, month, year);
+                    client.sendToClient(new Message("USAGE_REPORT_DATA", rows));
+                    uiLogger.accept("> Usage report for Park " + parkId + " — " + month + "/" + year + " (" + rows.size() + " below-capacity days)\n");
+                }
+
                 else if (request.getCommand().equals("FETCH_AVAILABLE_SLOTS")) {
                     String[] data = (String[]) request.getData();
                     int parkId = Integer.parseInt(data[0]);
