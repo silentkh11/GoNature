@@ -59,6 +59,9 @@
                <Button mnemonicParsing="false" onAction="#handleCancellationsReport"
                        prefHeight="36.0" prefWidth="170.0" styleClass="danger-btn"
                        style="-fx-font-size: 13px;" text="❌ Cancellations Report" />
+               <Button mnemonicParsing="false" onAction="#handleVisitReport"
+                       prefHeight="36.0" prefWidth="150.0" styleClass="success-btn"
+                       style="-fx-font-size: 13px;" text="🕐 Visit Report" />
             </HBox>
          </VBox>
       </HBox>

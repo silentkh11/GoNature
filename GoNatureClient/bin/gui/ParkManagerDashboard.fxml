@@ -49,6 +49,9 @@
 
             <Label styleClass="body-label" text="Current Visitors:" GridPane.rowIndex="4" GridPane.columnIndex="0"><font><Font name="Segoe UI Bold" size="14.0" /></font></Label>
             <Label fx:id="lblCurrentVisitors" styleClass="body-label" text="-" GridPane.rowIndex="4" GridPane.columnIndex="1"><font><Font name="Segoe UI" size="14.0" /></font></Label>
+
+            <Label styleClass="body-label" text="Active Discount:" GridPane.rowIndex="5" GridPane.columnIndex="0"><font><Font name="Segoe UI Bold" size="14.0" /></font></Label>
+            <Label fx:id="lblActiveDiscount" styleClass="body-label" text="None" GridPane.rowIndex="5" GridPane.columnIndex="1"><font><Font name="Segoe UI" size="14.0" /></font></Label>
          </GridPane>
       </VBox>
 
@@ -73,6 +76,24 @@
       </VBox>
 
    </HBox>
+
+   <!-- ── PROMOTIONAL DISCOUNT CARD ── -->
+   <VBox spacing="12.0" styleClass="card" style="-fx-padding: 20;" maxWidth="Infinity">
+      <Label styleClass="section-blue" text="Request Promotional Discount">
+         <font><Font name="Segoe UI Bold" size="18.0" /></font>
+      </Label>
+      <Label styleClass="subtitle-label" text="Submit a temporary discount for Department Manager approval. Approved discounts apply to all new bookings immediately.">
+         <font><Font name="Segoe UI" size="13.0" /></font>
+      </Label>
+      <HBox alignment="CENTER_LEFT" spacing="20.0">
+         <Label styleClass="body-label" text="Discount % (1-100):">
+            <font><Font name="Segoe UI Bold" size="14.0" /></font>
+         </Label>
+         <TextField fx:id="txtDiscountPercent" prefWidth="120.0" promptText="e.g. 15" style="-fx-font-size: 14px;" />
+         <Button fx:id="btnSubmitPromotion" mnemonicParsing="false" onAction="#handleSubmitPromotion"
+                 prefHeight="38.0" styleClass="success-btn" style="-fx-font-size: 13px;" text="Submit for Approval" />
+      </HBox>
+   </VBox>
 
    <Label fx:id="lblStatus" alignment="CENTER" maxWidth="Infinity">
       <font><Font name="Segoe UI Bold" size="16.0" /></font>

@@ -54,6 +54,51 @@
    <Label fx:id="lblStatus" alignment="CENTER" prefWidth="600.0"
           style="-fx-font-weight: bold; -fx-font-size: 13px;" />
 
+   <!-- Promotional Discount Requests Table -->
+   <Label styleClass="section-blue" text="Promotional Discount Requests">
+      <font><Font name="Segoe UI Bold" size="16.0" /></font>
+      <VBox.margin><Insets top="4.0" /></VBox.margin>
+   </Label>
+   <Label styleClass="subtitle-label" text="Approve or deny discount promotions submitted by Park Managers.">
+      <font><Font name="Segoe UI" size="12.0" /></font>
+   </Label>
+
+   <TableView fx:id="promotionsTable" prefHeight="150.0" prefWidth="720.0">
+      <columns>
+         <TableColumn fx:id="colPromoId"       prefWidth="80.0"  text="ID" />
+         <TableColumn fx:id="colPromoPark"      prefWidth="230.0" text="Park Name" />
+         <TableColumn fx:id="colPromoDiscount"  prefWidth="180.0" text="Discount %" />
+         <TableColumn fx:id="colPromoStatus"    prefWidth="150.0" text="Status" />
+      </columns>
+   </TableView>
+
+   <HBox alignment="CENTER" spacing="30.0">
+      <Button fx:id="btnApprovePromo" mnemonicParsing="false" onAction="#handleApprovePromotion"
+              prefHeight="38.0" prefWidth="180.0" styleClass="success-btn"
+              style="-fx-font-size: 13px;" text="✔ Approve Promotion" />
+      <Button fx:id="btnDenyPromo" mnemonicParsing="false" onAction="#handleDenyPromotion"
+              prefHeight="38.0" prefWidth="180.0" styleClass="danger-btn"
+              style="-fx-font-size: 13px;" text="✖ Deny Promotion" />
+   </HBox>
+
+   <!-- Cancel Active Discount card -->
+   <VBox spacing="10.0" styleClass="card" style="-fx-padding: 16;">
+      <Label styleClass="section-blue" text="Cancel Active Discount">
+         <font><Font name="Segoe UI Bold" size="14.0" /></font>
+      </Label>
+      <Label styleClass="body-label"
+             style="-fx-font-size: 11px; -fx-opacity: 0.7;"
+             text="Select a park to view and immediately cancel its active promotional discount." />
+      <HBox alignment="CENTER_LEFT" spacing="14.0">
+         <javafx.scene.control.ComboBox fx:id="cmbCancelPark" prefWidth="240.0" promptText="Select Park" />
+         <Label fx:id="lblActiveParkDiscount" styleClass="body-label"
+                style="-fx-font-size: 13px; -fx-font-weight: bold;" text="Active discount: —" />
+         <Button fx:id="btnCancelDiscount" mnemonicParsing="false" onAction="#handleCancelPromotion"
+                 prefHeight="36.0" prefWidth="200.0" styleClass="danger-btn"
+                 style="-fx-font-size: 13px;" text="🚫 Cancel Active Discount" />
+      </HBox>
+   </VBox>
+
    <!-- Connected Users section (right-click to kick) -->
    <VBox spacing="8.0" styleClass="card" style="-fx-padding: 16;">
       <HBox alignment="CENTER_LEFT" spacing="12.0">

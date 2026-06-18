@@ -3,6 +3,8 @@ package gui;
 import client.ChatClient;
 import entities.Message;
 import entities.ParameterRequest;
+import entities.Park;
+import entities.Promotion;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -10,6 +12,7 @@ import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
@@ -35,8 +38,23 @@ public class DeptManagerController {
     @FXML private Button themeBtn;
     @FXML private Label  lblStatus;
 
+    @FXML private TableView<Promotion> promotionsTable;
+    @FXML private TableColumn<Promotion, Integer> colPromoId;
+    @FXML private TableColumn<Promotion, String>  colPromoPark;
+    @FXML private TableColumn<Promotion, Double>  colPromoDiscount;
+    @FXML private TableColumn<Promotion, String>  colPromoStatus;
+    @FXML private Button btnApprovePromo;
+    @FXML private Button btnDenyPromo;
+
+    @FXML private ComboBox<String> cmbCancelPark;
+    @FXML private Label lblActiveParkDiscount;
+    @FXML private Button btnCancelDiscount;
+
     @FXML private ListView<String> connectedUsersList;
     @FXML private Label lblUserCount;
+
+    // Maps display name → Park object for the cancel-discount combo
+    private final java.util.HashMap<String, Park> parkMap = new java.util.HashMap<>();
 
     @FXML
     public void initialize() {
@@ -48,8 +66,30 @@ public class DeptManagerController {
         colGap.setCellValueFactory(new PropertyValueFactory<>("newCasualGap"));
         colTime.setCellValueFactory(new PropertyValueFactory<>("newEstimatedStayTime"));
 
+        colPromoId.setCellValueFactory(new PropertyValueFactory<>("promotionId"));
+        colPromoPark.setCellValueFactory(new PropertyValueFactory<>("parkName"));
+        colPromoDiscount.setCellValueFactory(new PropertyValueFactory<>("discountPercent"));
+        colPromoStatus.setCellValueFactory(new PropertyValueFactory<>("status"));
+
+        // Update the active-discount label whenever the park selection changes
+        cmbCancelPark.setOnAction(e -> {
+            String selected = cmbCancelPark.getValue();
+            if (selected != null && parkMap.containsKey(selected)) {
+                double discount = parkMap.get(selected).getActiveDiscount();
+                if (discount > 0) {
+                    lblActiveParkDiscount.setText("Active discount: " + String.format("%.0f%%", discount));
+                    lblActiveParkDiscount.setStyle("-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #00b894;");
+                } else {
+                    lblActiveParkDiscount.setText("Active discount: None");
+                    lblActiveParkDiscount.setStyle("-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #aaa;");
+                }
+            }
+        });
+
         ChatClient.getInstance().setResponseHandler(this::handleServerResponse);
         ChatClient.getInstance().handleMessageFromClientUI(new Message("FETCH_PENDING_REQUESTS", null));
+        ChatClient.getInstance().handleMessageFromClientUI(new Message("FETCH_PROMOTIONS", null));
+        ChatClient.getInstance().handleMessageFromClientUI(new Message("FETCH_ALL_PARKS", null));
 
         // Right-click context menu on connected users list
         ContextMenu contextMenu = new ContextMenu();
@@ -99,6 +139,48 @@ public class DeptManagerController {
         }
         String[] data = { String.valueOf(selected.getRequestId()), decision };
         ChatClient.getInstance().handleMessageFromClientUI(new Message("PROCESS_REQUEST_DECISION", data));
+    }
+
+    @FXML
+    void handleApprovePromotion(ActionEvent event) {
+        processPromotionDecision("Approved");
+    }
+
+    @FXML
+    void handleDenyPromotion(ActionEvent event) {
+        processPromotionDecision("Denied");
+    }
+
+    private void processPromotionDecision(String decision) {
+        Promotion selected = promotionsTable.getSelectionModel().getSelectedItem();
+        if (selected == null) {
+            showStatus("Please select a promotion request from the table first.", "#d63031");
+            return;
+        }
+        String[] data = { String.valueOf(selected.getPromotionId()), decision };
+        ChatClient.getInstance().handleMessageFromClientUI(new Message("PROCESS_PROMOTION_DECISION", data));
+    }
+
+    @FXML
+    void handleCancelPromotion(ActionEvent event) {
+        String selected = cmbCancelPark.getValue();
+        if (selected == null) {
+            showStatus("Please select a park first.", "#d63031");
+            return;
+        }
+        Park park = parkMap.get(selected);
+        if (park == null) {
+            showStatus("Could not identify the selected park.", "#d63031");
+            return;
+        }
+        if (park.getActiveDiscount() <= 0) {
+            showStatus("This park has no active discount to cancel.", "#e17055");
+            return;
+        }
+        btnCancelDiscount.setDisable(true);
+        showStatus("Cancelling active discount for " + park.getName() + "...", "#0984e3");
+        ChatClient.getInstance().handleMessageFromClientUI(
+            new Message("CANCEL_PROMOTION_REQUEST", park.getParkId()));
     }
 
     @FXML
@@ -170,6 +252,46 @@ public class DeptManagerController {
 
                 case "REPORT_SUBMITTED_NOTIFICATION":
                     showStatus((String) msg.getData(), "#0984e3");
+                    break;
+
+                case "PENDING_PROMOTIONS_DATA":
+                    ArrayList<Promotion> promos = (ArrayList<Promotion>) msg.getData();
+                    promotionsTable.setItems(FXCollections.observableArrayList(promos));
+                    break;
+
+                case "PROMOTION_DECISION_SUCCESS":
+                    showStatus("Promotion successfully " + msg.getData() + "!", "#00b894");
+                    ChatClient.getInstance().handleMessageFromClientUI(new Message("FETCH_PROMOTIONS", null));
+                    break;
+
+                case "PROMOTION_DECISION_FAILED":
+                    showStatus("Error: Could not process promotion decision.", "#d63031");
+                    break;
+
+                case "ALL_PARKS_DATA":
+                    ArrayList<Park> parks = (ArrayList<Park>) msg.getData();
+                    parkMap.clear();
+                    cmbCancelPark.getItems().clear();
+                    for (Park p : parks) {
+                        String label = p.getParkId() + " — " + p.getName();
+                        parkMap.put(label, p);
+                        cmbCancelPark.getItems().add(label);
+                    }
+                    break;
+
+                case "CANCEL_PROMOTION_SUCCESS":
+                    showStatus((String) msg.getData(), "#00b894");
+                    btnCancelDiscount.setDisable(false);
+                    lblActiveParkDiscount.setText("Active discount: None");
+                    lblActiveParkDiscount.setStyle("-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #aaa;");
+                    // Re-fetch parks so the combo reflects the zeroed discount
+                    ChatClient.getInstance().handleMessageFromClientUI(new Message("FETCH_ALL_PARKS", null));
+                    // Notify connected Park Managers their discount is gone
+                    break;
+
+                case "CANCEL_PROMOTION_FAILED":
+                    showStatus((String) msg.getData(), "#d63031");
+                    btnCancelDiscount.setDisable(false);
                     break;
             }
         });
