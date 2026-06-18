@@ -26,6 +26,10 @@ public class ParkEntranceController {
     @FXML private Button btnWalkIn;
     @FXML private Label lblWalkInStatus;
 
+    @FXML private TextField txtManualExitCount;
+    @FXML private Button btnManualExit;
+    @FXML private Label lblManualExitStatus;
+
     private Integer parkId;
 
     @FXML
@@ -38,6 +42,12 @@ public class ParkEntranceController {
         txtWalkInCount.textProperty().addListener((obs, old, val) -> {
             if (val != null && !val.matches("[0-9]*"))
                 txtWalkInCount.setText(val.replaceAll("[^0-9]", ""));
+        });
+
+        // Digits-only filter for manual exit count
+        txtManualExitCount.textProperty().addListener((obs, old, val) -> {
+            if (val != null && !val.matches("[0-9]*"))
+                txtManualExitCount.setText(val.replaceAll("[^0-9]", ""));
         });
     }
 
@@ -128,11 +138,38 @@ public class ParkEntranceController {
         }
     }
 
+    @FXML
+    void handleManualExit(ActionEvent event) {
+        if (parkId == null) {
+            showManualExitStatus("Error: Gate worker has no park assigned.", "#d63031");
+            return;
+        }
+        String countStr = txtManualExitCount.getText().trim();
+        if (countStr.isEmpty()) {
+            showManualExitStatus("Please enter the number of visitors exiting.", "#d63031");
+            return;
+        }
+        try {
+            int count = Integer.parseInt(countStr);
+            if (count < 1) {
+                showManualExitStatus("Exit count must be at least 1.", "#d63031");
+                return;
+            }
+            String[] data = { String.valueOf(parkId), String.valueOf(count) };
+            btnManualExit.setDisable(true);
+            showManualExitStatus("Registering exit...", "#0984e3");
+            ChatClient.getInstance().handleMessageFromClientUI(new Message("MANUAL_EXIT_REQUEST", data));
+        } catch (NumberFormatException e) {
+            showManualExitStatus("Please enter a valid number.", "#d63031");
+        }
+    }
+
     public void handleServerResponse(Message msg) {
         Platform.runLater(() -> {
             btnAdmit.setDisable(false);
             btnExit.setDisable(false);
             btnWalkIn.setDisable(false);
+            btnManualExit.setDisable(false);
 
             switch (msg.getCommand()) {
                 case "ENTRY_APPROVED":
@@ -162,6 +199,13 @@ public class ParkEntranceController {
                 case "WALKIN_DENIED":
                     showWalkInStatus((String) msg.getData(), "#d63031");
                     break;
+                case "MANUAL_EXIT_SUCCESS":
+                    showManualExitStatus((String) msg.getData(), "#00b894");
+                    txtManualExitCount.clear();
+                    break;
+                case "MANUAL_EXIT_FAILED":
+                    showManualExitStatus((String) msg.getData(), "#d63031");
+                    break;
                 case "KICKED":
                     showStatus("Disconnected by the Department Manager.", "#d63031");
                     try {
@@ -184,5 +228,10 @@ public class ParkEntranceController {
     private void showWalkInStatus(String message, String hexColor) {
         lblWalkInStatus.setText(message);
         lblWalkInStatus.setStyle("-fx-text-fill: " + hexColor + ";");
+    }
+
+    private void showManualExitStatus(String message, String hexColor) {
+        lblManualExitStatus.setText(message);
+        lblManualExitStatus.setStyle("-fx-text-fill: " + hexColor + ";");
     }
 }

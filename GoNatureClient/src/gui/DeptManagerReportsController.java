@@ -86,9 +86,20 @@ public class DeptManagerReportsController {
             return;
         }
         pendingAction = "cancellations";
-        String[] data = { cmbMonth.getValue(), cmbYear.getValue() };
+        // parkId = 0 means all parks; use selected park if one is chosen
+        int parkId = (cmbPark.getValue() != null) ? getSelectedParkId() : 0;
+        String[] data = { String.valueOf(parkId), cmbMonth.getValue(), cmbYear.getValue() };
         showStatus("Generating cancellations report...", "#0984e3");
         ChatClient.getInstance().handleMessageFromClientUI(new Message("FETCH_CANCELLATIONS_REPORT", data));
+    }
+
+    @FXML
+    void handleVisitReport(ActionEvent event) {
+        if (!validateSelections()) return;
+        pendingAction = "visit";
+        String[] data = { String.valueOf(getSelectedParkId()), cmbMonth.getValue(), cmbYear.getValue() };
+        showStatus("Generating visit report...", "#0984e3");
+        ChatClient.getInstance().handleMessageFromClientUI(new Message("FETCH_VISIT_REPORT", data));
     }
 
     @SuppressWarnings("unchecked")
@@ -124,6 +135,16 @@ public class DeptManagerReportsController {
 
                 case "REPORT_SUBMITTED_NOTIFICATION":
                     showStatus((String) msg.getData(), "#0984e3");
+                    break;
+
+                case "VISIT_REPORT_DATA":
+                    ReportData visitReport = (ReportData) msg.getData();
+                    renderVisitReport(visitReport);
+                    break;
+
+                case "VISIT_REPORT_FAILED":
+                    showStatus((String) msg.getData(), "#e17055");
+                    clearCharts();
                     break;
             }
         });
@@ -161,6 +182,48 @@ public class DeptManagerReportsController {
         double totalIncome = data.getTotalIncome();
         lblTotalIncome.setText(totalIncome > 0 ? "Income: ₪" + String.format("%.2f", totalIncome) : "Count view");
         showStatus(title + " loaded successfully.", "#00b894");
+    }
+
+    /**
+     * Renders the visit report:
+     * - Pie chart: visitor count by order type
+     * - Bar chart: average stay time in hours by order type (from incomeBreakdown keys ending in "Avg Stay (hrs)")
+     */
+    private void renderVisitReport(ReportData data) {
+        visitorPieChart.getData().clear();
+        int total = 0;
+        for (Map.Entry<String, Integer> entry : data.getVisitorBreakdown().entrySet()) {
+            int val = entry.getValue();
+            if (val > 0) {
+                visitorPieChart.getData().add(
+                    new PieChart.Data(entry.getKey() + " (" + val + ")", val));
+                total += val;
+            }
+        }
+        lblTotalVisitors.setText("Total completed: " + total);
+
+        incomeBarChart.getData().clear();
+        XYChart.Series<String, Number> staySeries = new XYChart.Series<>();
+        staySeries.setName("Avg Stay (hrs)");
+        XYChart.Series<String, Number> hourSeries = new XYChart.Series<>();
+        hourSeries.setName("Entries by hour");
+
+        for (Map.Entry<String, Double> entry : data.getIncomeBreakdown().entrySet()) {
+            String key   = entry.getKey();
+            double val   = entry.getValue();
+            if (key.endsWith("Avg Stay (hrs)")) {
+                String type = key.replace(" Avg Stay (hrs)", "");
+                staySeries.getData().add(new XYChart.Data<>(type, val));
+            } else if (key.endsWith("entries")) {
+                String hour = key.replace(" entries", "");
+                hourSeries.getData().add(new XYChart.Data<>(hour, val));
+            }
+        }
+        if (!staySeries.getData().isEmpty())  incomeBarChart.getData().add(staySeries);
+        if (!hourSeries.getData().isEmpty())  incomeBarChart.getData().add(hourSeries);
+
+        lblTotalIncome.setText("Visit detail breakdown");
+        showStatus("Visit Report loaded successfully.", "#00b894");
     }
 
     private void clearCharts() {

@@ -23,6 +23,23 @@ import java.util.Map;
 
 public class ParkManagerReportsController {
 
+	// Fixed color palette keyed by category name so both pie and bar charts
+	// always render the same color for the same visitor type.
+	private static final java.util.Map<String, String> CAT_COLORS = new java.util.LinkedHashMap<>();
+	static {
+		CAT_COLORS.put("Solo",       "#41a9c9");
+		CAT_COLORS.put("Group",      "#57b757");
+		CAT_COLORS.put("Walk-in",    "#f3622d");
+		CAT_COLORS.put("Regular",    "#fba71b");
+		CAT_COLORS.put("Individual", "#9a5fb5");
+		CAT_COLORS.put("Guide",      "#bf3829");
+	}
+	private static final String[] FALLBACK = {"#4db6ac","#81c784","#e57373","#ffb74d","#64b5f6","#ce93d8"};
+
+	private String catColor(String name, int idx) {
+		return CAT_COLORS.getOrDefault(name, FALLBACK[idx % FALLBACK.length]);
+	}
+
 	@FXML private ComboBox<String> monthCombo;
 	@FXML private ComboBox<String> yearCombo;
 	@FXML private PieChart visitorPieChart;
@@ -120,18 +137,44 @@ public class ParkManagerReportsController {
 				lblTotalVisitors.setText(String.valueOf(data.getTotalVisitors()));
 				lblTotalIncome.setText(String.format("₪%.2f", data.getTotalIncome()));
 
-				// 2. Draw Pie Chart
+				// 2. Draw Pie Chart — listener must be registered BEFORE getData().add()
+				//    because PieChart creates the node synchronously during add().
 				visitorPieChart.getData().clear();
+				int[] pieIdx = {0};
 				for (Map.Entry<String, Integer> entry : data.getVisitorBreakdown().entrySet()) {
-					visitorPieChart.getData()
-							.add(new PieChart.Data(entry.getKey() + " (" + entry.getValue() + ")", entry.getValue()));
+					PieChart.Data slice = new PieChart.Data(
+						entry.getKey() + " (" + entry.getValue() + ")", entry.getValue());
+					final String color = catColor(entry.getKey(), pieIdx[0]++);
+					slice.nodeProperty().addListener((obs, o, node) -> {
+						if (node != null) node.setStyle("-fx-pie-color: " + color + ";");
+					});
+					visitorPieChart.getData().add(slice); // node created here — listener already in place
 				}
+				// Fallback: if node was already set before listener fired, patch now
+				Platform.runLater(() -> {
+					int fi = 0;
+					for (PieChart.Data s : visitorPieChart.getData()) {
+						String rawName = s.getName().replaceAll(" \\(\\d+\\)", "").trim();
+						if (s.getNode() != null)
+							s.getNode().setStyle("-fx-pie-color: " + catColor(rawName, fi) + ";");
+						fi++;
+					}
+				});
 
-				// 3. Draw Bar Chart
+				// 3. Draw Bar Chart — single series for full-width bars; apply
+				//    the same explicit hex color per category as the pie chart.
 				incomeBarChart.getData().clear();
 				XYChart.Series<String, Number> series = new XYChart.Series<>();
-				for (Map.Entry<String, Double> entry : data.getIncomeBreakdown().entrySet()) {
-					series.getData().add(new XYChart.Data<>(entry.getKey(), entry.getValue()));
+				int[] barIdx = {0};
+				java.util.List<Map.Entry<String, Double>> entries =
+					new java.util.ArrayList<>(data.getIncomeBreakdown().entrySet());
+				for (Map.Entry<String, Double> entry : entries) {
+					XYChart.Data<String, Number> bar = new XYChart.Data<>(entry.getKey(), entry.getValue());
+					series.getData().add(bar);
+					final String color = catColor(entry.getKey(), barIdx[0]++);
+					bar.nodeProperty().addListener((obs, o, node) -> {
+						if (node != null) node.setStyle("-fx-bar-fill: " + color + ";");
+					});
 				}
 				incomeBarChart.getData().add(series);
 

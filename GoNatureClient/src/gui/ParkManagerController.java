@@ -4,6 +4,7 @@ import client.ChatClient;
 import entities.Employee;
 import entities.Message;
 import entities.Park;
+import entities.Promotion;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
@@ -20,12 +21,17 @@ public class ParkManagerController {
     @FXML private Label lblCasualGap;
     @FXML private Label lblEstStay;
     @FXML private Label lblCurrentVisitors;
+    @FXML private Label lblActiveDiscount;
 
     // --- Request Update (Right Side) ---
     @FXML private TextField txtNewMaxCapacity;
     @FXML private TextField txtNewCasualGap;
     @FXML private TextField txtNewEstStay;
-    
+
+    // --- Promotional Discount ---
+    @FXML private TextField txtDiscountPercent;
+    @FXML private Button btnSubmitPromotion;
+
     @FXML private Label lblStatus;
     @FXML private Button themeBtn;
 
@@ -107,15 +113,41 @@ public class ParkManagerController {
                     lblCasualGap.setText(String.valueOf(currentPark.getCasualGap()));
                     lblEstStay.setText(String.valueOf(currentPark.getEstimatedStayTime()));
                     lblCurrentVisitors.setText(currentPark.getCurrentVisitors() + " / " + currentPark.getMaxCapacity());
+                    if (currentPark.getActiveDiscount() > 0) {
+                        lblActiveDiscount.setText(String.format("%.0f%%", currentPark.getActiveDiscount()));
+                        lblActiveDiscount.setStyle("-fx-text-fill: #00b894; -fx-font-weight: bold;");
+                    } else {
+                        lblActiveDiscount.setText("None");
+                        lblActiveDiscount.setStyle("");
+                    }
                     break;
 
                 case "PARAMETER_DECISION_MADE":
-                    // DeptManager approved or denied a request — re-fetch to see if ours was affected
                     if (currentUser != null && currentUser.getParkId() != null) {
                         ChatClient.getInstance().handleMessageFromClientUI(
                             new Message("FETCH_PARK_DETAILS", currentUser.getParkId()));
                         showStatus("Department Manager processed a parameter request. Parameters updated.", "#00b894");
                     }
+                    break;
+
+                case "PROMOTION_DECISION_MADE":
+                    if (currentUser != null && currentUser.getParkId() != null) {
+                        ChatClient.getInstance().handleMessageFromClientUI(
+                            new Message("FETCH_PARK_DETAILS", currentUser.getParkId()));
+                        String decision = (String) msg.getData();
+                        showStatus("Your promotion request was " + decision + " by the Department Manager.", "#00b894");
+                    }
+                    break;
+
+                case "PROMOTION_SUBMIT_SUCCESS":
+                    showStatus((String) msg.getData(), "#00b894");
+                    txtDiscountPercent.clear();
+                    btnSubmitPromotion.setDisable(false);
+                    break;
+
+                case "PROMOTION_SUBMIT_FAILED":
+                    showStatus((String) msg.getData(), "#d63031");
+                    btnSubmitPromotion.setDisable(false);
                     break;
                     
                 case "UPDATE_PARAMS_SUCCESS":
@@ -150,6 +182,32 @@ public class ParkManagerController {
         lblStatus.setStyle("-fx-text-fill: " + hexColor + "; -fx-font-weight: bold;");
     }
     
+    @FXML
+    void handleSubmitPromotion(ActionEvent event) {
+        if (currentPark == null) {
+            showStatus("Park data not loaded yet.", "#d63031");
+            return;
+        }
+        String pctStr = txtDiscountPercent.getText().trim();
+        if (pctStr.isEmpty()) {
+            showStatus("Please enter a discount percentage.", "#d63031");
+            return;
+        }
+        try {
+            double pct = Double.parseDouble(pctStr);
+            if (pct <= 0 || pct > 100) {
+                showStatus("Discount must be between 1% and 100%.", "#d63031");
+                return;
+            }
+            Promotion promo = new Promotion(0, currentPark.getParkId(), currentPark.getName(), pct, "Pending");
+            btnSubmitPromotion.setDisable(true);
+            showStatus("Submitting promotion request...", "#0984e3");
+            ChatClient.getInstance().handleMessageFromClientUI(new Message("SUBMIT_PROMOTION_REQUEST", promo));
+        } catch (NumberFormatException e) {
+            showStatus("Please enter a valid number.", "#d63031");
+        }
+    }
+
     @FXML
     void handleLogout(ActionEvent event) {
         try {

@@ -337,11 +337,109 @@ public class EchoServer extends AbstractServer {
 
                 else if (request.getCommand().equals("FETCH_CANCELLATIONS_REPORT")) {
                     String[] data = (String[]) request.getData();
-                    String month = data[0];
-                    String year  = data[1];
-                    uiLogger.accept("> Dept Manager generating cancellations report for " + month + "/" + year + "\n");
-                    entities.ReportData report = DBController.getCancellationsReport(month, year);
+                    int parkId   = Integer.parseInt(data[0]);
+                    String month = data[1];
+                    String year  = data[2];
+                    uiLogger.accept("> Dept Manager generating cancellations report for " + month + "/" + year
+                        + (parkId > 0 ? " (park " + parkId + ")" : " (all parks)") + "\n");
+                    entities.ReportData report = DBController.getCancellationsReport(parkId, month, year);
                     client.sendToClient(new Message("CANCELLATIONS_REPORT_DATA", report));
+                }
+
+                // =========================================================================
+                // --- 9. MANUAL EXIT BY COUNT ---
+                // =========================================================================
+                else if (request.getCommand().equals("MANUAL_EXIT_REQUEST")) {
+                    String[] data  = (String[]) request.getData();
+                    int parkId     = Integer.parseInt(data[0]);
+                    int exitCount  = Integer.parseInt(data[1]);
+                    uiLogger.accept("> Manual exit: " + exitCount + " visitor(s) from park " + parkId + "\n");
+                    String result = DBController.processManualExit(parkId, exitCount);
+                    if (result.startsWith("SUCCESS")) {
+                        client.sendToClient(new Message("MANUAL_EXIT_SUCCESS", result));
+                        entities.Park updated = DBController.getParkById(parkId);
+                        if (updated != null) broadcastToPark(parkId, new Message("PARK_DETAILS_DATA", updated));
+                        uiLogger.accept("> Manual exit processed.\n");
+                    } else {
+                        client.sendToClient(new Message("MANUAL_EXIT_FAILED", result));
+                        uiLogger.accept("> Manual exit FAILED: " + result + "\n");
+                    }
+                }
+
+                // =========================================================================
+                // --- 10. PROMOTIONAL DISCOUNT ROUTING ---
+                // =========================================================================
+                else if (request.getCommand().equals("SUBMIT_PROMOTION_REQUEST")) {
+                    entities.Promotion promo = (entities.Promotion) request.getData();
+                    uiLogger.accept("> Park Manager submitted promotion request: "
+                        + promo.getDiscountPercent() + "% for park " + promo.getParkId() + "\n");
+                    String result = DBController.submitPromotionRequest(promo);
+                    if (result.startsWith("SUCCESS")) {
+                        client.sendToClient(new Message("PROMOTION_SUBMIT_SUCCESS", result));
+                        // Notify dept manager live
+                        java.util.ArrayList<entities.Promotion> pending = DBController.getPendingPromotions();
+                        broadcastToRole("DeptManager", new Message("PENDING_PROMOTIONS_DATA", pending));
+                    } else {
+                        client.sendToClient(new Message("PROMOTION_SUBMIT_FAILED", result));
+                    }
+                }
+
+                else if (request.getCommand().equals("FETCH_PROMOTIONS")) {
+                    uiLogger.accept("> Dept Manager fetching pending promotion requests.\n");
+                    java.util.ArrayList<entities.Promotion> pending = DBController.getPendingPromotions();
+                    client.sendToClient(new Message("PENDING_PROMOTIONS_DATA", pending));
+                }
+
+                else if (request.getCommand().equals("PROCESS_PROMOTION_DECISION")) {
+                    String[] data     = (String[]) request.getData();
+                    int promotionId   = Integer.parseInt(data[0]);
+                    String decision   = data[1];
+                    uiLogger.accept("> Dept Manager " + decision + " promotion #" + promotionId + "\n");
+                    boolean ok = DBController.processPromotionDecision(promotionId, decision);
+                    if (ok) {
+                        client.sendToClient(new Message("PROMOTION_DECISION_SUCCESS", decision));
+                        broadcastToRole("ParkManager", new Message("PROMOTION_DECISION_MADE", decision));
+                    } else {
+                        client.sendToClient(new Message("PROMOTION_DECISION_FAILED", "Database error."));
+                    }
+                }
+
+                else if (request.getCommand().equals("CANCEL_PROMOTION_REQUEST")) {
+                    int parkId = (int) request.getData();
+                    uiLogger.accept("> Dept Manager cancelling active discount for park " + parkId + "\n");
+                    String result = DBController.cancelActivePromotion(parkId);
+                    if (result.startsWith("SUCCESS")) {
+                        client.sendToClient(new Message("CANCEL_PROMOTION_SUCCESS", result));
+                        // Push updated park data to that park's manager so their dashboard reflects 0%
+                        entities.Park updated = DBController.getParkById(parkId);
+                        if (updated != null) {
+                            broadcastToPark(parkId, new Message("PARK_DETAILS_DATA", updated));
+                            broadcastToPark(parkId, new Message("PROMOTION_DECISION_MADE", "Cancelled"));
+                        }
+                        uiLogger.accept("> Active discount cancelled for park " + parkId + "\n");
+                    } else {
+                        client.sendToClient(new Message("CANCEL_PROMOTION_FAILED", result));
+                        uiLogger.accept("> Cancel discount FAILED: " + result + "\n");
+                    }
+                }
+
+                // =========================================================================
+                // --- 11. VISIT REPORT ROUTING ---
+                // =========================================================================
+                else if (request.getCommand().equals("FETCH_VISIT_REPORT")) {
+                    String[] data = (String[]) request.getData();
+                    int parkId   = Integer.parseInt(data[0]);
+                    String month = data[1];
+                    String year  = data[2];
+                    uiLogger.accept("> Dept Manager fetching visit report for park " + parkId
+                        + " (" + month + "/" + year + ")\n");
+                    entities.ReportData report = DBController.getVisitReport(parkId, month, year);
+                    if (report != null) {
+                        client.sendToClient(new Message("VISIT_REPORT_DATA", report));
+                    } else {
+                        client.sendToClient(new Message("VISIT_REPORT_FAILED",
+                            "Could not generate visit report. No completed visits with timestamps found."));
+                    }
                 }
 
                 else if (request.getCommand().equals("LOGOUT_REQUEST")) {

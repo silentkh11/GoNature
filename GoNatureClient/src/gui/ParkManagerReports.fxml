@@ -61,7 +61,7 @@
             </VBox>
 
             <VBox alignment="CENTER" styleClass="card" style="-fx-padding: 12;" HBox.hgrow="ALWAYS" prefWidth="380.0" prefHeight="240.0">
-               <Label styleClass="section-red" text="Revenue by Group"><font><Font name="Segoe UI Bold" size="16.0" /></font></Label>
+               <Label styleClass="section-blue" text="Revenue by Visitor Type"><font><Font name="Segoe UI Bold" size="16.0" /></font></Label>
                <BarChart fx:id="incomeBarChart" legendVisible="false" VBox.vgrow="ALWAYS">
                  <xAxis><CategoryAxis side="BOTTOM" /></xAxis>
                  <yAxis><NumberAxis side="LEFT" /></yAxis>
