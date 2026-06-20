@@ -128,61 +128,55 @@ public class ParkManagerReportsController {
 	}
 
 	public void handleServerResponse(Message msg) {
-		Platform.runLater(() -> {
-			if (msg.getCommand().equals("REPORT_DATA_SUCCESS")) {
-				ReportData data = (ReportData) msg.getData();
-				this.currentLoadedReport = data;
+        Platform.runLater(() -> {
+            if (msg.getCommand().equals("REPORT_DATA_SUCCESS")) {
+                ReportData data = (ReportData) msg.getData();
+                this.currentLoadedReport = data;
 
-				// 1. Update Totals
-				lblTotalVisitors.setText(String.valueOf(data.getTotalVisitors()));
-				lblTotalIncome.setText(String.format("₪%.2f", data.getTotalIncome()));
+                lblTotalVisitors.setText(String.valueOf(data.getTotalVisitors()));
+                lblTotalIncome.setText(String.format("₪%.2f", data.getTotalIncome()));
 
-				// 2. Draw Pie Chart — listener must be registered BEFORE getData().add()
-				//    because PieChart creates the node synchronously during add().
-				visitorPieChart.getData().clear();
-				int[] pieIdx = {0};
-				for (Map.Entry<String, Integer> entry : data.getVisitorBreakdown().entrySet()) {
-					PieChart.Data slice = new PieChart.Data(
-						entry.getKey() + " (" + entry.getValue() + ")", entry.getValue());
-					final String color = catColor(entry.getKey(), pieIdx[0]++);
-					slice.nodeProperty().addListener((obs, o, node) -> {
-						if (node != null) node.setStyle("-fx-pie-color: " + color + ";");
-					});
-					visitorPieChart.getData().add(slice); // node created here — listener already in place
-				}
-				// Fallback: if node was already set before listener fired, patch now
-				Platform.runLater(() -> {
-					int fi = 0;
-					for (PieChart.Data s : visitorPieChart.getData()) {
-						String rawName = s.getName().replaceAll(" \\(\\d+\\)", "").trim();
-						if (s.getNode() != null)
-							s.getNode().setStyle("-fx-pie-color: " + catColor(rawName, fi) + ";");
-						fi++;
-					}
-				});
+                visitorPieChart.getData().clear();
+                int[] pieIdx = {0};
+                for (Map.Entry<String, Integer> entry : data.getVisitorBreakdown().entrySet()) {
+                    PieChart.Data slice = new PieChart.Data(
+                        entry.getKey() + " (" + entry.getValue() + ")", entry.getValue());
+                    final String color = catColor(entry.getKey(), pieIdx[0]++);
+                    slice.nodeProperty().addListener((obs, o, node) -> {
+                        if (node != null) node.setStyle("-fx-pie-color: " + color + ";");
+                    });
+                    visitorPieChart.getData().add(slice);
+                }
+                Platform.runLater(() -> {
+                    int fi = 0;
+                    for (PieChart.Data s : visitorPieChart.getData()) {
+                        String rawName = s.getName().replaceAll(" \\(\\d+\\)", "").trim();
+                        if (s.getNode() != null)
+                            s.getNode().setStyle("-fx-pie-color: " + catColor(rawName, fi) + ";");
+                        fi++;
+                    }
+                });
 
-				// 3. Draw Bar Chart — single series for full-width bars; apply
-				//    the same explicit hex color per category as the pie chart.
-				incomeBarChart.getData().clear();
-				XYChart.Series<String, Number> series = new XYChart.Series<>();
-				int[] barIdx = {0};
-				java.util.List<Map.Entry<String, Double>> entries =
-					new java.util.ArrayList<>(data.getIncomeBreakdown().entrySet());
-				for (Map.Entry<String, Double> entry : entries) {
-					XYChart.Data<String, Number> bar = new XYChart.Data<>(entry.getKey(), entry.getValue());
-					series.getData().add(bar);
-					final String color = catColor(entry.getKey(), barIdx[0]++);
-					bar.nodeProperty().addListener((obs, o, node) -> {
-						if (node != null) node.setStyle("-fx-bar-fill: " + color + ";");
-					});
-				}
-				incomeBarChart.getData().add(series);
+                incomeBarChart.getData().clear();
+                XYChart.Series<String, Number> series = new XYChart.Series<>();
+                int[] barIdx = {0};
+                java.util.List<Map.Entry<String, Double>> entries =
+                    new java.util.ArrayList<>(data.getIncomeBreakdown().entrySet());
+                for (Map.Entry<String, Double> entry : entries) {
+                    XYChart.Data<String, Number> bar = new XYChart.Data<>(entry.getKey(), entry.getValue());
+                    series.getData().add(bar);
+                    final String color = catColor(entry.getKey(), barIdx[0]++);
+                    bar.nodeProperty().addListener((obs, o, node) -> {
+                        if (node != null) node.setStyle("-fx-bar-fill: " + color + ";");
+                    });
+                }
+                incomeBarChart.getData().add(series);
 
-				showStatus("Report generated successfully.", "#00b894");
+                showStatus("Report generated successfully.", "#00b894");
 
-			} else if (msg.getCommand().equals("REPORT_DATA_FAILED")) {
-				showStatus((String) msg.getData(), "#d63031");
-			} else if (msg.getCommand().equals("SAVE_REPORT_SUCCESS")) {
+            } else if (msg.getCommand().equals("REPORT_DATA_FAILED")) {
+                showStatus((String) msg.getData(), "#d63031");
+            } else if (msg.getCommand().equals("SAVE_REPORT_SUCCESS")) {
                 showStatus((String) msg.getData(), "#00b894");
             } else if (msg.getCommand().equals("SAVE_REPORT_FAILED")) {
                 showStatus((String) msg.getData(), "#d63031");
@@ -195,7 +189,6 @@ public class ParkManagerReportsController {
                     usageList.setPlaceholder(new Label("The park was at or above capacity on all active days this month."));
                 } else {
                     for (String[] row : rows) {
-                        // row: [date, visitors, maxCap, available, pct]
                         String line = String.format("📅 %s   |   %s / %s visitors  (%s%% full)   |   %s spots available",
                             row[0], row[1], row[2], row[4], row[3]);
                         usageList.getItems().add(line);
@@ -204,9 +197,31 @@ public class ParkManagerReportsController {
                     lblUsageSummary.setStyle("-fx-text-fill: #00b894; -fx-font-weight: bold;");
                 }
                 showStatus("Usage report loaded — " + rows.size() + " day(s) below capacity.", "#00b894");
+            } 
+            // --- WATCHDOG AUTO-LOGOUT ---
+            else if (msg.getCommand().equals("SERVER_DISCONNECTED") || msg.getCommand().equals("KICKED")) {
+                if(msg.getCommand().equals("SERVER_DISCONNECTED")) {
+                    javafx.scene.control.Alert alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.ERROR);
+                    alert.setTitle("Network Security Alert");
+                    alert.setHeaderText("Server Connection Lost");
+                    alert.setContentText("Connection to the server was lost. For security, you have been logged out.");
+                    alert.showAndWait();
+                }
+                forceUIToMainMenu();
             }
-		});
-	}
+        });
+    }
+
+    private void forceUIToMainMenu() {
+        try {
+            javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(getClass().getResource("/gui/MainMenu.fxml"));
+            javafx.scene.Parent root = loader.load();
+            javafx.stage.Stage stage = (javafx.stage.Stage) lblStatus.getScene().getWindow();
+            WindowChrome.setContent(stage, root, "GoNature - Welcome");
+        } catch (Exception e) { 
+            e.printStackTrace(); 
+        }
+    }
 
 	@FXML
 	void handleSubmitReport(ActionEvent event) {

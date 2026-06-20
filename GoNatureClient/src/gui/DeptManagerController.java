@@ -242,7 +242,6 @@ public class DeptManagerController {
 
                 case "KICK_SUCCESS":
                     showStatus((String) msg.getData(), "#00b894");
-                    // Refresh the list after kicking
                     ChatClient.getInstance().handleMessageFromClientUI(new Message("FETCH_CONNECTED_USERS", null));
                     break;
 
@@ -284,19 +283,42 @@ public class DeptManagerController {
                     btnCancelDiscount.setDisable(false);
                     lblActiveParkDiscount.setText("Active discount: None");
                     lblActiveParkDiscount.setStyle("-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #aaa;");
-                    // Re-fetch parks so the combo reflects the zeroed discount
                     ChatClient.getInstance().handleMessageFromClientUI(new Message("FETCH_ALL_PARKS", null));
-                    // Notify connected Park Managers their discount is gone
                     break;
 
                 case "CANCEL_PROMOTION_FAILED":
                     showStatus((String) msg.getData(), "#d63031");
                     btnCancelDiscount.setDisable(false);
                     break;
+
+                case "KICKED":
+                    showStatus("Disconnected by the system.", "#d63031");
+                    forceUIToMainMenu();
+                    break;
+
+                // --- WATCHDOG AUTO-LOGOUT ---
+                case "SERVER_DISCONNECTED":
+                    javafx.scene.control.Alert alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.ERROR);
+                    alert.setTitle("Network Security Alert");
+                    alert.setHeaderText("Server Connection Lost");
+                    alert.setContentText("Connection to the server was lost. For security, you have been logged out.");
+                    alert.showAndWait();
+                    forceUIToMainMenu();
+                    break;
             }
         });
     }
 
+    private void forceUIToMainMenu() {
+        try {
+            javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(getClass().getResource("/gui/MainMenu.fxml"));
+            javafx.scene.Parent root = loader.load();
+            javafx.stage.Stage stage = (javafx.stage.Stage) lblStatus.getScene().getWindow();
+            WindowChrome.setContent(stage, root, "GoNature - Welcome");
+        } catch (Exception e) { 
+            e.printStackTrace(); 
+        }
+    }
     private void showStatus(String message, String hexColor) {
         lblStatus.setText(message);
         lblStatus.setStyle("-fx-text-fill: " + hexColor + ";");

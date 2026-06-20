@@ -89,26 +89,38 @@ public class ServiceRepController {
     public void handleServerResponse(Message msg) {
         Platform.runLater(() -> {
             if (msg.getCommand().equals("REGISTER_SUCCESS")) {
-                showStatus((String) msg.getData(), "#00b894"); // Green success
+                showStatus((String) msg.getData(), "#00b894"); 
                 
-                // Clear the form for the next customer
                 txtId.clear(); txtFirst.clear(); txtLast.clear();
                 txtEmail.clear(); txtPhone.clear(); txtCard.clear();
                 txtFamilySize.clear(); chkGuide.setSelected(false);
                 
             } else if (msg.getCommand().equals("REGISTER_FAILED")) {
                 showStatus((String) msg.getData(), "#d63031");
-            } else if (msg.getCommand().equals("KICKED")) {
-                showStatus("Disconnected by the Department Manager.", "#d63031");
-                try {
-                    javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(
-                        getClass().getResource("/gui/MainMenu.fxml"));
-                    javafx.scene.Parent root = loader.load();
-                    javafx.stage.Stage stage = (javafx.stage.Stage) lblStatus.getScene().getWindow();
-                    WindowChrome.setContent(stage, root, "GoNature - Welcome");
-                } catch (Exception e) { e.printStackTrace(); }
+            } 
+            // --- WATCHDOG AUTO-LOGOUT & KICK ---
+            else if (msg.getCommand().equals("SERVER_DISCONNECTED") || msg.getCommand().equals("KICKED")) {
+                if(msg.getCommand().equals("SERVER_DISCONNECTED")) {
+                    javafx.scene.control.Alert alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.ERROR);
+                    alert.setTitle("Network Security Alert");
+                    alert.setHeaderText("Server Connection Lost");
+                    alert.setContentText("Connection to the server was lost. For security, you have been logged out.");
+                    alert.showAndWait();
+                }
+                forceUIToMainMenu();
             }
         });
+    }
+
+    private void forceUIToMainMenu() {
+        try {
+            javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(getClass().getResource("/gui/MainMenu.fxml"));
+            javafx.scene.Parent root = loader.load();
+            javafx.stage.Stage stage = (javafx.stage.Stage) lblStatus.getScene().getWindow();
+            WindowChrome.setContent(stage, root, "GoNature - Welcome");
+        } catch (Exception e) { 
+            e.printStackTrace(); 
+        }
     }
 
     private void showStatus(String message, String hexColor) {
