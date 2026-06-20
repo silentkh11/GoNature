@@ -151,8 +151,7 @@ public class ParkManagerController {
                     break;
                     
                 case "UPDATE_PARAMS_SUCCESS":
-                    showStatus((String) msg.getData(), "#00b894"); // Green success
-                    // Clear the text fields
+                    showStatus((String) msg.getData(), "#00b894");
                     txtNewMaxCapacity.clear();
                     txtNewCasualGap.clear();
                     txtNewEstStay.clear();
@@ -165,16 +164,31 @@ public class ParkManagerController {
 
                 case "KICKED":
                     showStatus("Disconnected by the Department Manager.", "#d63031");
-                    try {
-                        javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(
-                            getClass().getResource("/gui/MainMenu.fxml"));
-                        javafx.scene.Parent root = loader.load();
-                        javafx.stage.Stage stage = (javafx.stage.Stage) lblStatus.getScene().getWindow();
-                        WindowChrome.setContent(stage, root, "GoNature - Welcome");
-                    } catch (Exception e) { e.printStackTrace(); }
+                    forceUIToMainMenu();
+                    break;
+
+                // --- WATCHDOG AUTO-LOGOUT ---
+                case "SERVER_DISCONNECTED":
+                    javafx.scene.control.Alert alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.ERROR);
+                    alert.setTitle("Network Security Alert");
+                    alert.setHeaderText("Server Connection Lost");
+                    alert.setContentText("Connection to the server was lost. For security, you have been logged out.");
+                    alert.showAndWait();
+                    forceUIToMainMenu();
                     break;
             }
         });
+    }
+
+    private void forceUIToMainMenu() {
+        try {
+            javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(getClass().getResource("/gui/MainMenu.fxml"));
+            javafx.scene.Parent root = loader.load();
+            javafx.stage.Stage stage = (javafx.stage.Stage) lblStatus.getScene().getWindow();
+            WindowChrome.setContent(stage, root, "GoNature - Welcome");
+        } catch (Exception e) { 
+            e.printStackTrace(); 
+        }
     }
 
     private void showStatus(String message, String hexColor) {

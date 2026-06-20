@@ -67,27 +67,20 @@ public class ParkEntranceController {
         try {
             ChatClient.getInstance().handleMessageFromClientUI(new Message("LOGOUT_REQUEST", null));
         } catch (Exception ignored) {}
-        try {
-            javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(getClass().getResource("/gui/MainMenu.fxml"));
-            javafx.scene.Parent root = loader.load();
-            javafx.stage.Stage stage = (javafx.stage.Stage) ((Node) event.getSource()).getScene().getWindow();
-            WindowChrome.setContent(stage, root, "GoNature - Welcome");
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        forceUIToMainMenu();
     }
 
     @FXML
     void handleAdmit(ActionEvent event) {
-        processGateAction("ENTER_PARK_REQUEST", "Verifying ticket...", true);
+        processGateAction("ENTER_PARK_REQUEST", "Verifying ticket...");
     }
 
     @FXML
     void handleExit(ActionEvent event) {
-        processGateAction("EXIT_PARK_REQUEST", "Registering exit...", true);
+        processGateAction("EXIT_PARK_REQUEST", "Registering exit...");
     }
 
-    private void processGateAction(String command, String loadingMessage, boolean isBooked) {
+    private void processGateAction(String command, String loadingMessage) {
         String input = txtOrderId.getText().trim();
         if (input.isEmpty()) {
             showStatus("Please enter an Order ID.", "#d63031");
@@ -173,65 +166,86 @@ public class ParkEntranceController {
 
             switch (msg.getCommand()) {
                 case "ENTRY_APPROVED":
-                    showStatus((String) msg.getData(), "#00b894");
-                    txtOrderId.clear();
-                    break;
-                case "ENTRY_DENIED":
-                    showStatus((String) msg.getData(), "#d63031");
-                    break;
                 case "EXIT_APPROVED":
                     showStatus((String) msg.getData(), "#00b894");
                     txtOrderId.clear();
                     break;
+                    
+                case "ENTRY_DENIED":
                 case "EXIT_DENIED":
                     showStatus((String) msg.getData(), "#d63031");
                     break;
+                    
+                // --- THE PAYMENT BLINDSPOT FIX ---
                 case "WALKIN_APPROVED":
                     VisitOrder ticket = (VisitOrder) msg.getData();
                     showWalkInStatus(
                         "ADMITTED!  Ticket #" + ticket.getOrderId()
-                        + "  |  " + ticket.getVisitorCount() + " visitors"
-                        + "  |  Bill: ₪" + String.format("%.0f", ticket.getPrice()),
+                        + "  |  " + ticket.getVisitorCount() + " visitors\n"
+                        + "COLLECT PAYMENT: ₪" + String.format("%.0f", ticket.getPrice()),
                         "#00b894");
                     txtWalkInCount.clear();
                     cmbWalkInType.setValue(null);
                     break;
+                    
                 case "WALKIN_DENIED":
                     showWalkInStatus((String) msg.getData(), "#d63031");
                     break;
+                    
                 case "MANUAL_EXIT_SUCCESS":
                     showManualExitStatus((String) msg.getData(), "#00b894");
                     txtManualExitCount.clear();
                     break;
+                    
                 case "MANUAL_EXIT_FAILED":
                     showManualExitStatus((String) msg.getData(), "#d63031");
                     break;
+                    
                 case "KICKED":
                     showStatus("Disconnected by the Department Manager.", "#d63031");
-                    try {
-                        javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(
-                            getClass().getResource("/gui/MainMenu.fxml"));
-                        javafx.scene.Parent root = loader.load();
-                        javafx.stage.Stage stage = (javafx.stage.Stage) lblStatus.getScene().getWindow();
-                        WindowChrome.setContent(stage, root, "GoNature - Welcome");
-                    } catch (Exception e) { e.printStackTrace(); }
+                    forceUIToMainMenu();
+                    break;
+                    
+                // --- THE GLOBAL WATCHDOG UI HOOK ---
+                case "SERVER_DISCONNECTED":
+                    javafx.scene.control.Alert alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.ERROR);
+                    alert.setTitle("Network Security Alert");
+                    alert.setHeaderText("Server Connection Lost");
+                    alert.setContentText("The gate terminal has lost connection to the GoNature server. For security, you are being logged out.");
+                    alert.showAndWait();
+                    forceUIToMainMenu();
                     break;
             }
         });
     }
 
+    /** 
+     * Helper method to seamlessly snap the worker back to the Main Menu 
+     * if the Watchdog triggers a disconnect, or if they click Logout.
+     */
+    private void forceUIToMainMenu() {
+        try {
+            javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(getClass().getResource("/gui/MainMenu.fxml"));
+            javafx.scene.Parent root = loader.load();
+            javafx.stage.Stage stage = (javafx.stage.Stage) lblStatus.getScene().getWindow();
+            WindowChrome.setContent(stage, root, "GoNature - Welcome");
+        } catch (Exception e) { 
+            e.printStackTrace(); 
+        }
+    }
+
     private void showStatus(String message, String hexColor) {
         lblStatus.setText(message);
-        lblStatus.setStyle("-fx-text-fill: " + hexColor + ";");
+        lblStatus.setStyle("-fx-text-fill: " + hexColor + "; -fx-font-weight: bold;");
     }
 
     private void showWalkInStatus(String message, String hexColor) {
         lblWalkInStatus.setText(message);
-        lblWalkInStatus.setStyle("-fx-text-fill: " + hexColor + ";");
+        lblWalkInStatus.setStyle("-fx-text-fill: " + hexColor + "; -fx-font-weight: bold; -fx-font-size: 14px;");
     }
 
     private void showManualExitStatus(String message, String hexColor) {
         lblManualExitStatus.setText(message);
-        lblManualExitStatus.setStyle("-fx-text-fill: " + hexColor + ";");
+        lblManualExitStatus.setStyle("-fx-text-fill: " + hexColor + "; -fx-font-weight: bold;");
     }
 }

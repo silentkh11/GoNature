@@ -3,16 +3,21 @@ package gui;
 import client.ChatClient;
 import entities.Message;
 import entities.VisitOrder;
+import entities.Park;
 import javafx.application.Platform;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.DatePicker;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
-import java.time.LocalDate;
+
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.regex.Pattern;
 
 public class CreateOrderController {
@@ -30,6 +35,10 @@ public class CreateOrderController {
     @FXML private Button submitBtn;
     @FXML private Button themeBtn;
 
+    // Maps the visual Park Name to the actual Database Park ID
+    private HashMap<String, Integer> parkMap = new HashMap<>();
+    private String pendingWaitlistDate = null;
+
     private static final Pattern EMAIL_PATTERN =
         Pattern.compile("^[\\w._%+\\-]+@[\\w.\\-]+\\.[a-zA-Z]{2,}$");
 
@@ -37,91 +46,52 @@ public class CreateOrderController {
     private static final Pattern PHONE_PATTERN =
         Pattern.compile("^05[0-9]{8}$");
 
-    // Israeli ID: exactly 9 digits
-    private static final Pattern ID_PATTERN =
-        Pattern.compile("^[0-9]{9}$");
-
     @FXML
     public void initialize() {
         themeBtn.setText(ThemeManager.getInstance().toggleLabel());
-        try {
-            ChatClient.getInstance("127.0.0.1", 5555, this::handleServerResponse);
-        } catch (Exception e) {
-        	System.err.println("Client could not connect to server on startup: " + e.getMessage());
-            showStatus("Server offline. Please start the server.", "#d63031");
-            submitBtn.setDisable(true);
-        }
-
-        parkCombo.getItems().addAll("1 - Carmel National Park");
-        timeCombo.getItems().addAll(
-            "08:00", "09:00", "10:00", "11:00", "12:00",
-            "13:00", "14:00", "15:00", "16:00", "16:45", "17:00", "17:10", "17:25", "17:30", "17:50",
-            "18:00", "18:30", "18:41", "19:09", "20:00", "20:22", "22:20"
+        
+        // Wipe any hardcoded FXML "Ghost Items" instantly
+        parkCombo.getItems().clear(); 
+        
+        // Initialize Time Combo
+        ObservableList<String> times = FXCollections.observableArrayList(
+            "08:00:00", "09:00:00", "10:00:00", "11:00:00", "12:00:00",
+            "13:00:00", "14:00:00", "15:00:00", "16:00:00", "17:00:00"
         );
+        timeCombo.setItems(times);
+
+        // Initialize Type Combo
         typeCombo.getItems().addAll("Solo", "Family", "Group");
 
-        // Live price estimate — updates as visitor count or type changes
-        visitorsField.textProperty().addListener((obs, old, val) -> updatePriceEstimate());
-        typeCombo.valueProperty().addListener((obs, old, val) -> updatePriceEstimate());
-
-        // Phone: digits only, max 10 characters
-        phoneField.textProperty().addListener((obs, old, val) -> {
-            if (val != null && !val.matches("[0-9]*")) {
-                phoneField.setText(val.replaceAll("[^0-9]", ""));
-            } else if (val != null && val.length() > 10) {
-                phoneField.setText(val.substring(0, 10));
+        // Restrict visitorsField to numbers only
+        visitorsField.textProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal != null && !newVal.matches("\\d*")) {
+                visitorsField.setText(newVal.replaceAll("[^\\d]", ""));
+            }
+        });
+        
+        // Restrict visitorIdField to numbers only
+        visitorIdField.textProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal != null && !newVal.matches("\\d*")) {
+                visitorIdField.setText(newVal.replaceAll("[^\\d]", ""));
             }
         });
 
-        // Visitor ID: digits only, max 9 characters
-        visitorIdField.textProperty().addListener((obs, old, val) -> {
-            if (val != null && !val.matches("[0-9]*")) {
-                visitorIdField.setText(val.replaceAll("[^0-9]", ""));
-            } else if (val != null && val.length() > 9) {
-                visitorIdField.setText(val.substring(0, 9));
-            }
-        });
-
-        // Visitor count: digits only
-        visitorsField.textProperty().addListener((obs, old, val) -> {
-            if (val != null && !val.matches("[0-9]*")) {
-                visitorsField.setText(val.replaceAll("[^0-9]", ""));
-            }
-        });
-    }
-
-    private void updatePriceEstimate() {
+        // --- THE CRITICAL FIX ---
         try {
-            String countText = visitorsField.getText().trim();
-            String type = typeCombo.getValue();
-            if (countText.isEmpty() || type == null) {
-                priceEstimateLabel.setText("");
-                return;
-            }
-            int count = Integer.parseInt(countText);
-            if (count <= 0) {
-                priceEstimateLabel.setText("");
-                return;
-            }
-            double price;
-            if (type.equals("Group")) {
-                int paying = Math.max(0, count - 1);
-                price = paying * 100.0 * 0.75 * 0.88; // 25% off + 12% advance payment; guide free
-                priceEstimateLabel.setText(String.format(
-                    "~₪%.0f  (group: %d paying × ₪66)  |  25%% + 12%% advance discount applied. Guide goes free.", price, paying));
-            } else {
-                price = count * 85.0;
-                priceEstimateLabel.setText(String.format(
-                    "~₪%.0f  (%d visitor%s × ₪85)  |  Subscriber? Final price will be ×0.90", price, count, count > 1 ? "s" : ""));
-            }
-        } catch (NumberFormatException e) {
-            priceEstimateLabel.setText("");
+            // We MUST pass the IP and Port here so the client initializes if this is the first screen opened!
+            ChatClient.getInstance("127.0.0.1", 5555, this::handleServerResponse);
+            
+            // Now that we are 100% sure the connection exists, ask for the parks
+            ChatClient.getInstance().handleMessageFromClientUI(new Message("FETCH_ALL_PARKS", null));
+        } catch (Exception e) {
+            showStatus("Error connecting to server. Is it running?", "#d63031");
         }
     }
 
     @FXML
     void handleToggleTheme(ActionEvent event) {
-        javafx.scene.Scene scene = ((javafx.scene.Node) event.getSource()).getScene();
+        javafx.scene.Scene scene = ((Node) event.getSource()).getScene();
         ThemeManager.getInstance().toggle(scene);
         themeBtn.setText(ThemeManager.getInstance().toggleLabel());
     }
@@ -131,7 +101,7 @@ public class CreateOrderController {
         try {
             javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(getClass().getResource("/gui/MainMenu.fxml"));
             javafx.scene.Parent root = loader.load();
-            javafx.stage.Stage stage = (javafx.stage.Stage) ((javafx.scene.Node) event.getSource()).getScene().getWindow();
+            javafx.stage.Stage stage = (javafx.stage.Stage) ((Node) event.getSource()).getScene().getWindow();
             WindowChrome.setContent(stage, root, "GoNature - Welcome");
         } catch (Exception e) {
             e.printStackTrace();
@@ -140,48 +110,32 @@ public class CreateOrderController {
 
     @FXML
     void submitOrder(ActionEvent event) {
-        if (parkCombo.getValue() == null || timeCombo.getValue() == null || typeCombo.getValue() == null) {
-            showStatus("Please make a selection in all dropdown menus.", "#d63031");
+        showStatus("Reconnecting to server... Checking availability...", "#0984e3");
+
+        // Basic Validation
+        if (parkCombo.getValue() == null || visitorIdField.getText().trim().isEmpty() ||
+            datePicker.getValue() == null || timeCombo.getValue() == null ||
+            visitorsField.getText().trim().isEmpty() || typeCombo.getValue() == null) {
+            showStatus("Please fill in all required fields.", "#d63031");
+            return;
+        }
+
+        // Email/Phone Validation
+        String email = emailField.getText().trim();
+        String phone = phoneField.getText().trim();
+        
+        if (email.isEmpty() || !EMAIL_PATTERN.matcher(email).matches()) {
+            showStatus("Please enter a valid email address.", "#d63031");
+            return;
+        }
+        if (phone.isEmpty() || !PHONE_PATTERN.matcher(phone).matches()) {
+            showStatus("Please enter a valid 10-digit mobile number (e.g., 0501234567).", "#d63031");
             return;
         }
 
         String visitorId = visitorIdField.getText().trim();
-        String email     = emailField.getText().trim();
-        String phone     = phoneField.getText().trim();
-
-        if (visitorId.isEmpty()) {
-            showStatus("Visitor ID cannot be empty.", "#d63031");
-            return;
-        }
-        if (!ID_PATTERN.matcher(visitorId).matches()) {
-            showStatus("Visitor ID must be exactly 9 digits.", "#d63031");
-            return;
-        }
-
-        if (email.isEmpty()) {
-            showStatus("Email address cannot be empty.", "#d63031");
-            return;
-        }
-        if (!EMAIL_PATTERN.matcher(email).matches()) {
-            showStatus("Please enter a valid email (e.g. name@example.com).", "#d63031");
-            return;
-        }
-
-        if (phone.isEmpty()) {
-            showStatus("Phone number cannot be empty.", "#d63031");
-            return;
-        }
-        if (!PHONE_PATTERN.matcher(phone).matches()) {
-            showStatus("Phone must be a valid Israeli mobile number (e.g. 0521234567).", "#d63031");
-            return;
-        }
-
-        LocalDate selectedDate = datePicker.getValue();
-        if (selectedDate == null || !selectedDate.isAfter(LocalDate.now())) {
-            showStatus("Please select a future date.", "#d63031");
-            return;
-        }
-
+        String visitDate = datePicker.getValue().toString();
+        String visitTime = timeCombo.getValue();
         int visitorCount;
         try {
             visitorCount = Integer.parseInt(visitorsField.getText().trim());
@@ -190,52 +144,80 @@ public class CreateOrderController {
                 return;
             }
         } catch (NumberFormatException e) {
-            showStatus("Please enter a valid number for Total Visitors.", "#d63031");
+            showStatus("Invalid visitor count.", "#d63031");
+            return;
+        }
+        String orderType = typeCombo.getValue();
+
+        // Safe Unboxing to prevent crashes if the server was offline!
+        Integer parkId = parkMap.get(parkCombo.getValue());
+        if (parkId == null) {
+            showStatus("Synchronizing parks with server... Please select a park again.", "#d63031");
+            try {
+                ChatClient.getInstance().handleMessageFromClientUI(new Message("FETCH_ALL_PARKS", null));
+            } catch (Exception ignored) {}
             return;
         }
 
-        int parkId       = Integer.parseInt(parkCombo.getValue().split(" - ")[0]);
-        String visitDate = selectedDate.toString();
-        String visitTime = timeCombo.getValue() + ":00";
-        String orderType = typeCombo.getValue();
+        // Build the order safely
+        VisitOrder order = new VisitOrder(0, parkId, visitorId, visitDate, visitTime, visitorCount, orderType, "Pending", 0.0, email, phone);
 
-        VisitOrder newOrder = new VisitOrder(0, parkId, visitorId, visitDate, visitTime, visitorCount, orderType, "Pending", 0.0, email, phone);
-
+        // Disable button to prevent spam clicks
         submitBtn.setDisable(true);
-        showStatus("Checking availability with server...", "#0984e3");
-
-        ChatClient.getInstance().handleMessageFromClientUI(new Message("NEW_ORDER_REQUEST", newOrder));
+        pendingWaitlistDate = visitDate; 
+        
+        // Send to Server
+        ChatClient.getInstance().handleMessageFromClientUI(new Message("NEW_ORDER_REQUEST", order));
     }
-
-    // Store waitlisted order details for the follow-up slots fetch
-    private int pendingWaitlistParkId = -1;
-    private String pendingWaitlistDate = null;
 
     @SuppressWarnings("unchecked")
     public void handleServerResponse(Message msg) {
         Platform.runLater(() -> {
-            submitBtn.setDisable(false);
+            
+            // Always unblock the submit button whenever any response comes back
+            if (submitBtn != null) {
+                submitBtn.setDisable(false);
+            }
 
-            if (msg.getCommand().equals("ORDER_CONFIRMED")) {
-                VisitOrder finalizedOrder = (VisitOrder) msg.getData();
+            // Watchdog Intercept
+            if (msg.getCommand().equals("SERVER_DISCONNECTED")) {
+                showStatus("Server is currently offline. Please wait a moment and try again.", "#d63031");
+                return; 
+            }
 
-                if (finalizedOrder.getStatus().equals("Waitlisted")) {
-                    showStatus("Park is full for that time — you are on the WAITLIST. Order #"
-                        + finalizedOrder.getOrderId()
-                        + "  |  You will be notified by email & SMS if a spot opens."
-                        + "\nFetching other available time slots on that day...", "#e17055");
+            // Populate the Dropdown dynamically when the server sends the parks
+            if (msg.getCommand().equals("ALL_PARKS_DATA")) {
+                ArrayList<Park> parks = (ArrayList<Park>) msg.getData();
+                ObservableList<String> parkNames = FXCollections.observableArrayList();
+                parkMap.clear(); 
+                
+                for (Park p : parks) {
+                    parkNames.add(p.getName());
+                    parkMap.put(p.getName(), p.getParkId()); // Map name -> ID
+                }
+                
+                parkCombo.setItems(parkNames);
+                if (!parkNames.isEmpty() && statusLabel.getText().startsWith("Reconnecting")) {
+                    showStatus("Parks loaded! Please complete your booking.", "#0984e3");
+                }
+            }
 
-                    // Ask server for alternative slots
-                    pendingWaitlistParkId = finalizedOrder.getParkId();
-                    pendingWaitlistDate = finalizedOrder.getVisitDate();
-                    String[] slotReq = { String.valueOf(pendingWaitlistParkId), pendingWaitlistDate };
-                    ChatClient.getInstance().handleMessageFromClientUI(
-                        new Message("FETCH_AVAILABLE_SLOTS", slotReq));
+            else if (msg.getCommand().equals("ORDER_CONFIRMED")) {
+                VisitOrder confirmed = (VisitOrder) msg.getData();
+                if (confirmed.getStatus().equals("Waitlisted")) {
+                    showStatus("Park is full! You have been added to the Waitlist (Order #" + confirmed.getOrderId() + ").\n"
+                        + "We will notify you at " + confirmed.getEmail() + " if a spot opens up.", "#e17055");
+                    
+                    int parkId = parkMap.get(parkCombo.getValue());
+                    String[] data = { String.valueOf(parkId), pendingWaitlistDate };
+                    ChatClient.getInstance().handleMessageFromClientUI(new Message("FETCH_AVAILABLE_SLOTS", data));
+                    
                 } else {
-                    showStatus("Booking CONFIRMED!  Order #" + finalizedOrder.getOrderId()
-                        + "  |  Total: ₪" + String.format("%.0f", finalizedOrder.getPrice())
+                    showStatus("Booking Confirmed! Order #" + confirmed.getOrderId() + "\n"
+                        + "Total Price: ₪" + String.format("%.2f", confirmed.getPrice())
                         + "  |  A reminder will be sent 24h before your visit.", "#00b894");
-                    clearForm();
+                    priceEstimateLabel.setText(""); 
+                    clearForm(); 
                 }
 
             } else if (msg.getCommand().equals("ORDER_FAILED")) {
@@ -268,6 +250,5 @@ public class CreateOrderController {
         timeCombo.setValue(null);
         visitorsField.clear();
         typeCombo.setValue(null);
-        priceEstimateLabel.setText("");
     }
 }
