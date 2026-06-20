@@ -383,6 +383,37 @@ public class DBController {
                     if (keys.next()) {
                         order.setOrderId(keys.getInt(1));
                         order.setStatus(assignedStatus);
+
+                        // --- Send booking confirmation (Email + SMS) per spec ---
+                        // Spec: "המזמין יקבל את הודעת האישור ישירות במסך, באימייל ובמסרון SMS"
+                        try {
+                            String contactEmail = order.getEmail();
+                            String contactPhone = order.getPhone();
+                            String subject = "GoNature: Booking " + assignedStatus
+                                + " (Order #" + order.getOrderId() + ")";
+                            String body = "Hello,\n\n"
+                                + "Your booking at park #" + order.getParkId() + " on "
+                                + order.getVisitDate() + " at " + order.getVisitTime() + "\n"
+                                + "for " + order.getVisitorCount() + " visitor(s) is "
+                                + assignedStatus + ".\n"
+                                + "Order ID: " + order.getOrderId() + "\n"
+                                + "Total Price: " + String.format("%.2f", calculatedPrice) + " NIS\n\n"
+                                + "Present Order ID #" + order.getOrderId()
+                                + " at the park gate.\n\n"
+                                + "The GoNature Team";
+                            if (contactEmail != null && contactEmail.contains("@")) {
+                                EmailSender.sendEmail(contactEmail, subject, body);
+                            }
+                            SmsSender.sendSms(contactPhone,
+                                "GoNature: Booking " + assignedStatus
+                                + ". Order #" + order.getOrderId()
+                                + " on " + order.getVisitDate() + " at " + order.getVisitTime()
+                                + ". Price: " + String.format("%.2f", calculatedPrice) + " NIS.");
+                        } catch (Throwable notifyEx) {
+                            System.err.println("Booking confirmation notification failed: "
+                                + notifyEx.getMessage());
+                        }
+
                         return order;
                     }
                 }
