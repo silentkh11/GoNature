@@ -112,16 +112,18 @@ public class EchoServer extends AbstractServer {
                 // --- 3. PARK GATE ENTRANCE ROUTING ---
                 // =========================================================================
                 else if (request.getCommand().equals("ENTER_PARK_REQUEST")) {
-                    int orderIdToAdmit = (int) request.getData();
-                    uiLogger.accept("> Park Gate requested entry for Order ID: " + orderIdToAdmit + "\n");
-                    String resultMessage = DBController.processParkEntry(orderIdToAdmit);
-                    if (resultMessage.startsWith("SUCCESS")) {
-                        client.sendToClient(new Message("ENTRY_APPROVED", resultMessage));
-                        uiLogger.accept("> Gate Entry APPROVED.\n");
-                        pushParkUpdate(orderIdToAdmit);
+                    int orderId = (int) request.getData();
+                    uiLogger.accept("> Processing Gate Entry for Order ID: " + orderId + "\n");
+
+                    String resultMsg = DBController.processParkEntry(orderId);
+
+                    if (resultMsg.startsWith("ENTRY_APPROVED")) {
+                        // Strip the prefix and send the clean message (which now includes the price) to the UI
+                        client.sendToClient(new Message("ENTRY_APPROVED", resultMsg.replace("ENTRY_APPROVED: ", "")));
+                        // Optional: Broadcast the updated visitor count to Park Managers
+                        pushParkUpdate(orderId); 
                     } else {
-                        client.sendToClient(new Message("ENTRY_DENIED", resultMessage));
-                        uiLogger.accept("> Gate Entry DENIED: " + resultMessage + "\n");
+                        client.sendToClient(new Message("ENTRY_DENIED", resultMsg.replace("ENTRY_DENIED: ", "")));
                     }
                 }
 
