@@ -129,6 +129,18 @@ public class GuestPortalController {
     @SuppressWarnings("unchecked")
     public void handleServerResponse(Message msg) {
         Platform.runLater(() -> {
+            // --- WATCHDOG AUTO-LOGOUT ---
+            if (msg.getCommand().equals("SERVER_DISCONNECTED")) {
+                javafx.scene.control.Alert alert = new javafx.scene.control.Alert(
+                    javafx.scene.control.Alert.AlertType.ERROR);
+                alert.setTitle("Network Security Alert");
+                alert.setHeaderText("Server Connection Lost");
+                alert.setContentText("Connection to the server was lost. Returning to the main menu.");
+                alert.showAndWait();
+                forceUIToMainMenu();
+                return;
+            }
+
             if (msg.getCommand().equals("GUEST_ORDERS_DATA")) {
                 ArrayList<VisitOrder> list = (ArrayList<VisitOrder>) msg.getData();
                 if (list.isEmpty()) {
@@ -138,15 +150,27 @@ public class GuestPortalController {
                 }
                 ObservableList<VisitOrder> observableList = FXCollections.observableArrayList(list);
                 ordersTable.setItems(observableList);
-                
+
             } else if (msg.getCommand().equals("CANCEL_SUCCESS") || msg.getCommand().equals("CONFIRM_SUCCESS")) {
                 showStatus((String) msg.getData(), "#00b894");
                 ChatClient.getInstance().handleMessageFromClientUI(new Message("FETCH_GUEST_ORDERS", currentSearchedId));
-                
+
             } else if (msg.getCommand().equals("CANCEL_FAILED") || msg.getCommand().equals("CONFIRM_FAILED")) {
                 showStatus((String) msg.getData(), "#d63031");
             }
         });
+    }
+
+    private void forceUIToMainMenu() {
+        try {
+            javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(
+                getClass().getResource("/gui/MainMenu.fxml"));
+            javafx.scene.Parent root = loader.load();
+            Stage stage = (Stage) lblStatus.getScene().getWindow();
+            WindowChrome.setContent(stage, root, "GoNature - Welcome");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     private void showStatus(String message, String hexColor) {
