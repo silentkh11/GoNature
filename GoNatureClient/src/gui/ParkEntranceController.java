@@ -172,28 +172,6 @@ public class ParkEntranceController {
                         WindowChrome.setContent(stage, root, "GoNature - Welcome");
                     } catch (Exception e) { e.printStackTrace(); }
                     break;
-
-                // =========================================================================
-                // --- INSTANT NETWORK DISCONNECT REACTION (AUTO-LOGOUT) ---
-                // =========================================================================
-                case "SERVER_DISCONNECTED":
-                    // 1. Show a popup warning the user
-                    javafx.scene.control.Alert alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.ERROR);
-                    alert.setTitle("Connection Lost");
-                    alert.setHeaderText("Server Disconnected");
-                    alert.setContentText("The connection to the server was lost. For your security, you have been logged out.");
-                    alert.showAndWait();
-
-                    // 2. Kick them safely back to the Main Menu
-                    try {
-                        javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(getClass().getResource("/gui/MainMenu.fxml"));
-                        javafx.scene.Parent root = loader.load();
-                        javafx.stage.Stage stage = (javafx.stage.Stage) themeBtn.getScene().getWindow();
-                        WindowChrome.setContent(stage, root, "GoNature - Welcome");
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
-                    break;
             }
         });
     }

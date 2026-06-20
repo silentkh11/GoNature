@@ -371,27 +371,6 @@ public class DBController {
             return "Database Error.";
         }
     }
-    
- // =========================================================================
-    // --- DEPARTMENT MANAGER: DIRECT PARK OVERRIDE ---
-    // =========================================================================
-    public static boolean forceUpdateParkParameters(entities.Park park) {
-        String query = "UPDATE park SET max_capacity = ?, casual_gap = ?, estimated_stay_time = ? WHERE park_id = ?";
-        try (java.sql.Connection conn = getInstance().getConnection();
-             java.sql.PreparedStatement stmt = conn.prepareStatement(query)) {
-            
-            stmt.setInt(1, park.getMaxCapacity());
-            stmt.setInt(2, park.getCasualGap());
-            stmt.setInt(3, park.getEstimatedStayTime());
-            stmt.setInt(4, park.getParkId());
-            
-            int rowsAffected = stmt.executeUpdate();
-            return rowsAffected > 0;
-        } catch (java.sql.SQLException e) {
-            System.err.println("Database Error Forcing Park Update: " + e.getMessage());
-            return false;
-        }
-    }
 
     public static String processParkExit(int orderId) {
         String selectQuery = "SELECT status, park_id, visitor_count FROM visit_order WHERE order_id = ?";

@@ -25,39 +25,6 @@ public class ChatClient extends AbstractClient {
         super(host, port);
         this.responseHandler = responseHandler;
         openConnection();
-        startNetworkWatchdog(); // <-- ADD THIS LINE
-    }
-    
-    /**
-     * A background daemon that pings the server every 3 seconds. 
-     * If the server dies, it alerts the UI and continuously attempts to reconnect.
-     */
-    private void startNetworkWatchdog() {
-        Thread watchdog = new Thread(() -> {
-            while (true) {
-                try {
-                    Thread.sleep(3000); // Check every 3 seconds
-                    
-                    if (isConnected()) {
-                        // This will intentionally throw an IOException if the socket is broken
-                        sendToServer(new Message("PING", null)); 
-                    } else {
-                        // If we are offline, attempt to silently reconnect
-                        openConnection();
-                        if (isConnected() && responseHandler != null) {
-                            // If we successfully reconnected, tell the UI!
-                            responseHandler.accept(new Message("SERVER_RECONNECTED", "Connection restored!"));
-                        }
-                    }
-                } catch (IOException e) {
-                    // Do nothing here. The exception hooks below will catch the break.
-                } catch (InterruptedException e) {
-                    break;
-                }
-            }
-        });
-        watchdog.setDaemon(true); // Ensures this thread dies instantly when the app is closed
-        watchdog.start();
     }
 
     /**
@@ -124,23 +91,16 @@ public class ChatClient extends AbstractClient {
     @Override
     protected void connectionClosed() {
         System.out.println("CLIENT: Connection to server closed.");
-        if (responseHandler != null) {
-            responseHandler.accept(new Message("SERVER_DISCONNECTED", "Connection to server lost!"));
-        }
     }
-    
+
     /**
      * Hook method triggered if the client loses connection to the server unexpectedly.
      */
     @Override
     protected void connectionException(Exception exception) {
         System.out.println("CLIENT: Server has disconnected abruptly (Connection Lost).");
-        if (responseHandler != null) {
-            responseHandler.accept(new Message("SERVER_DISCONNECTED", "Connection to server lost!"));
-        }
     }
 
- 
     /**
      * Safely terminates the network connection.
      */
