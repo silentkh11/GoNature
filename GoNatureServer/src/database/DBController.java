@@ -401,51 +401,63 @@ public class DBController {
      * Records a visitor entry: sets status to 'In Park', increments park count,
      * and stamps the entry_timestamp.
      */
+ // =========================================================================
+    // --- PARK ENTRY & GATE MANAGEMENT ---
+    // =========================================================================
     public static String processParkEntry(int orderId) {
-        String selectQuery = "SELECT status, park_id, visitor_count FROM visit_order WHERE order_id = ?";
-        String updateOrderQuery =
-            "UPDATE visit_order SET status = 'In Park', entry_timestamp = NOW() WHERE order_id = ?";
-        String updateParkQuery =
-            "UPDATE park SET current_visitors = current_visitors + ? WHERE park_id = ?";
+        // We now fetch the 'price' column alongside the other required data
+        String fetchOrderQuery = "SELECT park_id, visitor_count, status, price FROM visit_order WHERE order_id = ?";
+        String updateOrderQuery = "UPDATE visit_order SET status = 'In Park' WHERE order_id = ?";
+        String updateParkQuery = "UPDATE park SET current_visitors = current_visitors + ? WHERE park_id = ?";
 
-        try (Connection conn = getInstance().getConnection()) {
-            conn.setAutoCommit(false);
-            try (PreparedStatement sel = conn.prepareStatement(selectQuery)) {
-                sel.setInt(1, orderId);
-                try (ResultSet rs = sel.executeQuery()) {
-                    if (rs.next()) {
-                        String status   = rs.getString("status");
-                        int parkId      = rs.getInt("park_id");
-                        int visitors    = rs.getInt("visitor_count");
+        try (java.sql.Connection conn = getInstance().getConnection();
+             java.sql.PreparedStatement fetchStmt = conn.prepareStatement(fetchOrderQuery)) {
 
-                        if (status.equals("Confirmed") || status.equals("Waitlist Pending")) {
-                            try (PreparedStatement upd = conn.prepareStatement(updateOrderQuery)) {
-                                upd.setInt(1, orderId);
-                                upd.executeUpdate();
-                            }
-                            try (PreparedStatement upd = conn.prepareStatement(updateParkQuery)) {
-                                upd.setInt(1, visitors);
-                                upd.setInt(2, parkId);
-                                upd.executeUpdate();
-                            }
-                            conn.commit();
-                            return "SUCCESS: " + visitors + " visitor(s) admitted to the park.";
-                        } else {
-                            conn.rollback();
-                            return "Order status is '" + status + "'. Entry requires 'Confirmed' or 'Waitlist Pending'.";
-                        }
-                    } else {
-                        conn.rollback();
-                        return "Order ID not found.";
-                    }
+            fetchStmt.setInt(1, orderId);
+            try (java.sql.ResultSet rs = fetchStmt.executeQuery()) {
+                if (!rs.next()) {
+                    return "ENTRY_DENIED: Order ID #" + orderId + " not found in the database.";
                 }
-            } catch (SQLException e) {
-                conn.rollback();
-                throw e;
+
+                String status = rs.getString("status");
+                int visitors = rs.getInt("visitor_count");
+                int parkId = rs.getInt("park_id");
+                double price = rs.getDouble("price"); // Fetch the pre-calculated price!
+
+                // 1. Validate Order Status
+                if (status.equals("In Park") || status.equals("Completed")) {
+                    return "ENTRY_DENIED: Order #" + orderId + " has already been scanned.";
+                }
+                if (status.equals("Cancelled") || status.equals("Expired")) {
+                    return "ENTRY_DENIED: Order #" + orderId + " was cancelled or expired.";
+                }
+
+                // 2. Validate Park Capacity
+                entities.Park park = getParkById(parkId);
+                if (park != null && (park.getCurrentVisitors() + visitors > park.getMaxCapacity())) {
+                    return "ENTRY_DENIED: Park is currently full. Wait for visitors to exit.";
+                }
+
+                // 3. Update the Order status to 'In Park'
+                try (java.sql.PreparedStatement updateOrderStmt = conn.prepareStatement(updateOrderQuery)) {
+                    updateOrderStmt.setInt(1, orderId);
+                    updateOrderStmt.executeUpdate();
+                }
+
+                // 4. Update the live visitor count in the Park table
+                try (java.sql.PreparedStatement updateParkStmt = conn.prepareStatement(updateParkQuery)) {
+                    updateParkStmt.setInt(1, visitors);
+                    updateParkStmt.setInt(2, parkId);
+                    updateParkStmt.executeUpdate();
+                }
+
+                // 5. THE FIX: Return the success message WITH the payment collection amount
+                return "ENTRY_APPROVED: Order #" + orderId + " (" + visitors + " visitors) admitted.\nCollect Payment: ₪" + String.format("%.0f", price);
             }
-        } catch (SQLException e) {
-            e.printStackTrace();
-            return "Database Error.";
+
+        } catch (java.sql.SQLException e) {
+            System.err.println("Database Error Processing Entry: " + e.getMessage());
+            return "ENTRY_DENIED: Database error occurred while scanning ticket.";
         }
     }
 
