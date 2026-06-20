@@ -46,6 +46,14 @@ public class EchoServer extends AbstractServer {
         try {
             if (msg instanceof Message) {
                 Message request = (Message) msg;
+
+                // =========================================================================
+                // --- 0. HEARTBEAT & PING (SILENT) ---
+                // =========================================================================
+                if (request.getCommand().equals("PING")) {
+                    return; // Fail silently. Do not log it, do not reply. Just keep the socket alive.
+                }
+
                 uiLogger.accept("> Received command: " + request.getCommand() + " from " + client.getInetAddress().getHostAddress() + "\n");
 
                 // =========================================================================
@@ -261,7 +269,24 @@ public class EchoServer extends AbstractServer {
                     } else {
                         client.sendToClient(new Message("REPORT_DATA_FAILED", "Could not generate the report. Database error."));
                     }
-                }else if (request.getCommand().equals("SAVE_MONTHLY_REPORT")) {
+                }else if (request.getCommand().equals("FORCE_UPDATE_PARK_PARAMS")) {
+                    entities.Park updateData = (entities.Park) request.getData();
+                    uiLogger.accept("> Dept Manager directly overriding parameters for Park " + updateData.getParkId() + "\n");
+                    
+                    boolean success = DBController.forceUpdateParkParameters(updateData);
+                    if (success) {
+                        client.sendToClient(new Message("FORCE_UPDATE_SUCCESS", "Park " + updateData.getName() + " parameters successfully overridden."));
+                        
+                        // Push live update to the affected Park Manager so their screen refreshes instantly!
+                        entities.Park updatedPark = DBController.getParkById(updateData.getParkId());
+                        if (updatedPark != null) {
+                            broadcastToPark(updateData.getParkId(), new Message("PARK_DETAILS_DATA", updatedPark));
+                        }
+                    } else {
+                        client.sendToClient(new Message("FORCE_UPDATE_FAILED", "Database error during parameter override."));
+                    }
+                }
+                else if (request.getCommand().equals("SAVE_MONTHLY_REPORT")) {
                     entities.ReportData reportToSave = (entities.ReportData) request.getData();
                     uiLogger.accept("> Park Manager submitting report for Park " + reportToSave.getParkId() + "\n");
                     

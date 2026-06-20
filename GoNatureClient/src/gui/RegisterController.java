@@ -39,13 +39,12 @@ public class RegisterController {
         } catch (Exception e) {
             showStatus("Error: Cannot connect to the server.", "#d63031");
             btnRegister.setDisable(true);
-            e.printStackTrace();
         }
     }
 
     @FXML
     void handleToggleTheme(ActionEvent event) {
-        javafx.scene.Scene scene = ((javafx.scene.Node) event.getSource()).getScene();
+        javafx.scene.Scene scene = ((Node) event.getSource()).getScene();
         ThemeManager.getInstance().toggle(scene);
         themeBtn.setText(ThemeManager.getInstance().toggleLabel());
     }
@@ -56,8 +55,8 @@ public class RegisterController {
         String email = txtEmail.getText().trim();
         String sizeStr = txtFamilySize.getText().trim();
 
-        if (id.isEmpty() || email.isEmpty() || txtFirst.getText().trim().isEmpty()) {
-            showStatus("ID, Name, and Email are required.", "#d63031");
+        if (id.isEmpty() || email.isEmpty()) {
+            showStatus("ID and Email are mandatory fields.", "#d63031");
             return;
         }
 
@@ -76,7 +75,7 @@ public class RegisterController {
             );
 
             btnRegister.setDisable(true);
-            showStatus("Submitting registration...", "#0984e3");
+            showStatus("Processing registration...", "#0984e3");
             ChatClient.getInstance().handleMessageFromClientUI(new Message("REGISTER_SUBSCRIBER_REQUEST", newSub));
 
         } catch (NumberFormatException e) {
@@ -104,6 +103,17 @@ public class RegisterController {
                 clearForm();
             } else if (msg.getCommand().equals("REGISTER_FAILED")) {
                 showStatus((String) msg.getData(), "#d63031");
+            }
+            // =========================================================================
+            // --- GUEST NETWORK WATCHDOG (FREEZE & RECOVER) ---
+            // =========================================================================
+            else if (msg.getCommand().equals("SERVER_DISCONNECTED")) {
+                btnRegister.setDisable(true); // Freeze the form
+                showStatus("⚠️ SERVER OFFLINE. Please wait, attempting to reconnect...", "#d63031"); // Red text
+            } 
+            else if (msg.getCommand().equals("SERVER_RECONNECTED")) {
+                btnRegister.setDisable(false); // Unfreeze the form!
+                showStatus("✅ Connection Restored! You may proceed.", "#00b894"); // Green text
             }
         });
     }

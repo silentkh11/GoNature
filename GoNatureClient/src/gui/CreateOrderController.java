@@ -2,6 +2,7 @@ package gui;
 
 import client.ChatClient;
 import entities.Message;
+import entities.Park;
 import entities.VisitOrder;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
@@ -46,13 +47,16 @@ public class CreateOrderController {
         themeBtn.setText(ThemeManager.getInstance().toggleLabel());
         try {
             ChatClient.getInstance("127.0.0.1", 5555, this::handleServerResponse);
+            
+            // THE FIX: Fetch the dynamic list of parks from the database instantly on startup
+            ChatClient.getInstance().handleMessageFromClientUI(new Message("FETCH_ALL_PARKS", null));
+            
         } catch (Exception e) {
-        	System.err.println("Client could not connect to server on startup: " + e.getMessage());
+            System.err.println("Client could not connect to server on startup: " + e.getMessage());
             showStatus("Server offline. Please start the server.", "#d63031");
             submitBtn.setDisable(true);
         }
 
-        parkCombo.getItems().addAll("1 - Carmel National Park");
         timeCombo.getItems().addAll(
             "08:00", "09:00", "10:00", "11:00", "12:00",
             "13:00", "14:00", "15:00", "16:00", "16:45", "17:00", "17:10", "17:25", "17:30", "17:50",
@@ -207,7 +211,6 @@ public class CreateOrderController {
         ChatClient.getInstance().handleMessageFromClientUI(new Message("NEW_ORDER_REQUEST", newOrder));
     }
 
-    // Store waitlisted order details for the follow-up slots fetch
     private int pendingWaitlistParkId = -1;
     private String pendingWaitlistDate = null;
 
@@ -216,7 +219,16 @@ public class CreateOrderController {
         Platform.runLater(() -> {
             submitBtn.setDisable(false);
 
-            if (msg.getCommand().equals("ORDER_CONFIRMED")) {
+            // --- THE FIX: Populate the dropdown when the server sends the park data ---
+            if (msg.getCommand().equals("ALL_PARKS_DATA")) {
+                ArrayList<Park> parks = (ArrayList<Park>) msg.getData();
+                parkCombo.getItems().clear();
+                for (Park p : parks) {
+                    parkCombo.getItems().add(p.getParkId() + " - " + p.getName());
+                }
+            } 
+            
+            else if (msg.getCommand().equals("ORDER_CONFIRMED")) {
                 VisitOrder finalizedOrder = (VisitOrder) msg.getData();
 
                 if (finalizedOrder.getStatus().equals("Waitlisted")) {
@@ -225,7 +237,6 @@ public class CreateOrderController {
                         + "  |  You will be notified by email & SMS if a spot opens."
                         + "\nFetching other available time slots on that day...", "#e17055");
 
-                    // Ask server for alternative slots
                     pendingWaitlistParkId = finalizedOrder.getParkId();
                     pendingWaitlistDate = finalizedOrder.getVisitDate();
                     String[] slotReq = { String.valueOf(pendingWaitlistParkId), pendingWaitlistDate };
@@ -250,6 +261,18 @@ public class CreateOrderController {
                         + ":\n" + String.join("  |  ", slots));
                 }
                 priceEstimateLabel.setStyle("-fx-text-fill: #64b5f6; -fx-font-weight: bold;");
+            }
+            
+            // =========================================================================
+            // --- GUEST NETWORK WATCHDOG (FREEZE & RECOVER) ---
+            // =========================================================================
+            else if (msg.getCommand().equals("SERVER_DISCONNECTED")) {
+                submitBtn.setDisable(true); 
+                showStatus("⚠️ SERVER OFFLINE. Please wait, attempting to reconnect...", "#d63031"); 
+            } 
+            else if (msg.getCommand().equals("SERVER_RECONNECTED")) {
+                submitBtn.setDisable(false);
+                showStatus("✅ Connection Restored! You may proceed.", "#00b894"); 
             }
         });
     }

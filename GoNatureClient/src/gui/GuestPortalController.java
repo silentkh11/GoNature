@@ -146,6 +146,19 @@ public class GuestPortalController {
             } else if (msg.getCommand().equals("CANCEL_FAILED") || msg.getCommand().equals("CONFIRM_FAILED")) {
                 showStatus((String) msg.getData(), "#d63031");
             }
+            // =========================================================================
+            // --- GUEST NETWORK WATCHDOG (FREEZE & RECOVER) ---
+            // =========================================================================
+            else if (msg.getCommand().equals("SERVER_DISCONNECTED")) {
+                btnConfirmOrder.setDisable(true);
+                btnCancelOrder.setDisable(true);
+                showStatus("⚠️ SERVER OFFLINE. Please wait, attempting to reconnect...", "#d63031"); 
+            } 
+            else if (msg.getCommand().equals("SERVER_RECONNECTED")) {
+                btnConfirmOrder.setDisable(false);
+                btnCancelOrder.setDisable(false);
+                showStatus("✅ Connection Restored! You may proceed.", "#00b894"); 
+            }
         });
     }
 
