@@ -94,6 +94,18 @@ public class LoginController {
 		Platform.runLater(() -> {
 			resetLoginButton();
 
+			// --- WATCHDOG AUTO-LOGOUT ---
+			if (msg.getCommand().equals("SERVER_DISCONNECTED")) {
+				javafx.scene.control.Alert alert = new javafx.scene.control.Alert(
+					javafx.scene.control.Alert.AlertType.ERROR);
+				alert.setTitle("Network Security Alert");
+				alert.setHeaderText("Server Connection Lost");
+				alert.setContentText("Connection to the server was lost. Returning to the main menu.");
+				alert.showAndWait();
+				forceUIToMainMenu();
+				return;
+			}
+
 			if (msg.getCommand().equals("LOGIN_SUCCESS")) {
 
 				// 1. Extract the user object the Server sent us
@@ -166,5 +178,17 @@ public class LoginController {
 	private void resetLoginButton() {
 		loginBtn.setDisable(false);
 		loginBtn.setText("Login");
+	}
+
+	private void forceUIToMainMenu() {
+		try {
+			javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(
+				getClass().getResource("/gui/MainMenu.fxml"));
+			javafx.scene.Parent root = loader.load();
+			javafx.stage.Stage stage = (javafx.stage.Stage) loginBtn.getScene().getWindow();
+			WindowChrome.setContent(stage, root, "GoNature - Welcome");
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 	}
 }
