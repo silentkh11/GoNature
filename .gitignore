@@ -1,5 +1,1 @@
 credentials.properties
-*.class
-bin/
-GoNatureClient/bin/
-GoNatureServer/bin/
