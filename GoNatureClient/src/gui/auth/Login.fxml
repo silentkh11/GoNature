@@ -14,10 +14,10 @@
       <BorderPane BorderPane.alignment="CENTER">
          <padding><Insets left="20.0" right="20.0" top="15.0" bottom="5.0" /></padding>
          <left>
-            <Button mnemonicParsing="false" onAction="#handleGoBack" styleClass="back-link" text="&lt; Back to Main Menu" />
+            <Button focusTraversable="false" mnemonicParsing="false" onAction="#handleGoBack" styleClass="back-link" text="&lt; Back to Main Menu" />
          </left>
          <right>
-            <Button fx:id="themeBtn" mnemonicParsing="false" onAction="#handleToggleTheme" styleClass="theme-toggle" text="🌙 Dark Mode" />
+            <Button fx:id="themeBtn" focusTraversable="false" mnemonicParsing="false" onAction="#handleToggleTheme" styleClass="theme-toggle" text="🌙 Dark Mode" />
          </right>
       </BorderPane>
    </top>
@@ -25,6 +25,10 @@
    <center>
       <VBox alignment="CENTER" maxWidth="400.0" maxHeight="450.0" spacing="20.0" BorderPane.alignment="CENTER">
          <children>
+            <Label alignment="CENTER" maxWidth="Infinity" text="🏕️">
+               <font><Font size="42.0" /></font>
+            </Label>
+
             <Label styleClass="title-label" text="GoNature Portal">
                <font>
                   <Font name="Segoe UI Bold" size="26.0" />
@@ -36,14 +40,14 @@
                   <Label styleClass="body-label" text="Username">
                      <font><Font name="Segoe UI Bold" size="14.0" /></font>
                   </Label>
-                  <TextField fx:id="usernameField" promptText="Enter username..." style="-fx-padding: 10; -fx-font-size: 14px;" />
+                  <TextField fx:id="usernameField" onAction="#handleLogin" promptText="Enter username..." style="-fx-padding: 10; -fx-font-size: 14px;" />
                </VBox>
 
                <VBox spacing="5.0">
                   <Label styleClass="body-label" text="Password">
                      <font><Font name="Segoe UI Bold" size="14.0" /></font>
                   </Label>
-                  <PasswordField fx:id="passwordField" promptText="Enter password..." style="-fx-padding: 10; -fx-font-size: 14px;" />
+                  <PasswordField fx:id="passwordField" onAction="#handleLogin" promptText="Enter password..." style="-fx-padding: 10; -fx-font-size: 14px;" />
                </VBox>
 
                <Label fx:id="errorLabel" style="-fx-text-fill: #d63031; -fx-font-weight: bold;" text="Error message here" visible="false" wrapText="true" />

@@ -64,7 +64,7 @@
     -fx-text-fill: white;
 }
 .primary-btn:hover {
-    -fx-background-color: #74b9ff;
+    -fx-background-color: #2196f3;
 }
 
 .success-btn {
@@ -91,6 +91,17 @@
     -fx-background-color: #555555;
 }
 
+.back-link {
+    -fx-background-color: transparent;
+    -fx-text-fill: #74b9ff;
+    -fx-padding: 4 8;
+    -fx-font-size: 13px;
+}
+.back-link:hover {
+    -fx-text-fill: #ffffff;
+    -fx-underline: true;
+}
+
 /* =========================================================================
    INPUTS (ComboBox, TextField)
    ========================================================================= */
@@ -112,6 +123,10 @@
 .combo-box-popup .list-view .list-cell:hover, .combo-box-popup .list-view .list-cell:filled:selected {
     -fx-background-color: #0984e3;
     -fx-text-fill: white;
+}
+.text-field:focused {
+    -fx-border-color: #0984e3;
+    -fx-effect: dropshadow(gaussian, rgba(9,132,227,0.45), 8, 0, 0, 0);
 }
 
 /* =========================================================================
@@ -139,6 +154,9 @@
 }
 .table-row-cell:odd {
     -fx-background-color: #323232;
+}
+.table-row-cell:hover {
+    -fx-background-color: #3a3a3a;
 }
 .table-row-cell:selected, .list-cell:selected {
     -fx-background-color: #0984e3;

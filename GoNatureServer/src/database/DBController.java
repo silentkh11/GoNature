@@ -93,6 +93,16 @@ public class DBController {
                 "  created_at       TIMESTAMP    DEFAULT CURRENT_TIMESTAMP" +
                 ")"
             );
+
+            // Seed additional parks — INSERT IGNORE skips rows whose park_id already exists
+            st.execute(
+                "INSERT IGNORE INTO park (park_id, name, max_capacity, casual_gap, estimated_stay_time, current_visitors, active_discount) VALUES " +
+                "(5, 'Masada National Park',       800, 80, 120, 0, 0)," +
+                "(6, 'Caesarea National Park',     600, 60,  90, 0, 0)," +
+                "(7, 'Timna Valley Park',          400, 40, 150, 0, 0)," +
+                "(8, 'Nahal Ayun Nature Reserve',  200, 20,  90, 0, 0)"
+            );
+
             System.out.println("Schema verified/migrated successfully.");
         } catch (SQLException e) {
             System.err.println("Schema migration error: " + e.getMessage());

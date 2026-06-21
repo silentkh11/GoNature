@@ -21,8 +21,8 @@
 
          <HBox alignment="CENTER_RIGHT" spacing="12.0">
             <Button mnemonicParsing="false" onAction="#handleViewReports" prefHeight="38.0" styleClass="primary-btn" style="-fx-font-size: 14px; -fx-cursor: hand;" text="📊 View Statistical Reports" />
-            <Button fx:id="themeBtn" mnemonicParsing="false" onAction="#handleToggleTheme" prefHeight="38.0" styleClass="theme-toggle" style="-fx-font-size: 14px; -fx-cursor: hand;" text="🌙 Dark Mode" />
-            <Button mnemonicParsing="false" onAction="#handleLogout" prefHeight="38.0" styleClass="danger-btn" style="-fx-font-size: 14px; -fx-padding: 5 18; -fx-cursor: hand;" text="🚪 Logout" />
+            <Button fx:id="themeBtn" focusTraversable="false" mnemonicParsing="false" onAction="#handleToggleTheme" prefHeight="38.0" styleClass="theme-toggle" style="-fx-font-size: 14px; -fx-cursor: hand;" text="🌙 Dark Mode" />
+            <Button focusTraversable="false" mnemonicParsing="false" onAction="#handleLogout" prefHeight="38.0" styleClass="danger-btn" style="-fx-font-size: 14px; -fx-padding: 5 18; -fx-cursor: hand;" text="🚪 Logout" />
          </HBox>
 
          <VBox alignment="CENTER" spacing="14.0">

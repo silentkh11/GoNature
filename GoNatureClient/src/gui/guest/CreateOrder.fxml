@@ -16,10 +16,10 @@
       <BorderPane BorderPane.alignment="CENTER">
          <padding><Insets left="20.0" right="20.0" top="15.0" bottom="5.0" /></padding>
          <left>
-            <Button mnemonicParsing="false" onAction="#handleGoBack" styleClass="back-link" text="&lt; Back to Main Menu" />
+            <Button focusTraversable="false" mnemonicParsing="false" onAction="#handleGoBack" styleClass="back-link" text="&lt; Back to Main Menu" />
          </left>
          <right>
-            <Button fx:id="themeBtn" mnemonicParsing="false" onAction="#handleToggleTheme" styleClass="theme-toggle" text="🌙 Dark Mode" />
+            <Button fx:id="themeBtn" focusTraversable="false" mnemonicParsing="false" onAction="#handleToggleTheme" styleClass="theme-toggle" text="🌙 Dark Mode" />
          </right>
       </BorderPane>
    </top>
@@ -45,17 +45,17 @@
                   <Label styleClass="body-label" text="Visitor ID:" GridPane.columnIndex="0" GridPane.rowIndex="1">
                      <font><Font name="Segoe UI Bold" size="14.0" /></font>
                   </Label>
-                  <TextField fx:id="visitorIdField" prefWidth="250.0" promptText="9-digit ID number" GridPane.columnIndex="1" GridPane.rowIndex="1" />
+                  <TextField fx:id="visitorIdField" onAction="#submitOrder" prefWidth="250.0" promptText="9-digit ID number" GridPane.columnIndex="1" GridPane.rowIndex="1" />
 
                   <Label styleClass="body-label" text="Email Address:" GridPane.columnIndex="0" GridPane.rowIndex="2">
                      <font><Font name="Segoe UI Bold" size="14.0" /></font>
                   </Label>
-                  <TextField fx:id="emailField" prefWidth="250.0" promptText="example@email.com" GridPane.columnIndex="1" GridPane.rowIndex="2" />
+                  <TextField fx:id="emailField" onAction="#submitOrder" prefWidth="250.0" promptText="example@email.com" GridPane.columnIndex="1" GridPane.rowIndex="2" />
 
                   <Label styleClass="body-label" text="Phone Number:" GridPane.columnIndex="0" GridPane.rowIndex="3">
                      <font><Font name="Segoe UI Bold" size="14.0" /></font>
                   </Label>
-                  <TextField fx:id="phoneField" prefWidth="250.0" promptText="05X-XXXXXXX" GridPane.columnIndex="1" GridPane.rowIndex="3" />
+                  <TextField fx:id="phoneField" onAction="#submitOrder" prefWidth="250.0" promptText="05X-XXXXXXX" GridPane.columnIndex="1" GridPane.rowIndex="3" />
 
                   <Label styleClass="body-label" text="Visit Date:" GridPane.columnIndex="0" GridPane.rowIndex="4">
                      <font><Font name="Segoe UI Bold" size="14.0" /></font>
@@ -70,7 +70,7 @@
                   <Label styleClass="body-label" text="Total Visitors:" GridPane.columnIndex="0" GridPane.rowIndex="6">
                      <font><Font name="Segoe UI Bold" size="14.0" /></font>
                   </Label>
-                  <TextField fx:id="visitorsField" prefWidth="250.0" promptText="1 – 15 people" GridPane.columnIndex="1" GridPane.rowIndex="6" />
+                  <TextField fx:id="visitorsField" onAction="#submitOrder" prefWidth="250.0" promptText="1 – 15 people" GridPane.columnIndex="1" GridPane.rowIndex="6" />
 
                   <Label styleClass="body-label" text="Order Type:" GridPane.columnIndex="0" GridPane.rowIndex="7">
                      <font><Font name="Segoe UI Bold" size="14.0" /></font>

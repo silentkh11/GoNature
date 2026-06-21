@@ -2,56 +2,109 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Pane?>
+<?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
 
-<BorderPane prefHeight="500.0" prefWidth="650.0" styleClass="page-root" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="gui.guest.MainMenuController">
+<StackPane prefHeight="615.0" prefWidth="850.0"
+           style="-fx-background-color: transparent;"
+           xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
+           fx:controller="gui.guest.MainMenuController">
 
-   <top>
-      <HBox alignment="CENTER_RIGHT" spacing="10.0" BorderPane.alignment="CENTER">
-         <padding>
-            <Insets bottom="10.0" left="20.0" right="20.0" top="20.0" />
-         </padding>
-         <children>
-            <Button fx:id="themeBtn" mnemonicParsing="false" onAction="#handleToggleTheme" prefWidth="120.0" styleClass="theme-toggle" text="🌙 Dark Mode" />
-            <Button fx:id="loginBtn" mnemonicParsing="false" onAction="#handleEmployeeLogin" prefWidth="140.0" styleClass="secondary-btn" style="-fx-padding: 8 15;" text="Employee Login" />
-         </children>
-      </HBox>
-   </top>
+   <!-- Layer 0: Parchment base — always visible, shows through parks-view fold corner -->
+   <Pane prefHeight="615.0" prefWidth="850.0"
+         style="-fx-background-color: linear-gradient(to bottom right, #f5e6c8, #ede0c4, #e8d5a3);" />
 
-   <center>
-      <VBox alignment="CENTER" spacing="20.0" BorderPane.alignment="CENTER">
-         <children>
-            <Label styleClass="title-label" text="Welcome to GoNature">
-               <font>
-                  <Font name="Segoe UI Bold" size="42.0" />
-               </font>
-            </Label>
+   <!-- Layer 1: Parks view (dark space — stars + circles added by controller) -->
+   <Pane fx:id="parksView" prefHeight="615.0" prefWidth="850.0"
+         style="-fx-background-color: linear-gradient(to bottom right, #050c1a, #0d1b2a, #182240);" />
 
-            <Label styleClass="subtitle-label" text="Experience the beauty of nature. Book your visit today.">
-               <font>
-                  <Font name="Segoe UI" size="18.0" />
-               </font>
-               <VBox.margin>
-                  <Insets bottom="25.0" />
-               </VBox.margin>
-            </Label>
+   <!-- Layer 2: Main dashboard (paper map — clip applied by controller) -->
+   <StackPane fx:id="mainView" prefHeight="615.0" prefWidth="850.0"
+              style="-fx-background-color: linear-gradient(to bottom right, #f5e6c8, #ede0c4, #e8d5a3);">
 
-            <Button fx:id="guestBtn" mnemonicParsing="false" onAction="#handleGuestBooking" styleClass="success-btn" style="-fx-font-size: 20px; -fx-padding: 15 50;" text="Start Guest Booking" />
+      <BorderPane maxHeight="Infinity" maxWidth="Infinity">
 
-            <Button fx:id="manageOrdersBtn" mnemonicParsing="false" onAction="#handleManageOrders" styleClass="primary-btn" style="-fx-font-size: 16px; -fx-padding: 10 40;" text="Manage My Orders">
-               <VBox.margin>
-                  <Insets top="10.0" />
-               </VBox.margin>
-            </Button>
+         <top>
+            <HBox alignment="CENTER_RIGHT" spacing="10.0" BorderPane.alignment="CENTER">
+               <padding><Insets bottom="8.0" left="20.0" right="20.0" top="16.0" /></padding>
+               <Button fx:id="themeBtn" focusTraversable="false" mnemonicParsing="false"
+                       onAction="#handleToggleTheme" prefWidth="118.0" text="🌙 Dark Mode"
+                       style="-fx-background-color: rgba(180,140,60,0.18); -fx-border-color: #c4a558; -fx-border-radius: 6; -fx-border-width: 1.5; -fx-text-fill: #5a3810; -fx-font-size: 12px; -fx-padding: 6 12; -fx-cursor: hand;" />
+               <Button fx:id="loginBtn" focusTraversable="false" mnemonicParsing="false"
+                       onAction="#handleEmployeeLogin" prefWidth="138.0" text="Employee Login"
+                       style="-fx-background-color: rgba(100,70,25,0.12); -fx-border-color: #a08040; -fx-border-radius: 6; -fx-border-width: 1.5; -fx-text-fill: #5a3810; -fx-font-size: 12px; -fx-padding: 6 12; -fx-cursor: hand;" />
+            </HBox>
+         </top>
 
-         </children>
-         <BorderPane.margin>
-            <Insets bottom="60.0" />
-         </BorderPane.margin>
-      </VBox>
-   </center>
+         <center>
+            <VBox alignment="CENTER" spacing="14.0" BorderPane.alignment="CENTER">
+               <padding><Insets bottom="20.0" /></padding>
 
-</BorderPane>
+               <Label text="🗺" alignment="CENTER" maxWidth="Infinity"
+                      style="-fx-font-size: 46px;" />
+
+               <Label text="GoNature" alignment="CENTER" maxWidth="Infinity"
+                      style="-fx-font-family: 'Segoe UI'; -fx-font-size: 38px; -fx-font-weight: bold; -fx-text-fill: #3d1f05;" />
+
+               <Label text="NATIONAL PARKS PORTAL" alignment="CENTER" maxWidth="Infinity"
+                      style="-fx-font-family: 'Segoe UI'; -fx-font-size: 12px; -fx-text-fill: #8b6914;" />
+
+               <Label text="────── ✦ ──────" alignment="CENTER" maxWidth="Infinity"
+                      style="-fx-text-fill: #c4a558; -fx-font-size: 14px;">
+                  <VBox.margin><Insets top="-2.0" bottom="2.0" /></VBox.margin>
+               </Label>
+
+               <!-- Scrollable park preview strip -->
+               <ScrollPane hbarPolicy="AS_NEEDED" vbarPolicy="NEVER"
+                           fitToHeight="true" focusTraversable="false" maxWidth="740.0"
+                           style="-fx-background: transparent; -fx-background-color: transparent; -fx-border-color: transparent;">
+                  <content>
+                     <HBox fx:id="parkStrip" spacing="14.0" alignment="CENTER_LEFT"
+                           style="-fx-padding: 4 6;" />
+                  </content>
+               </ScrollPane>
+
+               <Button fx:id="guestBtn" mnemonicParsing="false" onAction="#handleGuestBooking"
+                       styleClass="success-btn" style="-fx-font-size: 17px; -fx-padding: 12 50;"
+                       text="Start Guest Booking" />
+
+               <Button fx:id="manageOrdersBtn" mnemonicParsing="false" onAction="#handleManageOrders"
+                       styleClass="primary-btn" style="-fx-font-size: 14px; -fx-padding: 9 40;"
+                       text="Manage My Orders" />
+
+               <Label text="↖  hover to peek · click to lock" alignment="CENTER" maxWidth="Infinity"
+                      style="-fx-text-fill: rgba(100,70,25,0.4); -fx-font-size: 11px;">
+                  <VBox.margin><Insets top="4.0" /></VBox.margin>
+               </Label>
+
+            </VBox>
+         </center>
+
+      </BorderPane>
+   </StackPane>
+
+   <!-- Layer 3: Return zone — bottom-right -->
+   <Pane fx:id="returnZone" prefWidth="150.0" prefHeight="90.0"
+         maxWidth="150.0" maxHeight="90.0"
+         mouseTransparent="true"
+         style="-fx-cursor: hand;"
+         onMouseEntered="#onCloseHover"
+         onMouseExited="#onCloseHoverEnd"
+         onMouseClicked="#onCloseClick"
+         StackPane.alignment="BOTTOM_RIGHT" />
+
+   <!-- Layer 4: Open zone — top-left -->
+   <Pane fx:id="openZone" prefWidth="90.0" prefHeight="90.0"
+         maxWidth="90.0" maxHeight="90.0"
+         style="-fx-cursor: hand;"
+         onMouseEntered="#onOpenHover"
+         onMouseExited="#onOpenHoverEnd"
+         onMouseClicked="#onOpenClick"
+         StackPane.alignment="TOP_LEFT" />
+
+</StackPane>
