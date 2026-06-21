@@ -1,12 +1,3 @@
-# Secrets — never commit
 credentials.properties
-**/credentials.properties
-
-# Eclipse / Java build output
-**/bin/
 *.class
-
-# Eclipse project metadata (optional; comment out if you want to keep these)
-# .project
-# .classpath
-# .settings/
+bin/

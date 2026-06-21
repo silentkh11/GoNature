@@ -1,5 +1,6 @@
 package client;
 
+import entities.Message;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.fxml.FXMLLoader;
@@ -15,17 +16,35 @@ public class ClientUI extends Application {
 
     @Override
     public void start(Stage primaryStage) throws Exception {
-        Parent root = FXMLLoader.load(getClass().getResource("/gui/MainMenu.fxml"));
+        // Loads from the new 'guest' package location
+        Parent root = FXMLLoader.load(getClass().getResource("/gui/guest/MainMenu.fxml"));
 
-        // Set a fixed window size here (e.g., 850x650) so the window never changes size!
-        Scene scene = gui.WindowChrome.install(primaryStage, root, 850, 650, "GoNature - Welcome");
-        gui.ThemeManager.getInstance().applyTo(scene);
+        // Uses the new 'core' package location
+        Scene scene = gui.core.WindowChrome.install(primaryStage, root, 850, 650, "GoNature - Welcome");
+        gui.core.ThemeManager.getInstance().applyTo(scene);
 
         primaryStage.setScene(scene);
-        primaryStage.setResizable(false); // Optional: Prevents the user from dragging the window size
+        primaryStage.setResizable(true); 
         
+        // --- THE AUTO-LOGOUT ON EXIT FIX ---
         primaryStage.setOnCloseRequest(event -> {
             System.out.println("Closing client application...");
+            try {
+                // 1. Check if the network client exists and is connected
+                ChatClient networkClient = ChatClient.getInstance();
+                if (networkClient != null && networkClient.isConnected()) {
+                    
+                    // 2. Fire the logout request to the server
+                    networkClient.handleMessageFromClientUI(new Message("LOGOUT_REQUEST", null));
+                    
+                    // 3. CRITICAL: Give the network stream 150 milliseconds to actually transmit 
+                    // the packet before Java violently kills the application!
+                    Thread.sleep(150);
+                }
+            } catch (Exception e) {
+                System.err.println("Logout on exit failed: " + e.getMessage());
+            }
+            
             Platform.exit();
             System.exit(0);
         });
