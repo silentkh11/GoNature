@@ -1,16 +1,26 @@
 module GoNatureClient {
-    // Requirements
     requires javafx.controls;
-    requires javafx.graphics;
     requires javafx.fxml;
-    requires java.sql;
+    requires javafx.graphics;
+    requires javafx.base;
     requires java.prefs;
+	requires java.sql;
+    // --- Grant JavaFX permission to inject @FXML fields in these packages ---
+    opens gui.auth to javafx.fxml;
+    opens gui.core to javafx.fxml;
+    opens gui.gate to javafx.fxml;
+    opens gui.guest to javafx.fxml;
+    opens gui.management to javafx.fxml;
+    opens gui.service to javafx.fxml;
 
-    // Exports & Opens for the GUI
-    exports client; 
-    exports gui;
-    opens gui to javafx.fxml;
-
-    // THE FIX: Allow JavaFX to read the data inside your Order class for the TableView!
-    opens entities to javafx.base; 
+    // --- Export packages so the JVM can execute them ---
+    exports gui.auth;
+    exports gui.core;
+    exports gui.gate;
+    exports gui.guest;
+    exports gui.management;
+    exports gui.service;
+    
+    // Keep your core client network package exported!
+    exports client;
 }
