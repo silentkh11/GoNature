@@ -20,10 +20,10 @@
       <BorderPane BorderPane.alignment="CENTER">
          <padding><Insets bottom="5.0" left="20.0" right="20.0" top="15.0" /></padding>
          <left>
-            <Button mnemonicParsing="false" onAction="#handleGoBack" styleClass="back-link" text="&lt; Back to Dashboard" />
+            <Button focusTraversable="false" mnemonicParsing="false" onAction="#handleGoBack" styleClass="back-link" text="&lt; Back to Dashboard" />
          </left>
          <right>
-            <Button fx:id="themeBtn" mnemonicParsing="false" onAction="#handleToggleTheme" styleClass="theme-toggle" text="🌙 Dark Mode" />
+            <Button fx:id="themeBtn" focusTraversable="false" mnemonicParsing="false" onAction="#handleToggleTheme" styleClass="theme-toggle" text="🌙 Dark Mode" />
          </right>
       </BorderPane>
    </top>

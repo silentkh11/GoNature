@@ -19,12 +19,12 @@
    <padding><Insets bottom="30.0" left="40.0" right="40.0" top="20.0" /></padding>
 
    <HBox alignment="CENTER_RIGHT">
-      <Button fx:id="themeBtn" mnemonicParsing="false" onAction="#handleToggleTheme"
+      <Button fx:id="themeBtn" focusTraversable="false" mnemonicParsing="false" onAction="#handleToggleTheme"
               styleClass="theme-toggle" text="🌙 Dark Mode" />
    </HBox>
 
    <HBox alignment="CENTER_LEFT">
-      <Button mnemonicParsing="false" onAction="#handleGoBack"
+      <Button focusTraversable="false" mnemonicParsing="false" onAction="#handleGoBack"
               styleClass="back-link" text="&lt; Back to Dashboard" />
    </HBox>
 

@@ -94,6 +94,19 @@ public final class WindowChrome {
         minBtn.getStyleClass().addAll("title-bar-btn", "title-bar-btn-min");
         maxBtn.getStyleClass().addAll("title-bar-btn", "title-bar-btn-max");
         closeBtn.getStyleClass().addAll("title-bar-btn", "title-bar-btn-close");
+        minBtn.setFocusTraversable(false);
+        maxBtn.setFocusTraversable(false);
+        closeBtn.setFocusTraversable(false);
+
+        // Belt-and-suspenders: even if focus lands here somehow, Enter/Space must not fire them.
+        java.util.function.Consumer<javafx.scene.input.KeyEvent> blockKbd = e -> {
+            if (e.getCode() == javafx.scene.input.KeyCode.ENTER
+                    || e.getCode() == javafx.scene.input.KeyCode.SPACE)
+                e.consume();
+        };
+        minBtn.addEventFilter(javafx.scene.input.KeyEvent.KEY_PRESSED,   blockKbd::accept);
+        maxBtn.addEventFilter(javafx.scene.input.KeyEvent.KEY_PRESSED,   blockKbd::accept);
+        closeBtn.addEventFilter(javafx.scene.input.KeyEvent.KEY_PRESSED, blockKbd::accept);
 
         // Tracks our own "maximized" state and the bounds to restore to, since the real
         // maximize covers the taskbar and we instead snap to the screen's visual bounds.

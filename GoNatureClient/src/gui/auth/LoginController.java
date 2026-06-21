@@ -28,6 +28,7 @@ public class LoginController {
 		// Connection is attempted lazily on Login click, not here.
 		// This lets the user open the screen, start the server, then login
 		// without having to navigate away and back.
+		javafx.application.Platform.runLater(() -> usernameField.requestFocus());
 	}
 
 	@FXML
