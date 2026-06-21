@@ -181,10 +181,16 @@ public class CreateOrderController {
                 submitBtn.setDisable(false);
             }
 
-            // Watchdog Intercept
+            // --- WATCHDOG AUTO-LOGOUT ---
             if (msg.getCommand().equals("SERVER_DISCONNECTED")) {
-                showStatus("Server is currently offline. Please wait a moment and try again.", "#d63031");
-                return; 
+                javafx.scene.control.Alert alert = new javafx.scene.control.Alert(
+                    javafx.scene.control.Alert.AlertType.ERROR);
+                alert.setTitle("Network Security Alert");
+                alert.setHeaderText("Server Connection Lost");
+                alert.setContentText("Connection to the server was lost. Returning to the main menu.");
+                alert.showAndWait();
+                forceUIToMainMenu();
+                return;
             }
 
             // Populate the Dropdown dynamically when the server sends the parks
@@ -228,10 +234,16 @@ public class CreateOrderController {
             } else if (msg.getCommand().equals("AVAILABLE_SLOTS_DATA")) {
                 ArrayList<String> slots = (ArrayList<String>) msg.getData();
                 if (slots.isEmpty()) {
-                    priceEstimateLabel.setText("No other available slots found for " + pendingWaitlistDate + ".");
+                    priceEstimateLabel.setText(
+                        "No other available slots on " + pendingWaitlistDate + ".\n"
+                        + "💡 Tip: pick an alternative date above and click Submit again "
+                        + "to book a different day.");
                 } else {
-                    priceEstimateLabel.setText("Other available slots on " + pendingWaitlistDate
-                        + ":\n" + String.join("  |  ", slots));
+                    priceEstimateLabel.setText(
+                        "Other available slots on " + pendingWaitlistDate
+                        + ":\n" + String.join("  |  ", slots) + "\n"
+                        + "💡 Tip: you can also change the date above and resubmit "
+                        + "to book an alternative day.");
                 }
                 priceEstimateLabel.setStyle("-fx-text-fill: #64b5f6; -fx-font-weight: bold;");
             }
@@ -241,6 +253,18 @@ public class CreateOrderController {
     private void showStatus(String message, String hexColor) {
         statusLabel.setText(message);
         statusLabel.setStyle("-fx-text-fill: " + hexColor + "; -fx-font-weight: bold;");
+    }
+
+    private void forceUIToMainMenu() {
+        try {
+            javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(
+                getClass().getResource("/gui/MainMenu.fxml"));
+            javafx.scene.Parent root = loader.load();
+            javafx.stage.Stage stage = (javafx.stage.Stage) statusLabel.getScene().getWindow();
+            WindowChrome.setContent(stage, root, "GoNature - Welcome");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     private void clearForm() {

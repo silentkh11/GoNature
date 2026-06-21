@@ -100,7 +100,19 @@ public class RegisterController {
     public void handleServerResponse(Message msg) {
         Platform.runLater(() -> {
             btnRegister.setDisable(false);
-            
+
+            // --- WATCHDOG AUTO-LOGOUT ---
+            if (msg.getCommand().equals("SERVER_DISCONNECTED")) {
+                javafx.scene.control.Alert alert = new javafx.scene.control.Alert(
+                    javafx.scene.control.Alert.AlertType.ERROR);
+                alert.setTitle("Network Security Alert");
+                alert.setHeaderText("Server Connection Lost");
+                alert.setContentText("Connection to the server was lost. Returning to the main menu.");
+                alert.showAndWait();
+                forceUIToMainMenu();
+                return;
+            }
+
             if (msg.getCommand().equals("REGISTER_SUCCESS")) {
                 showStatus("Registration complete! You can now book as a subscriber.", "#00b894");
                 clearForm();
@@ -108,6 +120,16 @@ public class RegisterController {
                 showStatus((String) msg.getData(), "#d63031");
             }
         });
+    }
+
+    private void forceUIToMainMenu() {
+        try {
+            Parent root = FXMLLoader.load(getClass().getResource("/gui/MainMenu.fxml"));
+            Stage stage = (Stage) lblStatus.getScene().getWindow();
+            WindowChrome.setContent(stage, root, "GoNature - Welcome");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     private void showStatus(String message, String hexColor) {

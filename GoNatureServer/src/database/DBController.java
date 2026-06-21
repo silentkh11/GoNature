@@ -293,29 +293,40 @@ public class DBController {
         }
 
         try (Connection conn = getInstance().getConnection()) {
-            int maxCapacity = 0, casualGap = 0, currentBooked = 0;
+            int maxCapacity = 0, casualGap = 0, currentBooked = 0, estimatedStayTime = 4;
             double activeDiscount = 0;
 
-            String parkQuery = "SELECT max_capacity, casual_gap, active_discount FROM park WHERE park_id = ?";
+            String parkQuery = "SELECT max_capacity, casual_gap, active_discount, estimated_stay_time FROM park WHERE park_id = ?";
             try (PreparedStatement ps = conn.prepareStatement(parkQuery)) {
                 ps.setInt(1, order.getParkId());
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.next()) {
-                        maxCapacity    = rs.getInt("max_capacity");
-                        casualGap      = rs.getInt("casual_gap");
-                        activeDiscount = rs.getDouble("active_discount");
+                        maxCapacity       = rs.getInt("max_capacity");
+                        casualGap         = rs.getInt("casual_gap");
+                        activeDiscount    = rs.getDouble("active_discount");
+                        int stay          = rs.getInt("estimated_stay_time");
+                        if (stay > 0) estimatedStayTime = stay;
                     }
                 }
             }
 
+            // Spec: "לצורך החישוב נלקחת בחשבון הערכה קבועה של זמן השהיה" — count any
+            // existing booking whose stay window overlaps the requested visit_time.
+            // A booking at hour H occupies [H, H+stay); a new booking at H' conflicts
+            // when H is in (H' - stay, H' + stay), i.e. their windows overlap.
             String sumQuery =
-                "SELECT SUM(visitor_count) AS total_visitors FROM visit_order " +
-                "WHERE park_id = ? AND visit_date = ? AND visit_time = ? " +
+                "SELECT COALESCE(SUM(visitor_count), 0) AS total_visitors FROM visit_order " +
+                "WHERE park_id = ? AND visit_date = ? " +
+                "AND HOUR(visit_time) > HOUR(?) - ? " +
+                "AND HOUR(visit_time) < HOUR(?) + ? " +
                 "AND status IN ('Confirmed', 'In Park', 'Pending Confirm', 'Waitlist Pending')";
             try (PreparedStatement ps = conn.prepareStatement(sumQuery)) {
                 ps.setInt(1, order.getParkId());
                 ps.setString(2, order.getVisitDate());
                 ps.setString(3, order.getVisitTime());
+                ps.setInt(4, estimatedStayTime);
+                ps.setString(5, order.getVisitTime());
+                ps.setInt(6, estimatedStayTime);
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.next()) currentBooked = rs.getInt("total_visitors");
                 }
@@ -922,11 +933,21 @@ public class DBController {
         return false;
     }
 
-    /** Cancels an order and triggers waitlist promotion for the freed slot. */
+    /** Cancels an order and triggers waitlist promotion for the freed slot.
+     *  Also sends the booker an Email + SMS cancellation notice per spec
+     *  ("ונשלחת אליו הודעה על כך באימייל וב-SMS"). */
     public static boolean cancelOrder(int orderId) {
-        String getDetails = "SELECT park_id, visit_date, visit_time FROM visit_order WHERE order_id = ?";
-        String cancel     = "UPDATE visit_order SET status = 'Cancelled' WHERE order_id = ?";
-        int parkId = -1; String vDate = null, vTime = null;
+        String getDetails =
+            "SELECT v.park_id, v.visit_date, v.visit_time, " +
+            "       vis.first_name, vis.email, vis.phone " +
+            "FROM visit_order v " +
+            "JOIN visitor vis ON v.visitor_id = vis.visitor_id " +
+            "WHERE v.order_id = ?";
+        String cancel = "UPDATE visit_order SET status = 'Cancelled' WHERE order_id = ?";
+
+        int parkId = -1;
+        String vDate = null, vTime = null;
+        String vName = null, vEmail = null, vPhone = null;
 
         try (java.sql.Connection conn = getInstance().getConnection()) {
             try (java.sql.PreparedStatement ps = conn.prepareStatement(getDetails)) {
@@ -936,6 +957,9 @@ public class DBController {
                         parkId = rs.getInt("park_id");
                         vDate  = rs.getString("visit_date");
                         vTime  = rs.getString("visit_time");
+                        vName  = rs.getString("first_name");
+                        vEmail = rs.getString("email");
+                        vPhone = rs.getString("phone");
                     }
                 }
             }
@@ -943,6 +967,31 @@ public class DBController {
                 ps.setInt(1, orderId);
                 int rows = ps.executeUpdate();
                 if (rows > 0 && parkId != -1) {
+
+                    // --- Notify the booker (Email + SMS) per spec ---
+                    try {
+                        String subject = "GoNature: Booking Cancelled (Order #" + orderId + ")";
+                        String body =
+                            "Hello " + (vName != null ? vName : "") + ",\n\n" +
+                            "Your booking #" + orderId + " for " + vDate + " at " + vTime + "\n" +
+                            "has been cancelled.\n\n" +
+                            "If you did not confirm the visit within the 2-hour window after\n" +
+                            "the 24-hour reminder, or if the 1-hour waitlist confirmation\n" +
+                            "window expired, the system cancelled it automatically.\n\n" +
+                            "You are welcome to book a new visit anytime via the\n" +
+                            "GoNature Guest Portal.\n\n" +
+                            "The GoNature Team";
+                        if (vEmail != null && vEmail.contains("@")) {
+                            EmailSender.sendEmail(vEmail, subject, body);
+                        }
+                        SmsSender.sendSms(vPhone,
+                            "GoNature: Your booking #" + orderId + " for " + vDate +
+                            " at " + vTime + " has been cancelled.");
+                    } catch (Throwable notifyEx) {
+                        System.err.println("Cancellation notification failed: "
+                            + notifyEx.getMessage());
+                    }
+
                     promoteFromWaitlist(parkId, vDate, vTime);
                     return true;
                 }
@@ -955,24 +1004,34 @@ public class DBController {
 
     private static void promoteFromWaitlist(int parkId, String date, String time) {
         try (java.sql.Connection conn = getInstance().getConnection()) {
-            int maxCapacity = 0, casualGap = 0, currentBooked = 0;
-            String parkQ = "SELECT max_capacity, casual_gap FROM park WHERE park_id = ?";
+            int maxCapacity = 0, casualGap = 0, currentBooked = 0, estimatedStayTime = 4;
+            String parkQ = "SELECT max_capacity, casual_gap, estimated_stay_time FROM park WHERE park_id = ?";
             try (java.sql.PreparedStatement ps = conn.prepareStatement(parkQ)) {
                 ps.setInt(1, parkId);
                 try (java.sql.ResultSet rs = ps.executeQuery()) {
                     if (rs.next()) {
                         maxCapacity = rs.getInt("max_capacity");
                         casualGap   = rs.getInt("casual_gap");
+                        int stay    = rs.getInt("estimated_stay_time");
+                        if (stay > 0) estimatedStayTime = stay;
                     }
                 }
             }
 
+            // Stay-time-aware overlap, matching processNewOrder's logic.
             String sumQ =
-                "SELECT SUM(visitor_count) AS total_visitors FROM visit_order " +
-                "WHERE park_id = ? AND visit_date = ? AND visit_time = ? " +
+                "SELECT COALESCE(SUM(visitor_count), 0) AS total_visitors FROM visit_order " +
+                "WHERE park_id = ? AND visit_date = ? " +
+                "AND HOUR(visit_time) > HOUR(?) - ? " +
+                "AND HOUR(visit_time) < HOUR(?) + ? " +
                 "AND status IN ('Confirmed', 'In Park', 'Pending Confirm', 'Waitlist Pending')";
             try (java.sql.PreparedStatement ps = conn.prepareStatement(sumQ)) {
-                ps.setInt(1, parkId); ps.setString(2, date); ps.setString(3, time);
+                ps.setInt(1, parkId);
+                ps.setString(2, date);
+                ps.setString(3, time);
+                ps.setInt(4, estimatedStayTime);
+                ps.setString(5, time);
+                ps.setInt(6, estimatedStayTime);
                 try (java.sql.ResultSet rs = ps.executeQuery()) {
                     if (rs.next()) currentBooked = rs.getInt("total_visitors");
                 }
@@ -1383,25 +1442,35 @@ public class DBController {
         String[] allSlots = {"08:00:00","09:00:00","10:00:00","11:00:00","12:00:00",
                              "13:00:00","14:00:00","15:00:00","16:00:00","17:00:00"};
         try (Connection conn = getInstance().getConnection()) {
-            int maxCapacity = 0, casualGap = 0;
-            String parkQ = "SELECT max_capacity, casual_gap FROM park WHERE park_id = ?";
+            int maxCapacity = 0, casualGap = 0, estimatedStayTime = 4;
+            String parkQ = "SELECT max_capacity, casual_gap, estimated_stay_time FROM park WHERE park_id = ?";
             try (PreparedStatement ps = conn.prepareStatement(parkQ)) {
                 ps.setInt(1, parkId);
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.next()) {
                         maxCapacity = rs.getInt("max_capacity");
                         casualGap   = rs.getInt("casual_gap");
+                        int stay    = rs.getInt("estimated_stay_time");
+                        if (stay > 0) estimatedStayTime = stay;
                     }
                 }
             }
             int available = maxCapacity - casualGap;
+            // Stay-time-aware overlap, matching processNewOrder.
+            String sumQ =
+                "SELECT COALESCE(SUM(visitor_count),0) AS booked FROM visit_order " +
+                "WHERE park_id=? AND visit_date=? " +
+                "AND HOUR(visit_time) > HOUR(?) - ? " +
+                "AND HOUR(visit_time) < HOUR(?) + ? " +
+                "AND status IN ('Confirmed','In Park','Pending Confirm','Waitlist Pending')";
             for (String slot : allSlots) {
-                String sumQ =
-                    "SELECT COALESCE(SUM(visitor_count),0) AS booked FROM visit_order " +
-                    "WHERE park_id=? AND visit_date=? AND visit_time=? " +
-                    "AND status IN ('Confirmed','In Park','Pending Confirm')";
                 try (PreparedStatement ps = conn.prepareStatement(sumQ)) {
-                    ps.setInt(1, parkId); ps.setString(2, date); ps.setString(3, slot);
+                    ps.setInt(1, parkId);
+                    ps.setString(2, date);
+                    ps.setString(3, slot);
+                    ps.setInt(4, estimatedStayTime);
+                    ps.setString(5, slot);
+                    ps.setInt(6, estimatedStayTime);
                     try (ResultSet rs = ps.executeQuery()) {
                         if (rs.next()) {
                             int free = available - rs.getInt("booked");

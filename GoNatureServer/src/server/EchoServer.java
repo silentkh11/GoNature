@@ -205,14 +205,20 @@ public class EchoServer extends AbstractServer {
                     String[] data = (String[]) request.getData();
                     int requestId = Integer.parseInt(data[0]);
                     String decision = data[1];
-                    
+
                     uiLogger.accept("> Dept Manager " + decision + " request #" + requestId + "\n");
                     boolean success = DBController.processParameterDecision(requestId, decision);
-                    
+
                     if (success) {
                         client.sendToClient(new Message("DECISION_SUCCESS", decision));
                         // Push live update: ParkManagers re-fetch their park data to see if their request was processed
                         broadcastToRole("ParkManager", new Message("PARAMETER_DECISION_MADE", decision));
+                        // Push live update: all DeptManagers see the request leave their pending table
+                        java.util.ArrayList<entities.ParameterRequest> freshRequests = DBController.getPendingRequests();
+                        broadcastToRole("DeptManager", new Message("PENDING_REQUESTS_DATA", freshRequests));
+                        // Push live update: any DeptManager viewing the parks list sees updated capacity values
+                        java.util.ArrayList<entities.Park> allParks = DBController.getAllParks();
+                        broadcastToRole("DeptManager", new Message("ALL_PARKS_DATA", allParks));
                     } else {
                         client.sendToClient(new Message("DECISION_FAILED", "Database error."));
                     }
@@ -401,6 +407,12 @@ public class EchoServer extends AbstractServer {
                     if (ok) {
                         client.sendToClient(new Message("PROMOTION_DECISION_SUCCESS", decision));
                         broadcastToRole("ParkManager", new Message("PROMOTION_DECISION_MADE", decision));
+                        // Push live update: all DeptManagers see the promotion leave their pending table
+                        java.util.ArrayList<entities.Promotion> pending = DBController.getPendingPromotions();
+                        broadcastToRole("DeptManager", new Message("PENDING_PROMOTIONS_DATA", pending));
+                        // Push live update: any DeptManager viewing the parks list sees updated active discount
+                        java.util.ArrayList<entities.Park> allParks = DBController.getAllParks();
+                        broadcastToRole("DeptManager", new Message("ALL_PARKS_DATA", allParks));
                     } else {
                         client.sendToClient(new Message("PROMOTION_DECISION_FAILED", "Database error."));
                     }
@@ -418,6 +430,9 @@ public class EchoServer extends AbstractServer {
                             broadcastToPark(parkId, new Message("PARK_DETAILS_DATA", updated));
                             broadcastToPark(parkId, new Message("PROMOTION_DECISION_MADE", "Cancelled"));
                         }
+                        // Push live update: every DeptManager refreshes their park list (active discount changed)
+                        java.util.ArrayList<entities.Park> allParks = DBController.getAllParks();
+                        broadcastToRole("DeptManager", new Message("ALL_PARKS_DATA", allParks));
                         uiLogger.accept("> Active discount cancelled for park " + parkId + "\n");
                     } else {
                         client.sendToClient(new Message("CANCEL_PROMOTION_FAILED", result));
