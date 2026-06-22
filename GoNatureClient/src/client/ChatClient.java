@@ -1,114 +1,89 @@
 package client;
 
-import ocsf.client.AbstractClient;
 import entities.Message;
+import ocsf.client.AbstractClient;
 import java.io.IOException;
 import java.util.function.Consumer;
 
 /**
- * The network engine for the GoNature Client.
- * Handles all communication with the Server and routes responses to the active UI Controller.
+ * ChatClient handles the client-side OCSF network operations.
+ * Includes a Global Watchdog and a Buffered Auto-Reconnect Engine.
  */
 public class ChatClient extends AbstractClient {
 
-    // The single static instance (Singleton)
     private static ChatClient instance;
-    
-    // The active callback function. This tells the client WHERE to send the server's reply.
     private Consumer<Message> responseHandler;
 
-    /**
-     * Private constructor to prevent multiple instances.
-     * Automatically opens the connection to the server.
-     */
+    // --- Singleton Pattern ---
     private ChatClient(String host, int port, Consumer<Message> responseHandler) throws IOException {
         super(host, port);
         this.responseHandler = responseHandler;
-        openConnection();
+        openConnection(); 
     }
 
-    /**
-     * Called by the FIRST screen (Login) to initialize the connection.
-     */
-    public static ChatClient getInstance(String host, int port, Consumer<Message> handler) throws IOException {
-        if (instance == null || !instance.isConnected()) {
-            // Create a fresh connection — handles first-time setup AND reconnection
-            // after the server was not running when the screen first opened.
-            instance = new ChatClient(host, port, handler);
+    public static ChatClient getInstance(String host, int port, Consumer<Message> responseHandler) throws IOException {
+        if (instance == null) {
+            instance = new ChatClient(host, port, responseHandler);
         } else {
-            instance.setResponseHandler(handler);
+            instance.setResponseHandler(responseHandler);
+            if (!instance.isConnected()) {
+                try {
+                    instance.openConnection();
+                } catch (IOException ignored) {} 
+            }
         }
         return instance;
     }
 
-    /**
-     * Called by ALL OTHER screens (Dashboards, Booking) to grab the active connection.
-     */
     public static ChatClient getInstance() {
         if (instance == null) {
-            System.err.println("CRITICAL ERROR: ChatClient not initialized. Cannot send message.");
+            System.err.println("CRITICAL: ChatClient accessed before initialization!");
         }
         return instance;
     }
 
-    /**
-     * CRITICAL: Updates the listener. 
-     * When you change scenes (e.g., Login to Dashboard), the new controller calls this 
-     * so that server responses are routed to the NEW screen, not the old one.
-     */
     public void setResponseHandler(Consumer<Message> responseHandler) {
         this.responseHandler = responseHandler;
     }
 
-    /**
-     * Triggered automatically by OCSF when data arrives from the server.
-     */
-    @Override
-    protected void handleMessageFromServer(Object msg) {
-        if (msg instanceof Message && responseHandler != null) {
-            // Instantly pass the Message object to the active controller's handleServerResponse() method
-            responseHandler.accept((Message) msg);
-        } else {
-            System.out.println("CLIENT: Received unknown object or no active UI handler is set.");
-        }
-    }
-
-    /**
-     * Triggered by UI Controllers to send a message TO the server.
-     */
     public void handleMessageFromClientUI(Object message) {
         try {
+            // --- THE AUTO-RECONNECT ENGINE ---
+            if (!isConnected()) {
+                openConnection(); 
+                // CRITICAL FIX: Give OCSF's internal streams 200ms to wake up before firing the message!
+                try { Thread.sleep(200); } catch (InterruptedException ignored) {}
+            }
             sendToServer(message);
-        } catch (IOException e) {
-            System.out.println("CLIENT: Could not send message to server. Terminating client.");
-            quit();
+        } catch (Exception e) {
+            // Watchdog: If it STILL fails to send, the server is truly offline. Alert the UI.
+            if (responseHandler != null) {
+                responseHandler.accept(new Message("SERVER_DISCONNECTED", "Network link dropped."));
+            }
         }
     }
+
+    @Override
+    protected void handleMessageFromServer(Object msg) {
+        if (responseHandler != null && msg instanceof Message) {
+            responseHandler.accept((Message) msg);
+        }
+    }
+
+    // =========================================================================
+    // --- GLOBAL NETWORK WATCHDOG ---
+    // =========================================================================
     
-    /**
-     * Hook method triggered if the server abruptly closes the connection.
-     */
     @Override
     protected void connectionClosed() {
-        System.out.println("CLIENT: Connection to server closed.");
+        System.out.println("Connection to server closed cleanly.");
     }
 
-    /**
-     * Hook method triggered if the client loses connection to the server unexpectedly.
-     */
     @Override
     protected void connectionException(Exception exception) {
-        System.out.println("CLIENT: Server has disconnected abruptly (Connection Lost).");
-    }
-
-    /**
-     * Safely terminates the network connection.
-     */
-    public void quit() {
-        try {
-            closeConnection();
-        } catch (IOException e) {
-            System.exit(0);
+        System.err.println("WATCHDOG TRIGGERED: Sudden server disconnect detected.");
+        if (responseHandler != null) {
+            responseHandler.accept(new Message("SERVER_DISCONNECTED", "Crash detected"));
         }
     }
 }

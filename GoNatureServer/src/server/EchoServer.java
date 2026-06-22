@@ -96,7 +96,19 @@ public class EchoServer extends AbstractServer {
                         return;
                     }
 
-                    // 3. Process through the Capacity Engine
+                    // 3. Family membership: visitor_count must not exceed family_size
+                    if (!newOrder.getOrderType().equalsIgnoreCase("Group")) {
+                        int familySize = DBController.getSubscriberFamilySize(newOrder.getVisitorId());
+                        if (familySize > 0 && newOrder.getVisitorCount() > familySize) {
+                            client.sendToClient(new Message("ORDER_FAILED",
+                                "Booking exceeds your subscription family size (" + familySize
+                                + " member(s) covered). Please contact a Service Representative to update your plan."));
+                            uiLogger.accept("> Booking rejected — visitor count exceeds family size.\n");
+                            return;
+                        }
+                    }
+
+                    // 4. Process through the Capacity Engine
                     entities.VisitOrder processedOrder = DBController.processNewOrder(newOrder);
 
                     if (processedOrder != null) {
@@ -112,16 +124,18 @@ public class EchoServer extends AbstractServer {
                 // --- 3. PARK GATE ENTRANCE ROUTING ---
                 // =========================================================================
                 else if (request.getCommand().equals("ENTER_PARK_REQUEST")) {
-                    int orderIdToAdmit = (int) request.getData();
-                    uiLogger.accept("> Park Gate requested entry for Order ID: " + orderIdToAdmit + "\n");
-                    String resultMessage = DBController.processParkEntry(orderIdToAdmit);
-                    if (resultMessage.startsWith("SUCCESS")) {
-                        client.sendToClient(new Message("ENTRY_APPROVED", resultMessage));
-                        uiLogger.accept("> Gate Entry APPROVED.\n");
-                        pushParkUpdate(orderIdToAdmit);
+                    int orderId = (int) request.getData();
+                    uiLogger.accept("> Processing Gate Entry for Order ID: " + orderId + "\n");
+
+                    String resultMsg = DBController.processParkEntry(orderId);
+
+                    if (resultMsg.startsWith("ENTRY_APPROVED")) {
+                        // Strip the prefix and send the clean message (which now includes the price) to the UI
+                        client.sendToClient(new Message("ENTRY_APPROVED", resultMsg.replace("ENTRY_APPROVED: ", "")));
+                        // Optional: Broadcast the updated visitor count to Park Managers
+                        pushParkUpdate(orderId); 
                     } else {
-                        client.sendToClient(new Message("ENTRY_DENIED", resultMessage));
-                        uiLogger.accept("> Gate Entry DENIED: " + resultMessage + "\n");
+                        client.sendToClient(new Message("ENTRY_DENIED", resultMsg.replace("ENTRY_DENIED: ", "")));
                     }
                 }
 
@@ -141,11 +155,12 @@ public class EchoServer extends AbstractServer {
 
                 else if (request.getCommand().equals("WALKIN_REQUEST")) {
                     String[] data = (String[]) request.getData();
-                    int parkId     = Integer.parseInt(data[0]);
-                    int count      = Integer.parseInt(data[1]);
-                    String type    = data[2];
+                    int parkId          = Integer.parseInt(data[0]);
+                    int count           = Integer.parseInt(data[1]);
+                    String type         = data[2];
+                    String subscriberId = (data.length > 3) ? data[3] : "";
                     uiLogger.accept("> Walk-in request: " + count + " visitors (" + type + ") at park " + parkId + "\n");
-                    entities.VisitOrder walkin = DBController.processWalkIn(parkId, count, type);
+                    entities.VisitOrder walkin = DBController.processWalkIn(parkId, count, type, subscriberId);
                     if (walkin != null) {
                         client.sendToClient(new Message("WALKIN_APPROVED", walkin));
                         uiLogger.accept("> Walk-in APPROVED. Ticket #" + walkin.getOrderId() + "\n");
@@ -203,14 +218,20 @@ public class EchoServer extends AbstractServer {
                     String[] data = (String[]) request.getData();
                     int requestId = Integer.parseInt(data[0]);
                     String decision = data[1];
-                    
+
                     uiLogger.accept("> Dept Manager " + decision + " request #" + requestId + "\n");
                     boolean success = DBController.processParameterDecision(requestId, decision);
-                    
+
                     if (success) {
                         client.sendToClient(new Message("DECISION_SUCCESS", decision));
                         // Push live update: ParkManagers re-fetch their park data to see if their request was processed
                         broadcastToRole("ParkManager", new Message("PARAMETER_DECISION_MADE", decision));
+                        // Push live update: all DeptManagers see the request leave their pending table
+                        java.util.ArrayList<entities.ParameterRequest> freshRequests = DBController.getPendingRequests();
+                        broadcastToRole("DeptManager", new Message("PENDING_REQUESTS_DATA", freshRequests));
+                        // Push live update: any DeptManager viewing the parks list sees updated capacity values
+                        java.util.ArrayList<entities.Park> allParks = DBController.getAllParks();
+                        broadcastToRole("DeptManager", new Message("ALL_PARKS_DATA", allParks));
                     } else {
                         client.sendToClient(new Message("DECISION_FAILED", "Database error."));
                     }
@@ -337,11 +358,118 @@ public class EchoServer extends AbstractServer {
 
                 else if (request.getCommand().equals("FETCH_CANCELLATIONS_REPORT")) {
                     String[] data = (String[]) request.getData();
-                    String month = data[0];
-                    String year  = data[1];
-                    uiLogger.accept("> Dept Manager generating cancellations report for " + month + "/" + year + "\n");
-                    entities.ReportData report = DBController.getCancellationsReport(month, year);
+                    int parkId   = Integer.parseInt(data[0]);
+                    String month = data[1];
+                    String year  = data[2];
+                    uiLogger.accept("> Dept Manager generating cancellations report for " + month + "/" + year
+                        + (parkId > 0 ? " (park " + parkId + ")" : " (all parks)") + "\n");
+                    entities.ReportData report = DBController.getCancellationsReport(parkId, month, year);
                     client.sendToClient(new Message("CANCELLATIONS_REPORT_DATA", report));
+                }
+
+                // =========================================================================
+                // --- 9. MANUAL EXIT BY COUNT ---
+                // =========================================================================
+                else if (request.getCommand().equals("MANUAL_EXIT_REQUEST")) {
+                    String[] data  = (String[]) request.getData();
+                    int parkId     = Integer.parseInt(data[0]);
+                    int exitCount  = Integer.parseInt(data[1]);
+                    uiLogger.accept("> Manual exit: " + exitCount + " visitor(s) from park " + parkId + "\n");
+                    String result = DBController.processManualExit(parkId, exitCount);
+                    if (result.startsWith("SUCCESS")) {
+                        client.sendToClient(new Message("MANUAL_EXIT_SUCCESS", result));
+                        entities.Park updated = DBController.getParkById(parkId);
+                        if (updated != null) broadcastToPark(parkId, new Message("PARK_DETAILS_DATA", updated));
+                        uiLogger.accept("> Manual exit processed.\n");
+                    } else {
+                        client.sendToClient(new Message("MANUAL_EXIT_FAILED", result));
+                        uiLogger.accept("> Manual exit FAILED: " + result + "\n");
+                    }
+                }
+
+                // =========================================================================
+                // --- 10. PROMOTIONAL DISCOUNT ROUTING ---
+                // =========================================================================
+                else if (request.getCommand().equals("SUBMIT_PROMOTION_REQUEST")) {
+                    entities.Promotion promo = (entities.Promotion) request.getData();
+                    uiLogger.accept("> Park Manager submitted promotion request: "
+                        + promo.getDiscountPercent() + "% for park " + promo.getParkId() + "\n");
+                    String result = DBController.submitPromotionRequest(promo);
+                    if (result.startsWith("SUCCESS")) {
+                        client.sendToClient(new Message("PROMOTION_SUBMIT_SUCCESS", result));
+                        // Notify dept manager live
+                        java.util.ArrayList<entities.Promotion> pending = DBController.getPendingPromotions();
+                        broadcastToRole("DeptManager", new Message("PENDING_PROMOTIONS_DATA", pending));
+                    } else {
+                        client.sendToClient(new Message("PROMOTION_SUBMIT_FAILED", result));
+                    }
+                }
+
+                else if (request.getCommand().equals("FETCH_PROMOTIONS")) {
+                    uiLogger.accept("> Dept Manager fetching pending promotion requests.\n");
+                    java.util.ArrayList<entities.Promotion> pending = DBController.getPendingPromotions();
+                    client.sendToClient(new Message("PENDING_PROMOTIONS_DATA", pending));
+                }
+
+                else if (request.getCommand().equals("PROCESS_PROMOTION_DECISION")) {
+                    String[] data     = (String[]) request.getData();
+                    int promotionId   = Integer.parseInt(data[0]);
+                    String decision   = data[1];
+                    uiLogger.accept("> Dept Manager " + decision + " promotion #" + promotionId + "\n");
+                    boolean ok = DBController.processPromotionDecision(promotionId, decision);
+                    if (ok) {
+                        client.sendToClient(new Message("PROMOTION_DECISION_SUCCESS", decision));
+                        broadcastToRole("ParkManager", new Message("PROMOTION_DECISION_MADE", decision));
+                        // Push live update: all DeptManagers see the promotion leave their pending table
+                        java.util.ArrayList<entities.Promotion> pending = DBController.getPendingPromotions();
+                        broadcastToRole("DeptManager", new Message("PENDING_PROMOTIONS_DATA", pending));
+                        // Push live update: any DeptManager viewing the parks list sees updated active discount
+                        java.util.ArrayList<entities.Park> allParks = DBController.getAllParks();
+                        broadcastToRole("DeptManager", new Message("ALL_PARKS_DATA", allParks));
+                    } else {
+                        client.sendToClient(new Message("PROMOTION_DECISION_FAILED", "Database error."));
+                    }
+                }
+
+                else if (request.getCommand().equals("CANCEL_PROMOTION_REQUEST")) {
+                    int parkId = (int) request.getData();
+                    uiLogger.accept("> Dept Manager cancelling active discount for park " + parkId + "\n");
+                    String result = DBController.cancelActivePromotion(parkId);
+                    if (result.startsWith("SUCCESS")) {
+                        client.sendToClient(new Message("CANCEL_PROMOTION_SUCCESS", result));
+                        // Push updated park data to that park's manager so their dashboard reflects 0%
+                        entities.Park updated = DBController.getParkById(parkId);
+                        if (updated != null) {
+                            broadcastToPark(parkId, new Message("PARK_DETAILS_DATA", updated));
+                            broadcastToPark(parkId, new Message("PROMOTION_DECISION_MADE", "Cancelled"));
+                        }
+                        // Push live update: every DeptManager refreshes their park list (active discount changed)
+                        java.util.ArrayList<entities.Park> allParks = DBController.getAllParks();
+                        broadcastToRole("DeptManager", new Message("ALL_PARKS_DATA", allParks));
+                        uiLogger.accept("> Active discount cancelled for park " + parkId + "\n");
+                    } else {
+                        client.sendToClient(new Message("CANCEL_PROMOTION_FAILED", result));
+                        uiLogger.accept("> Cancel discount FAILED: " + result + "\n");
+                    }
+                }
+
+                // =========================================================================
+                // --- 11. VISIT REPORT ROUTING ---
+                // =========================================================================
+                else if (request.getCommand().equals("FETCH_VISIT_REPORT")) {
+                    String[] data = (String[]) request.getData();
+                    int parkId   = Integer.parseInt(data[0]);
+                    String month = data[1];
+                    String year  = data[2];
+                    uiLogger.accept("> Dept Manager fetching visit report for park " + parkId
+                        + " (" + month + "/" + year + ")\n");
+                    entities.ReportData report = DBController.getVisitReport(parkId, month, year);
+                    if (report != null) {
+                        client.sendToClient(new Message("VISIT_REPORT_DATA", report));
+                    } else {
+                        client.sendToClient(new Message("VISIT_REPORT_FAILED",
+                            "Could not generate visit report. No completed visits with timestamps found."));
+                    }
                 }
 
                 else if (request.getCommand().equals("LOGOUT_REQUEST")) {

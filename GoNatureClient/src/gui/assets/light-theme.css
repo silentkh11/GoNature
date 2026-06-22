@@ -1,0 +1,249 @@
+/* =========================================================================
+   GLOBAL FIXES
+   ========================================================================= */
+/* =========================================================================
+   GLOBAL FIXES & MAGIC VARIABLES
+   ========================================================================= */
+.root {
+    /* 1. MAGIC LIGHT MODE VARIABLES */
+    -fx-base: #f4f6f8;
+    -fx-background: #f4f6f8;
+    -fx-control-inner-background: #ffffff;
+    -fx-text-base-color: #2d3436;
+}
+
+* {
+    /* 2. KILL FOCUS RINGS */
+    -fx-focus-color: transparent;
+    -fx-faint-focus-color: transparent;
+}
+
+/* =========================================================================
+   BASE LAYOUT & TEXT
+   ========================================================================= */
+
+/* =========================================================================
+   BASE LAYOUT & TEXT
+   ========================================================================= */
+.page-root {
+    -fx-background-color: #f4f6f8; /* Crisp, clean light background */
+}
+
+.card {
+    -fx-background-color: #ffffff;
+    -fx-background-radius: 10px;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 10, 0, 0, 4);
+}
+
+.title-label {
+    -fx-text-fill: #2d3436;
+}
+
+.subtitle-label, .body-label {
+    -fx-text-fill: #636e72;
+}
+
+.section-blue {
+    -fx-text-fill: #0984e3;
+}
+
+.section-red {
+    -fx-text-fill: #d63031;
+}
+
+/* =========================================================================
+   BUTTONS
+   ========================================================================= */
+.button {
+    -fx-background-radius: 6px;
+    -fx-cursor: hand;
+}
+
+.primary-btn {
+    -fx-background-color: #0984e3;
+    -fx-text-fill: white;
+}
+.primary-btn:hover {
+    -fx-background-color: #0773c5;
+}
+
+.success-btn {
+    -fx-background-color: #27ae60;
+    -fx-text-fill: white;
+}
+.success-btn:hover {
+    -fx-background-color: #2ecc71;
+}
+
+.danger-btn {
+    -fx-background-color: #d63031;
+    -fx-text-fill: white;
+}
+.danger-btn:hover {
+    -fx-background-color: #ff7675;
+}
+
+.theme-toggle {
+    -fx-background-color: #e0e0e0;
+    -fx-text-fill: #2d3436;
+}
+.theme-toggle:hover {
+    -fx-background-color: #d0d0d0;
+}
+
+.back-link {
+    -fx-background-color: transparent;
+    -fx-text-fill: #0984e3;
+    -fx-padding: 4 8;
+    -fx-font-size: 13px;
+}
+.back-link:hover {
+    -fx-text-fill: #0773c5;
+    -fx-underline: true;
+}
+
+.secondary-btn {
+    -fx-background-color: #dfe6e9;
+    -fx-text-fill: #2d3436;
+}
+.secondary-btn:hover {
+    -fx-background-color: #b2bec3;
+}
+
+/* =========================================================================
+   INPUTS (ComboBox, TextField)
+   ========================================================================= */
+.text-field, .combo-box {
+    -fx-background-color: #ffffff;
+    -fx-text-fill: #2d3436;
+    -fx-prompt-text-fill: #b2bec3;
+    -fx-background-radius: 5px;
+    -fx-border-color: #dfe6e9;
+    -fx-border-radius: 5px;
+}
+.combo-box .list-cell {
+    -fx-text-fill: #2d3436;
+}
+.combo-box-popup .list-view {
+    -fx-background-color: #ffffff;
+    -fx-border-color: #dfe6e9;
+}
+.combo-box-popup .list-view .list-cell:hover, .combo-box-popup .list-view .list-cell:filled:selected {
+    -fx-background-color: #0984e3;
+    -fx-text-fill: white;
+}
+.text-field:focused {
+    -fx-border-color: #0984e3;
+    -fx-effect: dropshadow(gaussian, rgba(9,132,227,0.25), 8, 0, 0, 0);
+}
+
+/* =========================================================================
+   TABLE VIEW & LIST VIEW
+   ========================================================================= */
+.table-view, .list-view {
+    -fx-background-color: transparent;
+    -fx-border-color: #dfe6e9;
+    -fx-border-radius: 5px;
+}
+.table-view .column-header-background {
+    -fx-background-color: #f1f2f6;
+}
+.table-view .column-header, .table-view .filler {
+    -fx-background-color: transparent;
+    -fx-size: 35px;
+}
+.table-view .column-header .label {
+    -fx-text-fill: #2d3436;
+    -fx-font-weight: bold;
+}
+.table-row-cell, .list-cell {
+    -fx-background-color: #ffffff;
+    -fx-text-fill: #636e72;
+}
+.table-row-cell:odd {
+    -fx-background-color: #f8f9fa;
+}
+.table-row-cell:hover {
+    -fx-background-color: #e8f4fd;
+}
+.table-row-cell:selected, .list-cell:selected {
+    -fx-background-color: #0984e3;
+    -fx-text-fill: white;
+}
+
+/* =========================================================================
+   SCROLL PANE & SCROLL BAR (LIGHT MODE)
+   ========================================================================= */
+.scroll-pane, .scroll-pane > .viewport {
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+    -fx-background-insets: 0;
+}
+.scroll-bar:vertical, .scroll-bar:horizontal {
+    -fx-background-color: transparent;
+    -fx-pref-width: 12px; 
+}
+.scroll-bar .track {
+    -fx-background-color: #f1f2f6; 
+    -fx-background-radius: 10px;
+}
+.scroll-bar .thumb {
+    -fx-background-color: #ced6e0; 
+    -fx-background-radius: 10px;
+}
+.scroll-bar .thumb:hover {
+    -fx-background-color: #a4b0be; 
+}
+.scroll-bar .increment-button, .scroll-bar .decrement-button {
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+}
+.scroll-bar .increment-arrow, .scroll-bar .decrement-arrow {
+    -fx-shape: " ";
+    -fx-padding: 0;
+}
+/* =========================================================================
+   CUSTOM WINDOW CHROME (PREMIUM BORDERLESS DESIGN)
+   ========================================================================= */
+.app-shell {
+    -fx-background-color: transparent;
+    -fx-border-width: 0;
+}
+
+.title-bar {
+    -fx-background-color: #e0e4e8; /* Soft, clean light-gray header */
+    -fx-padding: 6 8 6 12;
+}
+
+.title-bar-label {
+    -fx-text-fill: #2d3436;
+    -fx-font-family: "Segoe UI";
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+}
+
+/* --- Window Control Buttons (- / [] / X) --- */
+.title-bar-btn {
+    -fx-background-color: transparent;
+    -fx-background-radius: 4px;
+    -fx-padding: 6 14 6 14;
+    -fx-cursor: hand;
+}
+
+.title-bar-btn:hover {
+    -fx-background-color: #ced6e0; /* Slightly darker gray highlight */
+}
+
+.title-bar-btn-close:hover {
+    -fx-background-color: #e81123; /* Classic crisp red close button */
+}
+
+/* --- The actual drawn Line icons --- */
+.title-bar-icon, .title-bar-icon-stroke {
+    -fx-stroke: #2d3436; /* Dark icons for light mode */
+    -fx-stroke-width: 1.5;
+}
+
+.title-bar-btn-close:hover .title-bar-icon {
+    -fx-stroke: #ffffff; /* Flips the X to pure white on the red background */
+}

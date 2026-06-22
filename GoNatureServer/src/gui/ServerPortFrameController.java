@@ -39,14 +39,8 @@ public class ServerPortFrameController {
     @FXML
     public void initialize() {
         themeBtn.setText(ThemeManager.getInstance().toggleLabel());
-
-        consoleText.appendText("> Welcome to GoNature Server Console.\n> System initialized. Ready to start.\n");
-
-        setServerStopped();
-
         portField.setText(String.valueOf(DEFAULT_PORT));
-        portField.setEditable(false);
-        portField.setDisable(true);
+        setServerStopped();
 
         ipCol.setCellValueFactory(new PropertyValueFactory<>("ip"));
         hostCol.setCellValueFactory(new PropertyValueFactory<>("host"));
@@ -56,52 +50,54 @@ public class ServerPortFrameController {
 
     @FXML
     void handleToggleTheme(ActionEvent event) {
-        ThemeManager.getInstance().toggle(((Node) event.getSource()).getScene());
+        javafx.scene.Scene scene = ((Node) event.getSource()).getScene();
+        ThemeManager.getInstance().toggle(scene);
         themeBtn.setText(ThemeManager.getInstance().toggleLabel());
     }
 
     @FXML
     void startServer(ActionEvent event) {
-        // Grab the password typed by the user on the screen
-        String dbPass = dbPassField != null ? dbPassField.getText().trim() : "";
-        
-        if (dbPass.isEmpty()) {
-            consoleText.appendText("> ERROR: Please enter the MySQL Database password.\n");
+        if (server != null && server.isListening()) {
+            consoleText.appendText("> Server is already running.\n");
             return;
         }
 
         try {
-            int port = DEFAULT_PORT;
-
-            // 1. Try to connect to the database first using the password!
-            boolean dbConnected = DBController.connect(dbPass);
-            if (!dbConnected) {
-                consoleText.appendText("> ERROR: Database connection failed. Incorrect password or MySQL is offline.\n");
-                return; // Stop the server from booting if DB fails
+            int port = Integer.parseInt(portField.getText().trim());
+            
+            // 1. Establish Database Connection FIRST
+            String dbPass = dbPassField.getText();
+            if(dbPass.isEmpty()) {
+                consoleText.appendText("> ERROR: Database password cannot be empty.\n");
+                return;
             }
             
+            if(!DBController.connect(dbPass)) {
+                consoleText.appendText("> CRITICAL ERROR: Could not connect to the MySQL database. Check your password.\n");
+                return;
+            }
             consoleText.appendText("> Database connected successfully.\n");
 
-            // 2. Start the Network Server
-            server = new EchoServer(port,
+            // 2. Start the Network Server 
+            server = new EchoServer(port, 
                 (String logMsg) -> Platform.runLater(() -> consoleText.appendText(logMsg)),
                 (ConnectionToClient client) -> Platform.runLater(() -> connectedClients.add(new ClientInfo(client))),
-                (ConnectionToClient client) -> Platform.runLater(() ->
-                    connectedClients.removeIf(info -> info.getConnection().equals(client)))
+                (ConnectionToClient client) -> Platform.runLater(() -> connectedClients.removeIf(info -> info.getConnection().equals(client)))
             );
-
-            server.listen();
-
-            statusIndicator.setText("ONLINE  Â·  Port " + port);
-            statusIndicator.setStyle("-fx-text-fill: #66bb6a; -fx-font-weight: bold;");
-
+            
+            server.listen(); 
+            
+            statusIndicator.setText("ONLINE");
+            statusIndicator.setStyle("-fx-text-fill: #00b894; -fx-font-weight: bold;");
             startBtn.setDisable(true);
             stopBtn.setDisable(false);
-            if (dbPassField != null) dbPassField.setDisable(true); // Lock the password box while running
+            consoleText.appendText("> Server started on port " + port + ".\n");
 
+        } catch (NumberFormatException e) {
+            consoleText.appendText("> ERROR: Invalid port number.\n");
         } catch (Exception ex) {
-            consoleText.appendText("> ERROR: " + ex.getMessage() + "\n");
-            setServerStopped();
+            consoleText.appendText("> ERROR: Could not start server. Port might be in use.\n");
+            ex.printStackTrace();
         }
     }
 
