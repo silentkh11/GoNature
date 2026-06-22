@@ -1,63 +1,82 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <?import javafx.geometry.Insets?>
-<?import javafx.scene.control.Button?>
-<?import javafx.scene.control.CheckBox?>
-<?import javafx.scene.control.Label?>
-<?import javafx.scene.control.TextField?>
-<?import javafx.scene.layout.GridPane?>
-<?import javafx.scene.layout.HBox?>
-<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
 <?import javafx.scene.text.Font?>
 
-<VBox alignment="CENTER" prefHeight="650.0" prefWidth="700.0" spacing="20.0" styleClass="page-root" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="gui.service.ServiceRepController">
-   <padding>
-      <Insets bottom="30.0" left="50.0" right="50.0" top="20.0" />
-   </padding>
+<ScrollPane fitToWidth="true" styleClass="page-root" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="gui.service.ServiceRepController">
+   <content>
+      <VBox alignment="TOP_CENTER" prefWidth="850.0" spacing="25.0" styleClass="page-root">
+         <padding><Insets bottom="40.0" left="40.0" right="40.0" top="20.0" /></padding>
 
-   <HBox alignment="CENTER_RIGHT" spacing="10.0">
-      <Button fx:id="themeBtn" focusTraversable="false" mnemonicParsing="false" onAction="#handleToggleTheme" styleClass="theme-toggle" text="🌙 Dark Mode" />
-      <Button focusTraversable="false" mnemonicParsing="false" onAction="#handleLogout" styleClass="danger-btn" style="-fx-font-size: 13px; -fx-padding: 5 14;" text="🚪 Logout" />
-      <VBox.margin><Insets bottom="5.0" /></VBox.margin>
-   </HBox>
+         <HBox alignment="CENTER_RIGHT" spacing="12.0">
+            <Label styleClass="title-label" text="Service Representative Dashboard" HBox.hgrow="ALWAYS" maxWidth="Infinity"><font><Font name="Segoe UI Bold" size="22.0" /></font></Label>
+            <Region HBox.hgrow="ALWAYS" />
+            <Button fx:id="themeBtn" focusTraversable="false" mnemonicParsing="false" onAction="#handleToggleTheme" styleClass="theme-toggle" text="🌙 Dark Mode" />
+            <Button focusTraversable="false" mnemonicParsing="false" onAction="#handleLogout" styleClass="danger-btn" style="-fx-font-size: 13px; -fx-padding: 6 15;" text="🚪 Logout" />
+         </HBox>
 
-   <Label styleClass="title-label" text="New Subscriber Registration">
-      <font><Font name="Segoe UI Bold" size="28.0" /></font>
-   </Label>
-
-   <VBox spacing="15.0" styleClass="card" style="-fx-padding: 30;">
-
-      <GridPane vgap="15.0" hgap="20.0">
-         <Label styleClass="body-label" text="Visitor ID Card:" GridPane.rowIndex="0" GridPane.columnIndex="0"><font><Font name="Segoe UI Bold" size="14.0" /></font></Label>
-         <TextField fx:id="txtId" promptText="e.g. 123456789" GridPane.rowIndex="0" GridPane.columnIndex="1" />
-
-         <Label styleClass="body-label" text="First Name:" GridPane.rowIndex="1" GridPane.columnIndex="0"><font><Font name="Segoe UI Bold" size="14.0" /></font></Label>
-         <TextField fx:id="txtFirst" GridPane.rowIndex="1" GridPane.columnIndex="1" />
-
-         <Label styleClass="body-label" text="Last Name:" GridPane.rowIndex="2" GridPane.columnIndex="0"><font><Font name="Segoe UI Bold" size="14.0" /></font></Label>
-         <TextField fx:id="txtLast" GridPane.rowIndex="2" GridPane.columnIndex="1" />
-
-         <Label styleClass="body-label" text="Email Address:" GridPane.rowIndex="3" GridPane.columnIndex="0"><font><Font name="Segoe UI Bold" size="14.0" /></font></Label>
-         <TextField fx:id="txtEmail" promptText="required@gonature.co.il" GridPane.rowIndex="3" GridPane.columnIndex="1" />
-
-         <Label styleClass="body-label" text="Phone Number:" GridPane.rowIndex="4" GridPane.columnIndex="0"><font><Font name="Segoe UI Bold" size="14.0" /></font></Label>
-         <TextField fx:id="txtPhone" GridPane.rowIndex="4" GridPane.columnIndex="1" />
-
-         <Label styleClass="body-label" text="Credit Card:" GridPane.rowIndex="5" GridPane.columnIndex="0"><font><Font name="Segoe UI Bold" size="14.0" /></font></Label>
-         <TextField fx:id="txtCard" promptText="0000-0000-0000-0000" GridPane.rowIndex="5" GridPane.columnIndex="1" />
-
-         <Label styleClass="body-label" text="Family Size:" GridPane.rowIndex="6" GridPane.columnIndex="0"><font><Font name="Segoe UI Bold" size="14.0" /></font></Label>
-         <TextField fx:id="txtFamilySize" promptText="1" GridPane.rowIndex="6" GridPane.columnIndex="1" />
-      </GridPane>
-
-      <CheckBox fx:id="chkGuide" mnemonicParsing="false" text="Register as Certified Tour Guide">
-         <font><Font name="Segoe UI Bold" size="14.0" /></font>
-         <VBox.margin><Insets top="10.0" bottom="10.0"/></VBox.margin>
-      </CheckBox>
-
-      <Button mnemonicParsing="false" onAction="#handleRegister" prefHeight="45.0" maxWidth="Infinity" styleClass="primary-btn" style="-fx-font-size: 16px;" text="Create Subscriber Profile" />
-   </VBox>
-
-   <Label fx:id="lblStatus" alignment="CENTER" maxWidth="Infinity" wrapText="true">
-      <font><Font name="Segoe UI Bold" size="16.0" /></font>
-   </Label>
-</VBox>
+         <VBox styleClass="card" spacing="20.0" maxWidth="750.0">
+            <padding><Insets bottom="30.0" left="35.0" right="35.0" top="30.0" /></padding>
+            
+            <Label styleClass="section-blue" text="Enroll New Subscriber"><font><Font name="Segoe UI Bold" size="20.0" /></font></Label>
+            <Separator />
+            
+            <HBox spacing="40.0">
+               <VBox spacing="15.0" HBox.hgrow="ALWAYS">
+                  <Label styleClass="subtitle-label" text="Personal Details"><font><Font name="Segoe UI Bold" size="15.0" /></font></Label>
+                  <GridPane hgap="10.0" vgap="18.0">
+                     <columnConstraints>
+                        <ColumnConstraints hgrow="SOMETIMES" minWidth="80.0" prefWidth="95.0" />
+                        <ColumnConstraints hgrow="ALWAYS" minWidth="10.0" />
+                     </columnConstraints>
+                     <Label styleClass="body-label" text="ID Number:" GridPane.rowIndex="0"><font><Font name="Segoe UI Bold" size="13.0"/></font></Label>
+                     <TextField fx:id="txtId" promptText="Required" GridPane.columnIndex="1" GridPane.rowIndex="0" />
+                     
+                     <Label styleClass="body-label" text="First Name:" GridPane.rowIndex="1"><font><Font name="Segoe UI Bold" size="13.0"/></font></Label>
+                     <TextField fx:id="txtFirst" promptText="Required" GridPane.columnIndex="1" GridPane.rowIndex="1" />
+                     
+                     <Label styleClass="body-label" text="Last Name:" GridPane.rowIndex="2"><font><Font name="Segoe UI Bold" size="13.0"/></font></Label>
+                     <TextField fx:id="txtLast" promptText="Required" GridPane.columnIndex="1" GridPane.rowIndex="2" />
+                     
+                     <Label styleClass="body-label" text="Email:" GridPane.rowIndex="3"><font><Font name="Segoe UI Bold" size="13.0"/></font></Label>
+                     <TextField fx:id="txtEmail" promptText="example@mail.com" GridPane.columnIndex="1" GridPane.rowIndex="3" />
+                     
+                     <Label styleClass="body-label" text="Phone:" GridPane.rowIndex="4"><font><Font name="Segoe UI Bold" size="13.0"/></font></Label>
+                     <TextField fx:id="txtPhone" promptText="05X-XXXXXXX" GridPane.columnIndex="1" GridPane.rowIndex="4" />
+                  </GridPane>
+               </VBox>
+               
+               <VBox spacing="15.0" HBox.hgrow="ALWAYS">
+                  <Label styleClass="subtitle-label" text="Membership Details"><font><Font name="Segoe UI Bold" size="15.0" /></font></Label>
+                  <GridPane hgap="10.0" vgap="18.0">
+                     <columnConstraints>
+                        <ColumnConstraints hgrow="SOMETIMES" minWidth="80.0" prefWidth="95.0" />
+                        <ColumnConstraints hgrow="ALWAYS" minWidth="10.0" />
+                     </columnConstraints>
+                     <Label styleClass="body-label" text="Family Size:" GridPane.rowIndex="0"><font><Font name="Segoe UI Bold" size="13.0"/></font></Label>
+                     <TextField fx:id="txtFamilySize" promptText="Default: 1" GridPane.columnIndex="1" GridPane.rowIndex="0" />
+                     
+                     <Label styleClass="body-label" text="Credit Card:" GridPane.rowIndex="1"><font><Font name="Segoe UI Bold" size="13.0"/></font></Label>
+                     <TextField fx:id="txtCard" promptText="Optional" GridPane.columnIndex="1" GridPane.rowIndex="1" />
+                  </GridPane>
+                  
+                  <Region VBox.vgrow="ALWAYS" />
+                  
+                  <CheckBox fx:id="chkGuide" mnemonicParsing="false" text="Register as Certified Tour Guide">
+                     <font><Font name="Segoe UI Bold" size="14.0" /></font>
+                  </CheckBox>
+                  <Region VBox.vgrow="ALWAYS" />
+               </VBox>
+            </HBox>
+            
+            <Separator />
+            <HBox alignment="CENTER" spacing="20.0">
+               <Label fx:id="lblStatus" alignment="CENTER_LEFT" HBox.hgrow="ALWAYS" maxWidth="Infinity" wrapText="true" />
+               <Button mnemonicParsing="false" onAction="#handleRegister" prefHeight="45.0" prefWidth="250.0" styleClass="primary-btn" style="-fx-font-weight: bold; -fx-font-size: 15px;" text="Submit Enrollment" />
+            </HBox>
+         </VBox>
+         
+      </VBox>
+   </content>
+</ScrollPane>
