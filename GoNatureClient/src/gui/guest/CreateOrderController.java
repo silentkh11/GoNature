@@ -58,7 +58,7 @@ public class CreateOrderController {
         // Initialize Time Combo
         ObservableList<String> times = FXCollections.observableArrayList(
             "08:00:00", "09:00:00", "10:00:00", "11:00:00", "12:00:00",
-            "13:00:00", "14:00:00", "15:00:00", "16:00:00", "17:00:00"
+            "13:00:00", "14:00:00", "15:00:00", "16:00:00", "17:00:00", "20:28:00"
         );
         timeCombo.setItems(times);
 
@@ -216,7 +216,8 @@ public class CreateOrderController {
                     showStatus("Park is full! You have been added to the Waitlist (Order #" + confirmed.getOrderId() + ").\n"
                         + "We will notify you at " + confirmed.getEmail() + " if a spot opens up.", "#e17055");
                     
-                    int parkId = parkMap.get(parkCombo.getValue());
+                    Integer parkId = parkMap.get(parkCombo.getValue());
+                    if (parkId == null) return;
                     String[] data = { String.valueOf(parkId), pendingWaitlistDate };
                     ChatClient.getInstance().handleMessageFromClientUI(new Message("FETCH_AVAILABLE_SLOTS", data));
                     
@@ -258,7 +259,7 @@ public class CreateOrderController {
     private void forceUIToMainMenu() {
         try {
             javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(
-                getClass().getResource("/gui/MainMenu.fxml"));
+                getClass().getResource("/gui/guest/MainMenu.fxml"));
             javafx.scene.Parent root = loader.load();
             javafx.stage.Stage stage = (javafx.stage.Stage) statusLabel.getScene().getWindow();
             WindowChrome.setContent(stage, root, "GoNature - Welcome");

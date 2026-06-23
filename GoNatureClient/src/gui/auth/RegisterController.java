@@ -124,7 +124,7 @@ public class RegisterController {
 
     private void forceUIToMainMenu() {
         try {
-            Parent root = FXMLLoader.load(getClass().getResource("/gui/MainMenu.fxml"));
+            Parent root = FXMLLoader.load(getClass().getResource("/gui/guest/MainMenu.fxml"));
             Stage stage = (Stage) lblStatus.getScene().getWindow();
             WindowChrome.setContent(stage, root, "GoNature - Welcome");
         } catch (Exception e) {
