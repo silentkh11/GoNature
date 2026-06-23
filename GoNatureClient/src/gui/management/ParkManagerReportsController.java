@@ -187,18 +187,23 @@ public class ParkManagerReportsController {
                 ArrayList<String[]> rows = (ArrayList<String[]>) msg.getData();
                 usageList.getItems().clear();
                 if (rows.isEmpty()) {
-                    lblUsageSummary.setText("No below-capacity days found for this period.");
-                    usageList.setPlaceholder(new Label("The park was at or above capacity on all active days this month."));
+                    lblUsageSummary.setText("No activity recorded for this period.");
+                    usageList.setPlaceholder(new Label("No visit data found for this park and month."));
                 } else {
+                    long fullDays = rows.stream().filter(r -> r.length > 5 && "FULL".equals(r[5])).count();
+                    long freeDays = rows.size() - fullDays;
                     for (String[] row : rows) {
-                        String line = String.format("📅 %s   |   %s / %s visitors  (%s%% full)   |   %s spots available",
-                            row[0], row[1], row[2], row[4], row[3]);
+                        boolean isFull = row.length > 5 && "FULL".equals(row[5]);
+                        String icon = isFull ? "🔴" : "🟢";
+                        String label = isFull ? "FULL" : row[3] + " spots free";
+                        String line = String.format("%s %s   |   %s / %s visitors  (%s%%)   |   %s",
+                            icon, row[0], row[1], row[2], row[4], label);
                         usageList.getItems().add(line);
                     }
-                    lblUsageSummary.setText(rows.size() + " day(s) had below-capacity attendance.");
-                    lblUsageSummary.setStyle("-fx-text-fill: #00b894; -fx-font-weight: bold;");
+                    lblUsageSummary.setText("🔴 " + fullDays + " full day(s)   |   🟢 " + freeDays + " below-capacity day(s)");
+                    lblUsageSummary.setStyle("-fx-text-fill: #e6edf3; -fx-font-weight: bold;");
                 }
-                showStatus("Usage report loaded — " + rows.size() + " day(s) below capacity.", "#00b894");
+                showStatus("Usage report loaded — " + rows.size() + " active day(s).", "#00b894");
             } 
             // --- WATCHDOG AUTO-LOGOUT ---
             else if (msg.getCommand().equals("SERVER_DISCONNECTED") || msg.getCommand().equals("KICKED")) {

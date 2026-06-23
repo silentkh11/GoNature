@@ -26,6 +26,7 @@ public class DBController {
 
     private static DBController instance;
     private HikariDataSource dataSource;
+    private ScheduledExecutorService notificationScheduler;
 
     private DBController(String dbPassword) {
         initPool(dbPassword);
@@ -100,10 +101,10 @@ public class DBController {
             // Seed additional parks — INSERT IGNORE skips rows whose park_id already exists
             st.execute(
                 "INSERT IGNORE INTO park (park_id, name, max_capacity, casual_gap, estimated_stay_time, current_visitors, active_discount) VALUES " +
-                "(5, 'Masada National Park',       800, 80, 120, 0, 0)," +
-                "(6, 'Caesarea National Park',     600, 60,  90, 0, 0)," +
-                "(7, 'Timna Valley Park',          400, 40, 150, 0, 0)," +
-                "(8, 'Nahal Ayun Nature Reserve',  200, 20,  90, 0, 0)"
+                "(5, 'Masada National Park',       800, 80, 3, 0, 0)," +
+                "(6, 'Caesarea National Park',     600, 60, 2, 0, 0)," +
+                "(7, 'Timna Valley Park',          400, 40, 3, 0, 0)," +
+                "(8, 'Nahal Ayun Nature Reserve',  200, 20, 2, 0, 0)"
             );
 
             System.out.println("Schema verified/migrated successfully.");
@@ -133,8 +134,11 @@ public class DBController {
         return dataSource.getConnection();
     }
 
-    /** Shuts down the connection pool cleanly. */
+    /** Shuts down the notification scheduler and connection pool cleanly. */
     public void closePool() {
+        if (notificationScheduler != null && !notificationScheduler.isShutdown()) {
+            notificationScheduler.shutdownNow();
+        }
         if (dataSource != null && !dataSource.isClosed()) {
             dataSource.close();
             instance = null;
@@ -145,7 +149,8 @@ public class DBController {
     // --- 0. AUTOMATED NOTIFICATION ENGINE ---
     // =========================================================================
     private void startAutomatedNotificationEngine() {
-        ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+        notificationScheduler = Executors.newScheduledThreadPool(1);
+        ScheduledExecutorService scheduler = notificationScheduler;
 
         scheduler.scheduleAtFixedRate(() -> {
             try (Connection conn = getConnection()) {
@@ -155,7 +160,7 @@ public class DBController {
                     "SELECT v.order_id, v.visit_date, v.visit_time, v.visitor_count, " +
                     "vis.first_name, vis.email, vis.phone FROM visit_order v " +
                     "JOIN visitor vis ON v.visitor_id = vis.visitor_id " +
-                    "WHERE v.status = 'Confirmed' AND v.notification_time IS NULL " +
+                    "WHERE v.status = 'Booked' AND v.notification_time IS NULL " +
                     "AND TIMESTAMP(v.visit_date, v.visit_time) BETWEEN NOW() + INTERVAL 23 HOUR AND NOW() + INTERVAL 25 HOUR";
                 String updateReminder =
                     "UPDATE visit_order SET status = 'Pending Confirm', notification_time = NOW() WHERE order_id = ?";
@@ -268,7 +273,7 @@ public class DBController {
     public static boolean hasDuplicateBooking(entities.VisitOrder order) {
         String query =
             "SELECT order_id FROM visit_order WHERE visitor_id = ? AND park_id = ? AND visit_date = ? " +
-            "AND status IN ('Confirmed', 'Waitlisted', 'In Park', 'Pending Confirm', 'Waitlist Pending')";
+            "AND status IN ('Booked', 'Confirmed', 'Waitlisted', 'In Park', 'Pending Confirm', 'Waitlist Pending')";
         try (Connection conn = getInstance().getConnection();
              PreparedStatement stmt = conn.prepareStatement(query)) {
             stmt.setString(1, order.getVisitorId());
@@ -335,7 +340,7 @@ public class DBController {
                 "WHERE park_id = ? AND visit_date = ? " +
                 "AND HOUR(visit_time) > HOUR(?) - ? " +
                 "AND HOUR(visit_time) < HOUR(?) + ? " +
-                "AND status IN ('Confirmed', 'In Park', 'Pending Confirm', 'Waitlist Pending')";
+                "AND status IN ('Booked', 'Confirmed', 'In Park', 'Pending Confirm', 'Waitlist Pending')";
             try (PreparedStatement ps = conn.prepareStatement(sumQuery)) {
                 ps.setInt(1, order.getParkId());
                 ps.setString(2, order.getVisitDate());
@@ -350,7 +355,7 @@ public class DBController {
 
             int availableForPreorder = maxCapacity - casualGap;
             String assignedStatus = ((currentBooked + order.getVisitorCount()) > availableForPreorder)
-                ? "Waitlisted" : "Confirmed";
+                ? "Waitlisted" : "Booked";
 
             int basePrice = 100;
             boolean isSubscriber = false;
@@ -412,6 +417,26 @@ public class DBController {
                     if (keys.next()) {
                         order.setOrderId(keys.getInt(1));
                         order.setStatus(assignedStatus);
+
+                        // Send booking confirmation email for non-waitlisted orders only
+                        if (assignedStatus.equals("Booked")
+                                && order.getEmail() != null
+                                && order.getEmail().contains("@")) {
+                            try {
+                                String cancelUrl = serverBaseUrl + "/cancel?id=" + order.getOrderId();
+                                String shortTime = (order.getVisitTime() != null)
+                                    ? order.getVisitTime().substring(0, Math.min(5, order.getVisitTime().length()))
+                                    : "";
+                                String subject = "✅ GoNature Booking Confirmed — Order #" + order.getOrderId();
+                                String htmlBody = buildBookingConfirmEmail(
+                                    order.getOrderId(), order.getVisitDate(), shortTime,
+                                    order.getVisitorCount(), calculatedPrice, cancelUrl);
+                                EmailSender.sendHtmlEmail(order.getEmail(), subject, htmlBody);
+                            } catch (Throwable mailEx) {
+                                System.err.println("Booking confirmation email failed: " + mailEx.getMessage());
+                            }
+                        }
+
                         return order;
                     }
                 }
@@ -1062,7 +1087,7 @@ public class DBController {
                 "WHERE park_id = ? AND visit_date = ? " +
                 "AND HOUR(visit_time) > HOUR(?) - ? " +
                 "AND HOUR(visit_time) < HOUR(?) + ? " +
-                "AND status IN ('Confirmed', 'In Park', 'Pending Confirm', 'Waitlist Pending')";
+                "AND status IN ('Booked', 'Confirmed', 'In Park', 'Pending Confirm', 'Waitlist Pending')";
             try (java.sql.PreparedStatement ps = conn.prepareStatement(sumQ)) {
                 ps.setInt(1, parkId);
                 ps.setString(2, date);
@@ -1371,7 +1396,7 @@ public class DBController {
         // 2. No-shows: visit time passed but still in an 'active' status
         String noShowQ =
             "SELECT order_type, COUNT(*) AS cnt FROM visit_order " +
-            "WHERE status IN ('Confirmed', 'Pending Confirm', 'Waitlisted', 'Waitlist Pending') " +
+            "WHERE status IN ('Booked', 'Confirmed', 'Pending Confirm', 'Waitlisted', 'Waitlist Pending') " +
             "AND MONTH(visit_date) = ? AND YEAR(visit_date) = ? " +
             "AND TIMESTAMP(visit_date, visit_time) < NOW()" +
             parkFilter + "GROUP BY order_type";
@@ -1518,7 +1543,7 @@ public class DBController {
                 "WHERE park_id=? AND visit_date=? " +
                 "AND HOUR(visit_time) > HOUR(?) - ? " +
                 "AND HOUR(visit_time) < HOUR(?) + ? " +
-                "AND status IN ('Confirmed','In Park','Pending Confirm','Waitlist Pending')";
+                "AND status IN ('Booked','Confirmed','In Park','Pending Confirm','Waitlist Pending')";
             for (String slot : allSlots) {
                 try (PreparedStatement ps = conn.prepareStatement(sumQ)) {
                     ps.setInt(1, parkId);
@@ -1610,9 +1635,8 @@ public class DBController {
             "FROM visit_order vo " +
             "JOIN park p ON vo.park_id = p.park_id " +
             "WHERE vo.park_id = ? AND MONTH(vo.visit_date) = ? AND YEAR(vo.visit_date) = ? " +
-            "  AND vo.status IN ('Confirmed','In Park','Completed','Pending Confirm','Waitlist Pending') " +
+            "  AND vo.status IN ('Booked','Confirmed','In Park','Completed','Pending Confirm','Waitlist Pending') " +
             "GROUP BY vo.visit_date, p.max_capacity " +
-            "HAVING daily_total < p.max_capacity " +
             "ORDER BY vo.visit_date";
         try (java.sql.Connection conn = getInstance().getConnection();
              java.sql.PreparedStatement ps = conn.prepareStatement(query)) {
@@ -1626,8 +1650,9 @@ public class DBController {
                     int maxCap      = rs.getInt("max_capacity");
                     int available   = maxCap - visitors;
                     double pct      = maxCap > 0 ? (visitors * 100.0 / maxCap) : 0;
+                    String fullFlag = (available <= 0) ? "FULL" : "Available";
                     rows.add(new String[]{ date, String.valueOf(visitors), String.valueOf(maxCap),
-                                          String.valueOf(available), String.format("%.1f", pct) });
+                                          String.valueOf(Math.max(0, available)), String.format("%.1f", pct), fullFlag });
                 }
             }
         } catch (java.sql.SQLException e) {
@@ -1767,8 +1792,8 @@ public class DBController {
                     currentStatus = rs.getString("status");
                 }
             }
-            if (!currentStatus.equals("Confirmed") && !currentStatus.equals("Waitlisted")) {
-                return "ERROR:Only 'Confirmed' or 'Waitlisted' orders can be edited. Once a reminder is sent you can only confirm or cancel.";
+            if (!currentStatus.equals("Booked")) {
+                return "ERROR:Only 'Booked' orders can be edited. Once your attendance is confirmed or the 24h reminder is sent, editing is no longer available.";
             }
 
             // Park capacity parameters
@@ -1793,7 +1818,7 @@ public class DBController {
                 "SELECT COALESCE(SUM(visitor_count),0) AS total FROM visit_order " +
                 "WHERE park_id=? AND visit_date=? " +
                 "AND HOUR(visit_time) > HOUR(?)-? AND HOUR(visit_time) < HOUR(?)+? " +
-                "AND status IN ('Confirmed','In Park','Pending Confirm','Waitlist Pending') " +
+                "AND status IN ('Booked','Confirmed','In Park','Pending Confirm','Waitlist Pending') " +
                 "AND order_id != ?";
             int booked = 0;
             try (java.sql.PreparedStatement ps = conn.prepareStatement(sumQ)) {
@@ -1809,7 +1834,7 @@ public class DBController {
 
             int availablePreorder = maxCapacity - casualGap;
             String newStatus = ((booked + updated.getVisitorCount()) > availablePreorder)
-                    ? "Waitlisted" : "Confirmed";
+                    ? "Waitlisted" : "Booked";
 
             // Recalculate price
             boolean isSubscriber = false, isGuide = false;
@@ -1856,6 +1881,56 @@ public class DBController {
     // =========================================================================
     // --- 18. HTML EMAIL BUILDERS (24h reminder & waitlist promotion) ---
     // =========================================================================
+
+    /** Builds the styled booking-confirmation HTML email body sent immediately after booking. */
+    public static String buildBookingConfirmEmail(int orderId, String date, String time,
+                                                   int visitors, double price, String cancelUrl) {
+        return "<!DOCTYPE html><html lang='en'><head><meta charset='UTF-8'>"
+            + "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+            + "<title>GoNature — Booking Confirmed</title>"
+            + "<style>"
+            + "body{margin:0;padding:40px 0;background:#0d1117;font-family:'Segoe UI',Arial,sans-serif;}"
+            + ".w{max-width:560px;margin:0 auto;background:#161b22;border-radius:12px;"
+            + "border:1px solid #30363d;overflow:hidden;}"
+            + ".hd{background:linear-gradient(135deg,#1a3a5c,#0984e3);padding:28px;text-align:center;}"
+            + ".hd h1{color:#fff;margin:0;font-size:22px;} .hd p{color:rgba(255,255,255,.8);margin:4px 0 0;font-size:14px;}"
+            + ".bd{padding:32px;}"
+            + ".greet{color:#e6edf3;font-size:15px;margin-bottom:18px;}"
+            + ".note{color:#8b949e;font-size:13px;line-height:1.6;margin-bottom:20px;}"
+            + ".box{background:#0d1117;border-radius:8px;padding:18px;margin:20px 0;}"
+            + ".row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #21262d;}"
+            + ".row:last-child{border-bottom:none;}"
+            + ".lbl{color:#8b949e;font-size:13px;}.val{color:#e6edf3;font-size:13px;font-weight:600;}"
+            + ".qr{background:#0d1117;border:2px solid #0984e3;border-radius:8px;padding:20px;"
+            + "text-align:center;margin:20px 0;}"
+            + ".qr-code{font-size:48px;font-weight:bold;color:#0984e3;letter-spacing:6px;}"
+            + ".qr-label{color:#8b949e;font-size:11px;margin-top:6px;}"
+            + "a.btn-x{display:block;text-align:center;color:#8b949e!important;text-decoration:none;"
+            + "font-size:13px;padding:10px;margin-top:12px;}"
+            + ".ft{background:#0d1117;padding:18px;text-align:center;color:#8b949e;font-size:11px;}"
+            + "</style></head><body>"
+            + "<div class='w'>"
+            + "<div class='hd'><h1>🌿 GoNature</h1><p>Your booking is confirmed!</p></div>"
+            + "<div class='bd'>"
+            + "<p class='greet'>Your visit has been successfully booked.</p>"
+            + "<p class='note'>Present your Order ID at the park entrance. A 24-hour reminder will be sent before your visit — "
+            + "please confirm within <strong style='color:#f0932b'>2 hours</strong> of that reminder to keep your spot.</p>"
+            + "<div class='box'>"
+            + "<div class='row'><span class='lbl'>Order #</span><span class='val'>" + orderId + "</span></div>"
+            + "<div class='row'><span class='lbl'>Date</span><span class='val'>" + date + "</span></div>"
+            + "<div class='row'><span class='lbl'>Time</span><span class='val'>" + time + "</span></div>"
+            + "<div class='row'><span class='lbl'>Visitors</span><span class='val'>" + visitors + "</span></div>"
+            + "<div class='row'><span class='lbl'>Total Price</span><span class='val'>₪" + String.format("%.0f", price) + "</span></div>"
+            + "</div>"
+            + "<div class='qr'>"
+            + "<div class='qr-code'>#" + orderId + "</div>"
+            + "<div class='qr-label'>SHOW THIS AT PARK ENTRANCE</div>"
+            + "</div>"
+            + "<a href='" + cancelUrl + "' class='btn-x'>I can't make it — Cancel this booking</a>"
+            + "</div>"
+            + "<div class='ft'>GoNature Parks Management System · Automated message · Do not reply</div>"
+            + "</div></body></html>";
+    }
 
     /** Builds the styled 24-hour reminder HTML email body. */
     public static String buildReminderEmail(String firstName, int orderId, String date,

@@ -20,6 +20,9 @@
          </padding>
 
          <HBox alignment="CENTER_RIGHT" spacing="10.0">
+            <Label fx:id="lblEmployeeName" style="-fx-font-size: 13px; -fx-font-weight: bold; -fx-padding: 0 8 0 0;" text="" HBox.hgrow="ALWAYS" maxWidth="Infinity" />
+            <Button focusTraversable="false" mnemonicParsing="false" onAction="#handleViewMyProfile"
+                    styleClass="secondary-btn" style="-fx-font-size: 13px; -fx-padding: 5 14;" text="👤 My Profile" />
             <Button fx:id="themeBtn" focusTraversable="false" mnemonicParsing="false" onAction="#handleToggleTheme"
                     styleClass="theme-toggle" text="🌙 Dark Mode" />
             <Button focusTraversable="false" mnemonicParsing="false" onAction="#handleLogout"

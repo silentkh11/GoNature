@@ -39,6 +39,7 @@ public class DeptManagerController {
     @FXML private Button btnDeny;
     @FXML private Button themeBtn;
     @FXML private Label  lblStatus;
+    @FXML private Label  lblEmployeeName;
 
     @FXML private TableView<Promotion> promotionsTable;
     @FXML private TableColumn<Promotion, Integer> colPromoId;
@@ -57,6 +58,28 @@ public class DeptManagerController {
 
     // Maps display name → Park object for the cancel-discount combo
     private final java.util.HashMap<String, Park> parkMap = new java.util.HashMap<>();
+    private entities.Employee currentUser = null;
+
+    public void setUser(entities.Employee user) {
+        this.currentUser = user;
+        if (lblEmployeeName != null)
+            lblEmployeeName.setText("👤 " + user.getFirstName() + " " + user.getLastName());
+    }
+
+    @FXML
+    void handleViewMyProfile(ActionEvent event) {
+        if (currentUser == null) return;
+        javafx.scene.control.Alert alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.INFORMATION);
+        alert.setTitle("My Profile");
+        alert.setHeaderText("Employee Information");
+        alert.setContentText(
+            "Name:        " + currentUser.getFirstName() + " " + currentUser.getLastName() + "\n" +
+            "Employee ID:  " + currentUser.getEmployeeId() + "\n" +
+            "Email:        " + (currentUser.getEmail() != null ? currentUser.getEmail() : "—") + "\n" +
+            "Role:         " + currentUser.getRole()
+        );
+        alert.showAndWait();
+    }
 
     @FXML
     public void initialize() {

@@ -26,6 +26,7 @@ public class ServiceRepController {
     @FXML private TextField txtFamilySize;
     @FXML private CheckBox chkGuide;
     @FXML private Label lblStatus;
+    @FXML private Label lblEmployeeName;
     @FXML private Button themeBtn;
 
     // --- Lookup / update section ---
@@ -39,6 +40,28 @@ public class ServiceRepController {
     @FXML private Label lblLookupStatus;
 
     private String currentLookedUpId = null;
+    private entities.Employee currentUser = null;
+
+    public void setUser(entities.Employee user) {
+        this.currentUser = user;
+        if (lblEmployeeName != null)
+            lblEmployeeName.setText("👤 " + user.getFirstName() + " " + user.getLastName());
+    }
+
+    @FXML
+    void handleViewMyProfile(javafx.event.ActionEvent event) {
+        if (currentUser == null) return;
+        javafx.scene.control.Alert alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.INFORMATION);
+        alert.setTitle("My Profile");
+        alert.setHeaderText("Employee Information");
+        alert.setContentText(
+            "Name:        " + currentUser.getFirstName() + " " + currentUser.getLastName() + "\n" +
+            "Employee ID:  " + currentUser.getEmployeeId() + "\n" +
+            "Email:        " + (currentUser.getEmail() != null ? currentUser.getEmail() : "—") + "\n" +
+            "Role:         " + currentUser.getRole()
+        );
+        alert.showAndWait();
+    }
 
     @FXML
     public void initialize() {
