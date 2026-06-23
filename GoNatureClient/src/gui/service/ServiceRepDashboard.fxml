@@ -12,6 +12,9 @@
          <HBox alignment="CENTER_RIGHT" spacing="12.0">
             <Label styleClass="title-label" text="Service Representative Dashboard" HBox.hgrow="ALWAYS" maxWidth="Infinity"><font><Font name="Segoe UI Bold" size="22.0" /></font></Label>
             <Region HBox.hgrow="ALWAYS" />
+            <Label fx:id="lblEmployeeName" style="-fx-font-size: 13px; -fx-font-weight: bold; -fx-padding: 0 8 0 0;" text="" />
+            <Button focusTraversable="false" mnemonicParsing="false" onAction="#handleViewMyProfile"
+                    styleClass="secondary-btn" style="-fx-font-size: 13px; -fx-padding: 6 15;" text="👤 My Profile" />
             <Button fx:id="themeBtn" focusTraversable="false" mnemonicParsing="false" onAction="#handleToggleTheme" styleClass="theme-toggle" text="🌙 Dark Mode" />
             <Button focusTraversable="false" mnemonicParsing="false" onAction="#handleLogout" styleClass="danger-btn" style="-fx-font-size: 13px; -fx-padding: 6 15;" text="🚪 Logout" />
          </HBox>

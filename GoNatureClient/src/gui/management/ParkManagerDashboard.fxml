@@ -21,6 +21,8 @@
                   <font><Font size="26.0" /></font>
                </Label>
                <Region HBox.hgrow="ALWAYS" />
+               <Label fx:id="lblEmployeeName" style="-fx-font-size: 13px; -fx-text-fill: #5a3810; -fx-font-weight: bold; -fx-padding: 0 10 0 0;" text="" />
+               <Button mnemonicParsing="false" onAction="#handleViewMyProfile" style="-fx-background-color: rgba(100,70,25,0.12); -fx-border-color: #a08040; -fx-border-radius: 6; -fx-border-width: 1.5; -fx-text-fill: #5a3810; -fx-font-size: 13px; -fx-padding: 6 15; -fx-cursor: hand;" text="👤 My Profile" />
                <Button mnemonicParsing="false" onAction="#handleViewReports" style="-fx-background-color: rgba(100,70,25,0.12); -fx-border-color: #a08040; -fx-border-radius: 6; -fx-border-width: 1.5; -fx-text-fill: #5a3810; -fx-font-size: 13px; -fx-padding: 6 15; -fx-cursor: hand; -fx-font-weight: bold;" text="📊 Statistical Reports" />
                <Button fx:id="themeBtn" focusTraversable="false" mnemonicParsing="false" onAction="#handleToggleTheme" style="-fx-background-color: rgba(180,140,60,0.18); -fx-border-color: #c4a558; -fx-border-radius: 6; -fx-border-width: 1.5; -fx-text-fill: #5a3810; -fx-font-size: 13px; -fx-padding: 6 15; -fx-cursor: hand;" text="🌙 Dark Mode" />
                <Button focusTraversable="false" mnemonicParsing="false" onAction="#handleLogout" style="-fx-background-color: #c62828; -fx-text-fill: white; -fx-background-radius: 6; -fx-font-size: 13px; -fx-padding: 7 16; -fx-font-weight: bold; -fx-cursor: hand;" text="🚪 Logout" />

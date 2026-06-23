@@ -19,6 +19,7 @@ import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
+import entities.Subscriber;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -56,7 +57,18 @@ public class GuestPortalController {
     @FXML private Label  lblReadOnlyStatus;
     @FXML private Button btnReadOnlyCancel;
 
+    // --- Subscriber Profile Panel ---
+    @FXML private VBox      pnlSubscriberProfile;
+    @FXML private TextField subFirstName;
+    @FXML private TextField subLastName;
+    @FXML private TextField subEmail;
+    @FXML private TextField subPhone;
+    @FXML private TextField subFamilySize;
+    @FXML private Label     lblSubId;
+    @FXML private Label     lblSubGuide;
+
     private String currentSearchedId = "";
+    private Subscriber currentSubscriber = null;
 
     private static final String[] TIME_SLOTS = {
         "08:00:00", "09:00:00", "10:00:00", "11:00:00", "12:00:00",
@@ -99,8 +111,8 @@ public class GuestPortalController {
 
         String status = order.getStatus();
 
-        if (status.equals("Confirmed") || status.equals("Waitlisted")) {
-            // Not yet in the attendance-confirmation window — customer can still edit date/time/count
+        if (status.equals("Booked")) {
+            // Booking exists and is not yet attendance-confirmed — customer can edit date/time/count
             DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd");
             try {
                 editDate.setValue(LocalDate.parse(order.getVisitDate(), fmt));
@@ -115,8 +127,30 @@ public class GuestPortalController {
             }
             editCount.setText(String.valueOf(order.getVisitorCount()));
             lblCurrentPrice.setText(String.format("₪ %.2f", order.getPrice()));
-            lblEditStatus.setText("(" + status + ")");
+            lblEditStatus.setText("(Booked)");
             showPanel(pnlEdit);
+
+        } else if (status.equals("Confirmed")) {
+            // Customer has confirmed attendance — locked, no editing
+            lblReadOnlyStatus.setText(
+                "✅ Attendance confirmed for " + order.getVisitDate() +
+                " at " + shortTime(order.getVisitTime()) + " (" + order.getVisitorCount() + " visitors).\n" +
+                "Your spot is guaranteed. You may still cancel if you can no longer make it."
+            );
+            btnReadOnlyCancel.setVisible(true);
+            btnReadOnlyCancel.setManaged(true);
+            showPanel(pnlReadOnly);
+
+        } else if (status.equals("Waitlisted")) {
+            // On waitlist — no editing, only cancel
+            lblReadOnlyStatus.setText(
+                "⏳ You are on the waitlist for " + order.getVisitDate() +
+                " at " + shortTime(order.getVisitTime()) + " (" + order.getVisitorCount() + " visitors).\n" +
+                "We will notify you by email if a spot opens up. You may cancel below."
+            );
+            btnReadOnlyCancel.setVisible(true);
+            btnReadOnlyCancel.setManaged(true);
+            showPanel(pnlReadOnly);
 
         } else if (status.equals("Pending Confirm")) {
             lblConfirmHeading.setText("⏰ Attendance Confirmation Required");
@@ -154,6 +188,7 @@ public class GuestPortalController {
         setPanel(pnlEdit,     false);
         setPanel(pnlConfirm,  false);
         setPanel(pnlReadOnly, false);
+        // Note: pnlSubscriberProfile stays visible once loaded — it persists per session
         btnReadOnlyCancel.setVisible(false);
         btnReadOnlyCancel.setManaged(false);
     }
@@ -179,6 +214,8 @@ public class GuestPortalController {
         hideAllPanels();
         showStatus("Fetching your orders...", "#0984e3");
         ChatClient.getInstance().handleMessageFromClientUI(new Message("FETCH_GUEST_ORDERS", currentSearchedId));
+        // Also fetch subscriber profile so they can view/edit their details
+        ChatClient.getInstance().handleMessageFromClientUI(new Message("FETCH_SUBSCRIBER_REQUEST", currentSearchedId));
     }
 
     @FXML
@@ -240,6 +277,35 @@ public class GuestPortalController {
         if (s.equals("In Park"))    { showStatus("Cannot cancel — visitor is currently inside the park.", "#d63031"); return; }
         if (s.equals("Completed"))  { showStatus("Cannot cancel a completed visit.", "#d63031"); return; }
         ChatClient.getInstance().handleMessageFromClientUI(new Message("CANCEL_ORDER_REQUEST", selected.getOrderId()));
+    }
+
+    @FXML
+    void handleSaveSubscriberProfile(ActionEvent event) {
+        if (currentSubscriber == null) {
+            showStatus("No subscriber profile loaded. Enter your ID and click Find Orders first.", "#d63031");
+            return;
+        }
+        String sizeStr = subFamilySize.getText().trim();
+        int familySize;
+        try {
+            familySize = Integer.parseInt(sizeStr);
+            if (familySize < 1) throw new NumberFormatException();
+        } catch (NumberFormatException e) {
+            showStatus("Family size must be a positive number.", "#d63031");
+            return;
+        }
+        Subscriber updated = new Subscriber(
+            currentSubscriber.getVisitorId(),
+            subFirstName.getText().trim(),
+            subLastName.getText().trim(),
+            subEmail.getText().trim(),
+            subPhone.getText().trim(),
+            familySize,
+            currentSubscriber.getCreditCard(),
+            currentSubscriber.isGuide()
+        );
+        showStatus("Saving profile changes...", "#0984e3");
+        ChatClient.getInstance().handleMessageFromClientUI(new Message("UPDATE_SUBSCRIBER_REQUEST", updated));
     }
 
     @FXML
@@ -305,6 +371,30 @@ public class GuestPortalController {
                     ChatClient.getInstance().handleMessageFromClientUI(new Message("FETCH_GUEST_ORDERS", currentSearchedId));
                 }
                 case "UPDATE_ORDER_FAILED" -> {
+                    showStatus((String) msg.getData(), "#d63031");
+                }
+                case "SUBSCRIBER_DATA" -> {
+                    Subscriber sub = (Subscriber) msg.getData();
+                    currentSubscriber = sub;
+                    // Populate and show the subscriber profile panel
+                    lblSubId.setText("Subscriber ID: " + sub.getVisitorId());
+                    subFirstName.setText(sub.getFirstName() != null ? sub.getFirstName() : "");
+                    subLastName.setText(sub.getLastName() != null ? sub.getLastName() : "");
+                    subEmail.setText(sub.getEmail() != null ? sub.getEmail() : "");
+                    subPhone.setText(sub.getPhone() != null ? sub.getPhone() : "");
+                    subFamilySize.setText(String.valueOf(sub.getFamilySize()));
+                    lblSubGuide.setText(sub.isGuide() ? "✅ Certified Guide" : "Not a guide");
+                    lblSubGuide.setStyle(sub.isGuide()
+                        ? "-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #00b894;"
+                        : "-fx-font-size: 13px; -fx-text-fill: #636e72;");
+                    pnlSubscriberProfile.setVisible(true);
+                    pnlSubscriberProfile.setManaged(true);
+                    showStatus("✅ Subscriber profile loaded — you can view and update your details below.", "#00b894");
+                }
+                case "UPDATE_SUBSCRIBER_SUCCESS" -> {
+                    showStatus((String) msg.getData(), "#00b894");
+                }
+                case "UPDATE_SUBSCRIBER_FAILED" -> {
                     showStatus((String) msg.getData(), "#d63031");
                 }
                 default -> { /* ignore unrelated server messages */ }

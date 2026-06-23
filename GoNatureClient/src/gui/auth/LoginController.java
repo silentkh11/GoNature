@@ -155,6 +155,14 @@ public class LoginController {
 						ParkEntranceController gateController = loader.getController();
 						gateController.setUser(user);
 					}
+					if (user.getRole().equals("DeptManager")) {
+						gui.management.DeptManagerController dmController = loader.getController();
+						dmController.setUser(user);
+					}
+					if (user.getRole().equals("ServiceRep")) {
+						gui.service.ServiceRepController srController = loader.getController();
+						srController.setUser(user);
+					}
 
 					// 4. Grab the current window and swap the ROOT smoothly
 					javafx.stage.Stage stage = (javafx.stage.Stage) loginBtn.getScene().getWindow();

@@ -42,6 +42,7 @@ public class ParkManagerController {
     @FXML private Button btnSubmitPromotion;
 
     @FXML private Label lblStatus;
+    @FXML private Label lblEmployeeName;
     @FXML private Button themeBtn;
 
     private Employee currentUser;
@@ -69,8 +70,25 @@ public class ParkManagerController {
 
     public void setUser(Employee user) {
         this.currentUser = user;
-        // The moment the manager logs in, ask the database for ALL parks
+        if (lblEmployeeName != null)
+            lblEmployeeName.setText("👤 " + user.getFirstName() + " " + user.getLastName());
         ChatClient.getInstance().handleMessageFromClientUI(new Message("FETCH_ALL_PARKS", null));
+    }
+
+    @FXML
+    void handleViewMyProfile(ActionEvent event) {
+        if (currentUser == null) return;
+        javafx.scene.control.Alert alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.INFORMATION);
+        alert.setTitle("My Profile");
+        alert.setHeaderText("Employee Information");
+        alert.setContentText(
+            "Name:       " + currentUser.getFirstName() + " " + currentUser.getLastName() + "\n" +
+            "Employee ID: " + currentUser.getEmployeeId() + "\n" +
+            "Email:       " + (currentUser.getEmail() != null ? currentUser.getEmail() : "—") + "\n" +
+            "Role:        " + currentUser.getRole() + "\n" +
+            "Park ID:     " + (currentUser.getParkId() != null ? currentUser.getParkId() : "—")
+        );
+        alert.showAndWait();
     }
 
     private void updateParkDisplay() {

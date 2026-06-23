@@ -37,7 +37,7 @@ public class RegisterController {
         themeBtn.setText(ThemeManager.getInstance().toggleLabel());
         try {
             // Safely create the connection if it doesn't exist, and set the listener
-            ChatClient.getInstance("127.0.0.1", 5555, this::handleServerResponse);
+            ChatClient.getInstance(client.ClientConfig.getHost(), client.ClientConfig.getPort(), this::handleServerResponse);
         } catch (Exception e) {
             showStatus("Error: Cannot connect to the server.", "#d63031");
             btnRegister.setDisable(true);

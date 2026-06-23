@@ -25,6 +25,7 @@ public class ParkEntranceController {
     @FXML private Button btnExit;
     @FXML private Button themeBtn;
     @FXML private Label lblStatus;
+    @FXML private Label lblEmployeeName;
 
     @FXML private TextField txtWalkInCount;
     @FXML private TextField txtSubscriberId;
@@ -37,6 +38,7 @@ public class ParkEntranceController {
     @FXML private Label lblManualExitStatus;
 
     private Integer parkId;
+    private Employee currentUser;
 
     @FXML
     public void initialize() {
@@ -56,7 +58,26 @@ public class ParkEntranceController {
     }
 
     public void setUser(Employee user) {
+        this.currentUser = user;
         this.parkId = user.getParkId();
+        if (lblEmployeeName != null)
+            lblEmployeeName.setText("👤 " + user.getFirstName() + " " + user.getLastName());
+    }
+
+    @FXML
+    void handleViewMyProfile(ActionEvent event) {
+        if (currentUser == null) return;
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle("My Profile");
+        alert.setHeaderText("Employee Information");
+        alert.setContentText(
+            "Name:        " + currentUser.getFirstName() + " " + currentUser.getLastName() + "\n" +
+            "Employee ID:  " + currentUser.getEmployeeId() + "\n" +
+            "Email:        " + (currentUser.getEmail() != null ? currentUser.getEmail() : "—") + "\n" +
+            "Role:         " + currentUser.getRole() + "\n" +
+            "Assigned Park: " + (currentUser.getParkId() != null ? "Park " + currentUser.getParkId() : "—")
+        );
+        alert.showAndWait();
     }
 
     @FXML
