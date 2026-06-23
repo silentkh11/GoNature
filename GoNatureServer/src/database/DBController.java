@@ -259,7 +259,7 @@ public class DBController {
     public static boolean hasDuplicateBooking(entities.VisitOrder order) {
         String query =
             "SELECT order_id FROM visit_order WHERE visitor_id = ? AND park_id = ? AND visit_date = ? " +
-            "AND status IN ('Confirmed', 'Waitlisted', 'In Park', 'Pending Confirm')";
+            "AND status IN ('Confirmed', 'Waitlisted', 'In Park', 'Pending Confirm', 'Waitlist Pending')";
         try (Connection conn = getInstance().getConnection();
              PreparedStatement stmt = conn.prepareStatement(query)) {
             stmt.setString(1, order.getVisitorId());
@@ -426,9 +426,10 @@ public class DBController {
     // --- PARK ENTRY & GATE MANAGEMENT ---
     // =========================================================================
     public static String processParkEntry(int orderId) {
-        // We now fetch the 'price' column alongside the other required data
-        String fetchOrderQuery = "SELECT park_id, visitor_count, status, price FROM visit_order WHERE order_id = ?";
-        String updateOrderQuery = "UPDATE visit_order SET status = 'In Park' WHERE order_id = ?";
+        String fetchOrderQuery =
+            "SELECT park_id, visitor_count, status, price, order_type, visit_date, visit_time " +
+            "FROM visit_order WHERE order_id = ?";
+        String updateOrderQuery = "UPDATE visit_order SET status = 'In Park', entry_timestamp = NOW() WHERE order_id = ?";
         String updateParkQuery = "UPDATE park SET current_visitors = current_visitors + ? WHERE park_id = ?";
 
         try (java.sql.Connection conn = getInstance().getConnection();
@@ -437,26 +438,32 @@ public class DBController {
             fetchStmt.setInt(1, orderId);
             try (java.sql.ResultSet rs = fetchStmt.executeQuery()) {
                 if (!rs.next()) {
-                    return "ENTRY_DENIED: Order ID #" + orderId + " not found in the database.";
+                    return "DENIED:Order ID #" + orderId + " not found in the database.";
                 }
 
-                String status = rs.getString("status");
-                int visitors = rs.getInt("visitor_count");
-                int parkId = rs.getInt("park_id");
-                double price = rs.getDouble("price"); // Fetch the pre-calculated price!
+                String status    = rs.getString("status");
+                int visitors     = rs.getInt("visitor_count");
+                int parkId       = rs.getInt("park_id");
+                double price     = rs.getDouble("price");
+                String orderType = rs.getString("order_type");
+                String visitDate = rs.getString("visit_date");
+                String visitTime = rs.getString("visit_time");
 
                 // 1. Validate Order Status
                 if (status.equals("In Park") || status.equals("Completed")) {
-                    return "ENTRY_DENIED: Order #" + orderId + " has already been scanned.";
+                    return "DENIED:Order #" + orderId + " has already been scanned.";
                 }
                 if (status.equals("Cancelled") || status.equals("Expired")) {
-                    return "ENTRY_DENIED: Order #" + orderId + " was cancelled or expired.";
+                    return "DENIED:Order #" + orderId + " was cancelled or expired.";
+                }
+                if (status.equals("Waitlisted")) {
+                    return "DENIED:Order #" + orderId + " is on the waitlist and has not been confirmed yet.";
                 }
 
                 // 2. Validate Park Capacity
                 entities.Park park = getParkById(parkId);
                 if (park != null && (park.getCurrentVisitors() + visitors > park.getMaxCapacity())) {
-                    return "ENTRY_DENIED: Park is currently full. Wait for visitors to exit.";
+                    return "DENIED:Park is currently full. Wait for visitors to exit.";
                 }
 
                 // 3. Update the Order status to 'In Park'
@@ -472,13 +479,17 @@ public class DBController {
                     updateParkStmt.executeUpdate();
                 }
 
-                // 5. THE FIX: Return the success message WITH the payment collection amount
-                return "ENTRY_APPROVED: Order #" + orderId + " (" + visitors + " visitors) admitted.\nCollect Payment: ₪" + String.format("%.0f", price);
+                // 5. Return all receipt fields as pipe-delimited string for invoice generation
+                // Format: APPROVED:{orderId}|{visitors}|{orderType}|{price}|{date}|{time}
+                return "APPROVED:" + orderId + "|" + visitors + "|" + orderType
+                    + "|" + String.format("%.0f", price)
+                    + "|" + visitDate
+                    + "|" + (visitTime != null ? visitTime.substring(0, Math.min(5, visitTime.length())) : "");
             }
 
         } catch (java.sql.SQLException e) {
             System.err.println("Database Error Processing Entry: " + e.getMessage());
-            return "ENTRY_DENIED: Database error occurred while scanning ticket.";
+            return "DENIED:Database error occurred while scanning ticket.";
         }
     }
 

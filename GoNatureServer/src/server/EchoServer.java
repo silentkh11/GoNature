@@ -117,13 +117,15 @@ public class EchoServer extends AbstractServer {
 
                     String resultMsg = DBController.processParkEntry(orderId);
 
-                    if (resultMsg.startsWith("ENTRY_APPROVED")) {
-                        // Strip the prefix and send the clean message (which now includes the price) to the UI
-                        client.sendToClient(new Message("ENTRY_APPROVED", resultMsg.replace("ENTRY_APPROVED: ", "")));
-                        // Optional: Broadcast the updated visitor count to Park Managers
-                        pushParkUpdate(orderId); 
+                    if (resultMsg.startsWith("APPROVED:")) {
+                        // Send pipe-delimited receipt data: orderId|visitors|orderType|price|date|time
+                        client.sendToClient(new Message("ENTRY_APPROVED", resultMsg.substring("APPROVED:".length())));
+                        uiLogger.accept("> Gate Entry APPROVED — receipt data sent.\n");
+                        pushParkUpdate(orderId);
+                    } else if (resultMsg.startsWith("DENIED:")) {
+                        client.sendToClient(new Message("ENTRY_DENIED", resultMsg.substring("DENIED:".length())));
                     } else {
-                        client.sendToClient(new Message("ENTRY_DENIED", resultMsg.replace("ENTRY_DENIED: ", "")));
+                        client.sendToClient(new Message("ENTRY_DENIED", resultMsg));
                     }
                 }
 
@@ -464,6 +466,7 @@ public class EchoServer extends AbstractServer {
                     if (username != null) {
                         loggedInUsers.remove(username);
                         clientUserMap.remove(client);
+                        clientEmployeeMap.remove(client);
                         uiLogger.accept("> " + username + " logged out gracefully.\n");
                     }
                 }

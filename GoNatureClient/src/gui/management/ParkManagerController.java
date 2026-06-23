@@ -5,7 +5,6 @@ import entities.Employee;
 import entities.Message;
 import entities.Park;
 import entities.Promotion;
-import entities.ParameterRequest;
 import gui.core.ThemeManager;
 import gui.core.WindowChrome;
 import javafx.application.Platform;
@@ -104,8 +103,9 @@ public class ParkManagerController {
             int gap = Integer.parseInt(txtNewCasualGap.getText().trim());
             int stay = Integer.parseInt(txtNewEstStay.getText().trim());
 
-            ParameterRequest req = new ParameterRequest(0, currentPark.getParkId(), currentPark.getName(), maxCap, gap, stay, "Pending");
-            ChatClient.getInstance().handleMessageFromClientUI(new Message("NEW_PARAMETER_REQUEST", req));
+            Park updatedPark = new Park(currentPark.getParkId(), currentPark.getName(), maxCap, gap, stay,
+                                        currentPark.getCurrentVisitors(), currentPark.getActiveDiscount());
+            ChatClient.getInstance().handleMessageFromClientUI(new Message("UPDATE_PARK_PARAMS", updatedPark));
             showStatus("Sending parameter request to Department Manager...", "#0984e3");
         } catch (NumberFormatException e) {
             showStatus("Error: Parameters must be whole numbers.", "#d63031");
@@ -127,7 +127,7 @@ public class ParkManagerController {
             }
 
             Promotion promo = new Promotion(0, currentPark.getParkId(), currentPark.getName(), discount, "Pending");
-            ChatClient.getInstance().handleMessageFromClientUI(new Message("NEW_PROMOTION_REQUEST", promo));
+            ChatClient.getInstance().handleMessageFromClientUI(new Message("SUBMIT_PROMOTION_REQUEST", promo));
             showStatus("Sending promotion request to Department Manager...", "#0984e3");
         } catch (NumberFormatException e) {
             showStatus("Error: Discount must be a number.", "#d63031");
@@ -166,23 +166,42 @@ public class ParkManagerController {
                 }
             }
             
-            // --- RESPONSES FROM SUBMISSIONS ---
-            else if (msg.getCommand().equals("REQUEST_SUCCESS") || msg.getCommand().equals("PROMOTION_SUCCESS")) {
-                showStatus((String) msg.getData(), "#00b894");
-            } 
-            else if (msg.getCommand().equals("REQUEST_FAILED") || msg.getCommand().equals("PROMOTION_FAILED")) {
+            // --- RESPONSES FROM PARAMETER SUBMISSIONS ---
+            else if (msg.getCommand().equals("UPDATE_PARAMS_SUCCESS")) {
+                showStatus("Parameter request sent! Awaiting Department Manager approval.", "#00b894");
+            }
+            else if (msg.getCommand().equals("UPDATE_PARAMS_FAILED")) {
                 showStatus((String) msg.getData(), "#d63031");
             }
-            
-            // --- REAL-TIME PARK UPDATES ---
-            else if (msg.getCommand().equals("PARK_UPDATED")) {
+
+            // --- RESPONSES FROM PROMOTION SUBMISSIONS ---
+            else if (msg.getCommand().equals("PROMOTION_SUBMIT_SUCCESS")) {
+                showStatus("Promotion request sent! Awaiting Department Manager approval.", "#00b894");
+            }
+            else if (msg.getCommand().equals("PROMOTION_SUBMIT_FAILED")) {
+                showStatus((String) msg.getData(), "#d63031");
+            }
+
+            // --- DEPT MANAGER DECISION NOTIFICATIONS ---
+            else if (msg.getCommand().equals("PARAMETER_DECISION_MADE")) {
+                String decision = (String) msg.getData();
+                showStatus("Your parameter request was " + decision + " by the Department Manager.", "#0984e3");
+                ChatClient.getInstance().handleMessageFromClientUI(new Message("FETCH_ALL_PARKS", null));
+            }
+            else if (msg.getCommand().equals("PROMOTION_DECISION_MADE")) {
+                String decision = (String) msg.getData();
+                showStatus("Your promotion request was " + decision + " by the Department Manager.", "#0984e3");
+                ChatClient.getInstance().handleMessageFromClientUI(new Message("FETCH_ALL_PARKS", null));
+            }
+
+            // --- REAL-TIME PARK UPDATES (live visitor count from gate entries/exits) ---
+            else if (msg.getCommand().equals("PARK_DETAILS_DATA")) {
                 Park updated = (Park) msg.getData();
-                parkMap.put(updated.getName(), updated); // Update the map silently behind the scenes
-                
-                // If the manager is currently looking at the park that was just updated, refresh their screen!
+                parkMap.put(updated.getName(), updated);
+
                 if (currentPark != null && currentPark.getParkId() == updated.getParkId()) {
                     currentPark = updated;
-                    updateParkDisplay(); 
+                    updateParkDisplay();
                 }
             }
         });

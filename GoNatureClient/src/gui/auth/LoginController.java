@@ -126,7 +126,7 @@ public class LoginController {
 					windowTitle = "GoNature - Park Manager";
 					break;
 				case "GateWorker":
-					targetFxml = "/gui/gate/parkEntrance.fxml";
+					targetFxml = "/gui/gate/ParkEntrance.fxml";
 					windowTitle = "GoNature - Park Gate Scanner";
 					break;
 				case "DeptManager":
@@ -188,7 +188,7 @@ public class LoginController {
 	private void forceUIToMainMenu() {
 		try {
 			javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(
-				getClass().getResource("/gui/MainMenu.fxml"));
+				getClass().getResource("/gui/guest/MainMenu.fxml"));
 			javafx.scene.Parent root = loader.load();
 			javafx.stage.Stage stage = (javafx.stage.Stage) loginBtn.getScene().getWindow();
 			WindowChrome.setContent(stage, root, "GoNature - Welcome");
