@@ -27,6 +27,7 @@ public class ParkEntranceController {
     @FXML private Label lblStatus;
 
     @FXML private TextField txtWalkInCount;
+    @FXML private TextField txtSubscriberId;
     @FXML private ComboBox<String> cmbWalkInType;
     @FXML private Button btnWalkIn;
     @FXML private Label lblWalkInStatus;
@@ -124,7 +125,8 @@ public class ParkEntranceController {
                 return;
             }
             String orderType = type.equals("Group") ? "Group" : "Solo";
-            String[] data = { String.valueOf(parkId), String.valueOf(count), orderType };
+            String subscriberId = (txtSubscriberId != null) ? txtSubscriberId.getText().trim() : "";
+            String[] data = { String.valueOf(parkId), String.valueOf(count), orderType, subscriberId };
             btnWalkIn.setDisable(true);
             showWalkInStatus("Checking park capacity...", "#0984e3");
             ChatClient.getInstance().handleMessageFromClientUI(new Message("WALKIN_REQUEST", data));
@@ -207,6 +209,7 @@ public class ParkEntranceController {
                     showReceiptDialog(buildWalkInReceipt(ticket));
                     txtWalkInCount.clear();
                     cmbWalkInType.setValue(null);
+                    if (txtSubscriberId != null) txtSubscriberId.clear();
                     break;
                 }
 

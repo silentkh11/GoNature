@@ -10,10 +10,11 @@ module GoNatureServer {
     requires mail;
     requires activation;
     requires java.net.http;
+    requires jdk.httpserver;
     // Exporting packages so JavaFX can launch the windows
     exports server;
-    exports gui; 
-    
+    exports gui;
+    exports database;
 
     // VERY IMPORTANT: Allow JavaFX to read the @FXML tags in your controller
     opens gui to javafx.fxml;

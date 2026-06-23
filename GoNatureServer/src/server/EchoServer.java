@@ -96,7 +96,19 @@ public class EchoServer extends AbstractServer {
                         return;
                     }
 
-                    // 3. Process through the Capacity Engine
+                    // 3. Family membership: visitor_count must not exceed family_size
+                    if (!newOrder.getOrderType().equalsIgnoreCase("Group")) {
+                        int familySize = DBController.getSubscriberFamilySize(newOrder.getVisitorId());
+                        if (familySize > 0 && newOrder.getVisitorCount() > familySize) {
+                            client.sendToClient(new Message("ORDER_FAILED",
+                                "Booking exceeds your subscription family size (" + familySize
+                                + " member(s) covered). Please contact a Service Representative to update your plan."));
+                            uiLogger.accept("> Booking rejected — visitor count exceeds family size.\n");
+                            return;
+                        }
+                    }
+
+                    // 4. Process through the Capacity Engine
                     entities.VisitOrder processedOrder = DBController.processNewOrder(newOrder);
 
                     if (processedOrder != null) {
@@ -145,11 +157,12 @@ public class EchoServer extends AbstractServer {
 
                 else if (request.getCommand().equals("WALKIN_REQUEST")) {
                     String[] data = (String[]) request.getData();
-                    int parkId     = Integer.parseInt(data[0]);
-                    int count      = Integer.parseInt(data[1]);
-                    String type    = data[2];
+                    int parkId          = Integer.parseInt(data[0]);
+                    int count           = Integer.parseInt(data[1]);
+                    String type         = data[2];
+                    String subscriberId = (data.length > 3) ? data[3] : "";
                     uiLogger.accept("> Walk-in request: " + count + " visitors (" + type + ") at park " + parkId + "\n");
-                    entities.VisitOrder walkin = DBController.processWalkIn(parkId, count, type);
+                    entities.VisitOrder walkin = DBController.processWalkIn(parkId, count, type, subscriberId);
                     if (walkin != null) {
                         client.sendToClient(new Message("WALKIN_APPROVED", walkin));
                         uiLogger.accept("> Walk-in APPROVED. Ticket #" + walkin.getOrderId() + "\n");
@@ -232,9 +245,9 @@ public class EchoServer extends AbstractServer {
                 else if (request.getCommand().equals("REGISTER_SUBSCRIBER_REQUEST")) {
                     entities.Subscriber newSub = (entities.Subscriber) request.getData();
                     uiLogger.accept("> Service Rep attempting to register Subscriber ID: " + newSub.getVisitorId() + "\n");
-                    
+
                     String resultMsg = DBController.registerNewSubscriber(newSub);
-                    
+
                     if (resultMsg.startsWith("SUCCESS")) {
                         client.sendToClient(new Message("REGISTER_SUCCESS", resultMsg));
                     } else {
@@ -242,9 +255,43 @@ public class EchoServer extends AbstractServer {
                     }
                 }
 
+                else if (request.getCommand().equals("FETCH_SUBSCRIBER_REQUEST")) {
+                    String visitorId = (String) request.getData();
+                    uiLogger.accept("> Service Rep looking up Subscriber ID: " + visitorId + "\n");
+                    entities.Subscriber sub = DBController.getSubscriberById(visitorId);
+                    if (sub != null) {
+                        client.sendToClient(new Message("SUBSCRIBER_DATA", sub));
+                    } else {
+                        client.sendToClient(new Message("SUBSCRIBER_NOT_FOUND", "No subscriber found with ID: " + visitorId));
+                    }
+                }
+
+                else if (request.getCommand().equals("UPDATE_SUBSCRIBER_REQUEST")) {
+                    entities.Subscriber updatedSub = (entities.Subscriber) request.getData();
+                    uiLogger.accept("> Updating subscriber ID: " + updatedSub.getVisitorId() + "\n");
+                    String result = DBController.updateSubscriberInfo(updatedSub);
+                    if (result.startsWith("SUCCESS")) {
+                        client.sendToClient(new Message("UPDATE_SUBSCRIBER_SUCCESS", result));
+                    } else {
+                        client.sendToClient(new Message("UPDATE_SUBSCRIBER_FAILED", result));
+                    }
+                }
+
                 // =========================================================================
                 // --- 7. GUEST PORTAL ROUTING ---
                 // =========================================================================
+                else if (request.getCommand().equals("UPDATE_ORDER_REQUEST")) {
+                    entities.VisitOrder updatedOrder = (entities.VisitOrder) request.getData();
+                    uiLogger.accept("> Guest edit Order #" + updatedOrder.getOrderId() + "\n");
+                    String result = DBController.updateOrderDetails(updatedOrder);
+                    if (result.startsWith("SUCCESS")) {
+                        client.sendToClient(new Message("UPDATE_ORDER_SUCCESS", result));
+                        broadcastParkUpdate(updatedOrder.getParkId());
+                    } else {
+                        client.sendToClient(new Message("UPDATE_ORDER_FAILED", result));
+                    }
+                }
+
                 else if (request.getCommand().equals("FETCH_GUEST_ORDERS")) {
                     String visitorId = (String) request.getData();
                     uiLogger.accept("> Fetching orders for Visitor ID: " + visitorId + "\n");
@@ -289,22 +336,30 @@ public class EchoServer extends AbstractServer {
                 else if (request.getCommand().equals("CANCEL_ORDER_REQUEST")) {
                     int orderIdToCancel = (int) request.getData();
                     uiLogger.accept("> Request to cancel Order ID: " + orderIdToCancel + "\n");
+                    // Fetch parkId before cancel so we can broadcast the update
+                    entities.VisitOrder toCancel = DBController.getOrderById(orderIdToCancel);
                     boolean success = DBController.cancelOrder(orderIdToCancel);
                     if (success) {
                         client.sendToClient(new Message("CANCEL_SUCCESS", "Order #" + orderIdToCancel + " has been cancelled."));
+                        if (toCancel != null) broadcastParkUpdate(toCancel.getParkId());
                     } else {
-                        client.sendToClient(new Message("CANCEL_FAILED", "Failed to cancel Order #" + orderIdToCancel + "."));
+                        client.sendToClient(new Message("CANCEL_FAILED", "Failed to cancel Order #" + orderIdToCancel
+                            + ". It may already be cancelled, completed, or the visitor is currently in the park."));
                     }
                 }
 
                 else if (request.getCommand().equals("CONFIRM_ORDER_REQUEST")) {
                     int orderIdToConfirm = (int) request.getData();
                     uiLogger.accept("> Request to confirm Order ID: " + orderIdToConfirm + "\n");
+                    entities.VisitOrder toConfirm = DBController.getOrderById(orderIdToConfirm);
                     boolean success = DBController.confirmOrder(orderIdToConfirm);
                     if (success) {
                         client.sendToClient(new Message("CONFIRM_SUCCESS", "Order #" + orderIdToConfirm + " is now Confirmed."));
+                        if (toConfirm != null) broadcastParkUpdate(toConfirm.getParkId());
                     } else {
-                        client.sendToClient(new Message("CONFIRM_FAILED", "Failed to confirm Order #" + orderIdToConfirm + "."));
+                        client.sendToClient(new Message("CONFIRM_FAILED",
+                            "Cannot confirm Order #" + orderIdToConfirm
+                            + ". Only 'Pending Confirm' or 'Waitlist Pending' orders can be confirmed."));
                     }
                 }
 
@@ -521,19 +576,69 @@ public class EchoServer extends AbstractServer {
     // --- SERVER LIFECYCLE HOOKS ---
     // =========================================================================
 
+    private ConfirmationHttpServer confirmationHttpServer;
+
+    /** Exposed so ConfirmationHttpServer can push live updates without a circular dependency. */
+    public static volatile EchoServer activeInstance;
+
     @Override
     protected void serverStarted() {
+        activeInstance = this;
         uiLogger.accept("> Server listening for connections on port " + getPort() + "\n");
-        // Force the DB singleton to initialize now so the notification engine starts immediately
         database.DBController.getInstance();
         uiLogger.accept("> Notification engine started.\n");
+        try {
+            confirmationHttpServer = new ConfirmationHttpServer(8080);
+            confirmationHttpServer.start();
+            String lanIp = getLanIpAddress();
+            database.DBController.serverBaseUrl = "http://" + lanIp + ":8080";
+            uiLogger.accept("> LAN IP detected: " + lanIp + "\n");
+            uiLogger.accept("> Email-confirmation HTTP server: " + database.DBController.serverBaseUrl + "\n");
+            uiLogger.accept("> ── Two-computer mode: set server.host=" + lanIp + " in client.properties ──\n");
+        } catch (Exception e) {
+            uiLogger.accept("> WARNING: Could not start HTTP confirmation server: " + e.getMessage() + "\n");
+            database.DBController.serverBaseUrl = "http://127.0.0.1:8080";
+        }
     }
 
     @Override
     protected void serverStopped() {
+        activeInstance = null;
         uiLogger.accept("> Server has stopped listening for connections.\n");
-        // Cleanly shut down HikariCP when you hit the 'Stop' button!
+        if (confirmationHttpServer != null) confirmationHttpServer.stop();
         DBController.getInstance().closePool();
+    }
+
+    /** Finds the first non-loopback IPv4 address on an active network interface. */
+    private static String getLanIpAddress() {
+        try {
+            java.util.Enumeration<java.net.NetworkInterface> ifaces =
+                java.net.NetworkInterface.getNetworkInterfaces();
+            while (ifaces.hasMoreElements()) {
+                java.net.NetworkInterface iface = ifaces.nextElement();
+                if (!iface.isUp() || iface.isLoopback() || iface.isVirtual()) continue;
+                java.util.Enumeration<java.net.InetAddress> addrs = iface.getInetAddresses();
+                while (addrs.hasMoreElements()) {
+                    java.net.InetAddress addr = addrs.nextElement();
+                    if (addr instanceof java.net.Inet4Address && !addr.isLoopbackAddress()) {
+                        return addr.getHostAddress();
+                    }
+                }
+            }
+        } catch (Exception ignored) {}
+        return "127.0.0.1";
+    }
+
+    /**
+     * Pushes fresh park data to every ParkManager connected to that park.
+     * Called after any operation that changes order status or occupancy.
+     */
+    public void broadcastParkUpdate(int parkId) {
+        if (parkId <= 0) return;
+        entities.Park updated = DBController.getParkById(parkId);
+        if (updated != null) {
+            broadcastToPark(parkId, new Message("PARK_DETAILS_DATA", updated));
+        }
     }
     
     @Override

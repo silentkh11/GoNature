@@ -48,6 +48,8 @@
                      <ComboBox fx:id="cmbWalkInType" maxWidth="Infinity" promptText="Select..." GridPane.columnIndex="1" GridPane.rowIndex="0" />
                      <Label styleClass="body-label" text="Count:" GridPane.rowIndex="1"><font><Font name="Segoe UI Bold" size="13.0"/></font></Label>
                      <TextField fx:id="txtWalkInCount" promptText="Num of visitors" GridPane.columnIndex="1" GridPane.rowIndex="1" />
+                     <Label styleClass="body-label" text="Subscriber ID:" GridPane.rowIndex="2"><font><Font name="Segoe UI Bold" size="13.0"/></font></Label>
+                     <TextField fx:id="txtSubscriberId" promptText="Optional — 10% off" GridPane.columnIndex="1" GridPane.rowIndex="2" />
                   </GridPane>
                   <Button fx:id="btnWalkIn" mnemonicParsing="false" onAction="#handleWalkIn" prefHeight="40.0" maxWidth="Infinity" styleClass="primary-btn" style="-fx-font-weight: bold;" text="Register Walk-In" />
                   <Label fx:id="lblWalkInStatus" alignment="CENTER" maxWidth="Infinity" wrapText="true" />

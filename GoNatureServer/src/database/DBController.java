@@ -21,6 +21,9 @@ import java.util.concurrent.TimeUnit;
  */
 public class DBController {
 
+    /** Base URL for one-click email confirmation links — set by EchoServer on start. */
+    public static String serverBaseUrl = "http://127.0.0.1:8080";
+
     private static DBController instance;
     private HikariDataSource dataSource;
 
@@ -149,7 +152,8 @@ public class DBController {
 
                 // PHASE 1: Send 24-Hour Reminders
                 String reminderQuery =
-                    "SELECT v.order_id, vis.first_name, vis.email, vis.phone FROM visit_order v " +
+                    "SELECT v.order_id, v.visit_date, v.visit_time, v.visitor_count, " +
+                    "vis.first_name, vis.email, vis.phone FROM visit_order v " +
                     "JOIN visitor vis ON v.visitor_id = vis.visitor_id " +
                     "WHERE v.status = 'Confirmed' AND v.notification_time IS NULL " +
                     "AND TIMESTAMP(v.visit_date, v.visit_time) BETWEEN NOW() + INTERVAL 23 HOUR AND NOW() + INTERVAL 25 HOUR";
@@ -159,25 +163,30 @@ public class DBController {
                 try (PreparedStatement checkStmt = conn.prepareStatement(reminderQuery);
                      ResultSet rs = checkStmt.executeQuery()) {
                     while (rs.next()) {
-                        int orderId    = rs.getInt("order_id");
-                        String email   = rs.getString("email");
-                        String phone   = rs.getString("phone");
-                        String fName   = rs.getString("first_name");
+                        int orderId       = rs.getInt("order_id");
+                        String visitDate  = rs.getString("visit_date");
+                        String visitTime  = rs.getString("visit_time");
+                        int visitorCount  = rs.getInt("visitor_count");
+                        String email      = rs.getString("email");
+                        String phone      = rs.getString("phone");
+                        String fName      = rs.getString("first_name");
+                        String shortTime  = visitTime != null ? visitTime.substring(0, Math.min(5, visitTime.length())) : "";
 
-                        System.out.println("⚠ SYSTEM ALERT: 24-Hour mark reached for Order #" + orderId);
+                        String confirmUrl = serverBaseUrl + "/confirm?id=" + orderId;
+                        String cancelUrl  = serverBaseUrl + "/cancel?id="  + orderId;
+
+                        System.out.println("⚠ SYSTEM ALERT: 24-Hour Reminder — Order #" + orderId);
+                        System.out.println("  ↳ CONFIRM: " + confirmUrl);
+                        System.out.println("  ↳ CANCEL:  " + cancelUrl);
 
                         if (email != null && email.contains("@")) {
-                            String subject = "Action Required: Confirm your GoNature Visit (Order #" + orderId + ")";
-                            String body =
-                                "Hello " + fName + ",\n\n" +
-                                "Your visit to GoNature is tomorrow!\n\n" +
-                                "Please log into the Guest Portal and confirm your attendance.\n" +
-                                "IMPORTANT: You must confirm within 2 hours or your ticket will be auto-cancelled.\n\n" +
-                                "See you soon,\nThe GoNature Team";
-                            EmailSender.sendEmail(email, subject, body);
+                            String subject = "⚠ Action Required: Confirm your GoNature Visit (Order #" + orderId + ")";
+                            String htmlBody = buildReminderEmail(fName, orderId, visitDate, shortTime,
+                                                                 visitorCount, confirmUrl, cancelUrl);
+                            EmailSender.sendHtmlEmail(email, subject, htmlBody);
                         }
                         SmsSender.sendSms(phone,
-                            "GoNature: Your visit is tomorrow! Confirm Order #" + orderId + " within 2 hours or it will be auto-cancelled.");
+                            "GoNature: Visit tomorrow! Confirm Order #" + orderId + " within 2h: " + confirmUrl);
 
                         try (PreparedStatement updateStmt = conn.prepareStatement(updateReminder)) {
                             updateStmt.setInt(1, orderId);
@@ -320,10 +329,7 @@ public class DBController {
                 }
             }
 
-            // Spec: "לצורך החישוב נלקחת בחשבון הערכה קבועה של זמן השהיה" — count any
-            // existing booking whose stay window overlaps the requested visit_time.
-            // A booking at hour H occupies [H, H+stay); a new booking at H' conflicts
-            // when H is in (H' - stay, H' + stay), i.e. their windows overlap.
+            // Count any existing booking whose stay window overlaps the requested visit_time.
             String sumQuery =
                 "SELECT COALESCE(SUM(visitor_count), 0) AS total_visitors FROM visit_order " +
                 "WHERE park_id = ? AND visit_date = ? " +
@@ -371,6 +377,8 @@ public class DBController {
                 // Pre-booked group: 25% off + 12% advance; guide goes free
                 int payingVisitors = Math.max(0, order.getVisitorCount() - 1);
                 calculatedPrice = payingVisitors * (basePrice * 0.75 * 0.88);
+                // Subscriber guide also gets the additional 10% off (spec: cumulative discounts)
+                if (isSubscriber) calculatedPrice *= 0.90;
             } else if (isSubscriber) {
                 // Pre-booked personal/family + subscriber: -15% then -10%
                 calculatedPrice = order.getVisitorCount() * (basePrice * 0.85 * 0.90);
@@ -941,9 +949,15 @@ public class DBController {
         return orders;
     }
 
-    /** Moves a waitlisted order back to 'Confirmed' status. */
+    /**
+     * Confirms an order and resets notification_time.
+     * Only transitions from 'Pending Confirm' or 'Waitlist Pending' are legal.
+     * Returns false (no-op) for any other status — prevents re-confirming cancelled/completed orders.
+     */
     public static boolean confirmOrder(int orderId) {
-        String query = "UPDATE visit_order SET status = 'Confirmed' WHERE order_id = ?";
+        String query =
+            "UPDATE visit_order SET status = 'Confirmed', notification_time = NULL " +
+            "WHERE order_id = ? AND status IN ('Pending Confirm', 'Waitlist Pending')";
         try (java.sql.Connection conn = getInstance().getConnection();
              java.sql.PreparedStatement ps = conn.prepareStatement(query)) {
             ps.setInt(1, orderId);
@@ -964,7 +978,10 @@ public class DBController {
             "FROM visit_order v " +
             "JOIN visitor vis ON v.visitor_id = vis.visitor_id " +
             "WHERE v.order_id = ?";
-        String cancel = "UPDATE visit_order SET status = 'Cancelled' WHERE order_id = ?";
+        // Guard: never cancel orders that are already terminal or currently In Park
+        String cancel =
+            "UPDATE visit_order SET status = 'Cancelled' " +
+            "WHERE order_id = ? AND status NOT IN ('In Park', 'Completed', 'Cancelled')";
 
         int parkId = -1;
         String vDate = null, vTime = null;
@@ -1084,20 +1101,20 @@ public class DBController {
                                 ps2.setInt(1, waitId);
                                 ps2.executeUpdate();
 
+                                String confirmUrl = serverBaseUrl + "/confirm?id=" + waitId;
+                                String cancelUrl  = serverBaseUrl + "/cancel?id="  + waitId;
                                 System.out.println("⚠ SYSTEM ALERT: Order #" + waitId + " promoted from waitlist.");
+                                System.out.println("  ↳ CONFIRM: " + confirmUrl);
+                                System.out.println("  ↳ CANCEL:  " + cancelUrl);
 
                                 if (email != null && email.contains("@")) {
-                                    String subject = "A spot opened up! Confirm within 1 hour (Order #" + waitId + ")";
-                                    String body =
-                                        "Hello " + fName + ",\n\n" +
-                                        "A spot has opened at GoNature on " + date + " at " + time + ".\n\n" +
-                                        "Please log into the Guest Portal and confirm within 1 hour or the spot passes to the next person.\n\n" +
-                                        "The GoNature Team";
-                                    EmailSender.sendEmail(email, subject, body);
+                                    String subject = "🎉 A spot opened! Confirm within 1 hour — GoNature Order #" + waitId;
+                                    String htmlBody = buildWaitlistEmail(fName, waitId, date, time, groupSize, confirmUrl, cancelUrl);
+                                    EmailSender.sendHtmlEmail(email, subject, htmlBody);
                                 }
                                 SmsSender.sendSms(phone,
                                     "GoNature: Spot available for Order #" + waitId + " on " + date +
-                                    " at " + time + ". Confirm in Guest Portal within 1 hour!");
+                                    " at " + time + ". Confirm within 1 hour: " + confirmUrl);
 
                                 availableSpace -= groupSize;
                             }
@@ -1175,7 +1192,7 @@ public class DBController {
      * Applies walk-in pricing with any active promotional discount.
      * The entry_timestamp is stamped immediately since they enter on the spot.
      */
-    public static entities.VisitOrder processWalkIn(int parkId, int visitorCount, String orderType) {
+    public static entities.VisitOrder processWalkIn(int parkId, int visitorCount, String orderType, String subscriberId) {
         try (Connection conn = getInstance().getConnection()) {
             int maxCapacity = 0, currentVisitors = 0;
             double activeDiscount = 0;
@@ -1203,15 +1220,33 @@ public class DBController {
                 price = visitorCount * basePrice;
             }
 
-            // Apply promotional discount
+            // Apply park-level promotional discount
             if (activeDiscount > 0) {
                 price = price * (1.0 - activeDiscount / 100.0);
+            }
+
+            // Subscriber gets additional 10% off; use their real visitor_id for tracking
+            String walkInId;
+            if (subscriberId != null && !subscriberId.isEmpty()) {
+                String subQ = "SELECT visitor_id FROM subscriber WHERE visitor_id = ?";
+                try (PreparedStatement ps = conn.prepareStatement(subQ)) {
+                    ps.setString(1, subscriberId);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (rs.next()) {
+                            price *= 0.90;
+                            walkInId = subscriberId;
+                        } else {
+                            walkInId = "WI" + (System.currentTimeMillis() % 1000000);
+                        }
+                    }
+                }
+            } else {
+                walkInId = "WI" + (System.currentTimeMillis() % 1000000);
             }
 
             String today   = java.time.LocalDate.now().toString();
             String nowTime = java.time.LocalTime.now()
                 .format(java.time.format.DateTimeFormatter.ofPattern("HH:mm")) + ":00";
-            String walkInId = "WI" + (System.currentTimeMillis() % 1000000);
 
             String ensureVisitor =
                 "INSERT INTO visitor (visitor_id, first_name, last_name, email, phone, visitor_type) " +
@@ -1599,5 +1634,326 @@ public class DBController {
             e.printStackTrace();
         }
         return rows;
+    }
+
+    // =========================================================================
+    // --- 15. SUBSCRIBER FAMILY SIZE CHECK ---
+    // =========================================================================
+
+    /**
+     * Returns the family_size for a subscriber, or -1 if the visitor is not a subscriber.
+     * Used to enforce that personal/family bookings don't exceed the covered member count.
+     */
+    public static int getSubscriberFamilySize(String visitorId) {
+        String query = "SELECT family_size FROM subscriber WHERE visitor_id = ? AND is_guide = false";
+        try (java.sql.Connection conn = getInstance().getConnection();
+             java.sql.PreparedStatement ps = conn.prepareStatement(query)) {
+            ps.setString(1, visitorId);
+            try (java.sql.ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return rs.getInt("family_size");
+            }
+        } catch (java.sql.SQLException e) {
+            System.err.println("Error fetching family size: " + e.getMessage());
+        }
+        return -1;
+    }
+
+    // =========================================================================
+    // --- 16. SUBSCRIBER LOOKUP & UPDATE (Scenario 1 & 2) ---
+    // =========================================================================
+
+    /** Fetches full subscriber info by visitor_id for the Service Rep view. */
+    public static entities.Subscriber getSubscriberById(String visitorId) {
+        String query =
+            "SELECT v.visitor_id, v.first_name, v.last_name, v.email, v.phone, " +
+            "s.family_size, s.credit_card, s.is_guide " +
+            "FROM visitor v JOIN subscriber s ON v.visitor_id = s.visitor_id " +
+            "WHERE v.visitor_id = ?";
+        try (java.sql.Connection conn = getInstance().getConnection();
+             java.sql.PreparedStatement ps = conn.prepareStatement(query)) {
+            ps.setString(1, visitorId);
+            try (java.sql.ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return new entities.Subscriber(
+                        rs.getString("visitor_id"),
+                        rs.getString("first_name"),
+                        rs.getString("last_name"),
+                        rs.getString("email"),
+                        rs.getString("phone"),
+                        rs.getInt("family_size"),
+                        rs.getString("credit_card"),
+                        rs.getBoolean("is_guide")
+                    );
+                }
+            }
+        } catch (java.sql.SQLException e) {
+            System.err.println("Error fetching subscriber: " + e.getMessage());
+        }
+        return null;
+    }
+
+    /** Updates personal info for an existing subscriber (used by Service Rep and subscriber self-service). */
+    public static String updateSubscriberInfo(entities.Subscriber sub) {
+        String updateVisitor =
+            "UPDATE visitor SET first_name=?, last_name=?, email=?, phone=? WHERE visitor_id=?";
+        String updateSubscriber =
+            "UPDATE subscriber SET family_size=?, credit_card=? WHERE visitor_id=?";
+        try (java.sql.Connection conn = getInstance().getConnection()) {
+            try (java.sql.PreparedStatement ps = conn.prepareStatement(updateVisitor)) {
+                ps.setString(1, sub.getFirstName());
+                ps.setString(2, sub.getLastName());
+                ps.setString(3, sub.getEmail());
+                ps.setString(4, sub.getPhone());
+                ps.setString(5, sub.getVisitorId());
+                if (ps.executeUpdate() == 0) return "ERROR: Subscriber ID not found.";
+            }
+            try (java.sql.PreparedStatement ps = conn.prepareStatement(updateSubscriber)) {
+                ps.setInt(1, sub.getFamilySize());
+                ps.setString(2, sub.getCreditCard());
+                ps.setString(3, sub.getVisitorId());
+                ps.executeUpdate();
+            }
+            return "SUCCESS: Subscriber info updated.";
+        } catch (java.sql.SQLException e) {
+            return "ERROR: " + e.getMessage();
+        }
+    }
+
+    // =========================================================================
+    // --- 17. ORDER LOOKUP & EDIT (Guest Portal edit-order and HTTP confirm) ---
+    // =========================================================================
+
+    /** Returns a single VisitOrder by its primary key, or null if not found. */
+    public static entities.VisitOrder getOrderById(int orderId) {
+        String query = "SELECT order_id, park_id, visitor_id, visit_date, visit_time, " +
+                       "visitor_count, order_type, status, price FROM visit_order WHERE order_id = ?";
+        try (java.sql.Connection conn = getInstance().getConnection();
+             java.sql.PreparedStatement ps = conn.prepareStatement(query)) {
+            ps.setInt(1, orderId);
+            try (java.sql.ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return new entities.VisitOrder(
+                        rs.getInt("order_id"), rs.getInt("park_id"),
+                        rs.getString("visitor_id"),
+                        rs.getString("visit_date"), rs.getString("visit_time"),
+                        rs.getInt("visitor_count"), rs.getString("order_type"),
+                        rs.getString("status"), rs.getDouble("price")
+                    );
+                }
+            }
+        } catch (java.sql.SQLException e) {
+            System.err.println("getOrderById error: " + e.getMessage());
+        }
+        return null;
+    }
+
+    /**
+     * Applies guest edits (date/time/visitorCount) to an order that is in 'Confirmed'
+     * or 'Waitlisted' status. Recalculates price and re-evaluates capacity.
+     *
+     * Returns a response string: "SUCCESS:newStatus:newPrice" or "ERROR:reason".
+     */
+    public static String updateOrderDetails(entities.VisitOrder updated) {
+        String checkQ = "SELECT park_id, visitor_id, order_type, status FROM visit_order WHERE order_id = ?";
+        try (java.sql.Connection conn = getInstance().getConnection()) {
+            int parkId; String visitorId, orderType, currentStatus;
+            try (java.sql.PreparedStatement ps = conn.prepareStatement(checkQ)) {
+                ps.setInt(1, updated.getOrderId());
+                try (java.sql.ResultSet rs = ps.executeQuery()) {
+                    if (!rs.next()) return "ERROR:Order not found.";
+                    parkId        = rs.getInt("park_id");
+                    visitorId     = rs.getString("visitor_id");
+                    orderType     = rs.getString("order_type");
+                    currentStatus = rs.getString("status");
+                }
+            }
+            if (!currentStatus.equals("Confirmed") && !currentStatus.equals("Waitlisted")) {
+                return "ERROR:Only 'Confirmed' or 'Waitlisted' orders can be edited. Once a reminder is sent you can only confirm or cancel.";
+            }
+
+            // Park capacity parameters
+            int maxCapacity = 200, casualGap = 20, estimatedStayTime = 4;
+            double activeDiscount = 0;
+            String parkQ = "SELECT max_capacity, casual_gap, estimated_stay_time, active_discount FROM park WHERE park_id = ?";
+            try (java.sql.PreparedStatement ps = conn.prepareStatement(parkQ)) {
+                ps.setInt(1, parkId);
+                try (java.sql.ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        maxCapacity      = rs.getInt("max_capacity");
+                        casualGap        = rs.getInt("casual_gap");
+                        int stayH        = rs.getInt("estimated_stay_time");
+                        if (stayH > 0) estimatedStayTime = stayH;
+                        activeDiscount   = rs.getDouble("active_discount");
+                    }
+                }
+            }
+
+            // Count competing bookings at the new slot, excluding this order itself
+            String sumQ =
+                "SELECT COALESCE(SUM(visitor_count),0) AS total FROM visit_order " +
+                "WHERE park_id=? AND visit_date=? " +
+                "AND HOUR(visit_time) > HOUR(?)-? AND HOUR(visit_time) < HOUR(?)+? " +
+                "AND status IN ('Confirmed','In Park','Pending Confirm','Waitlist Pending') " +
+                "AND order_id != ?";
+            int booked = 0;
+            try (java.sql.PreparedStatement ps = conn.prepareStatement(sumQ)) {
+                ps.setInt(1, parkId);
+                ps.setString(2, updated.getVisitDate());
+                ps.setString(3, updated.getVisitTime()); ps.setInt(4, estimatedStayTime);
+                ps.setString(5, updated.getVisitTime()); ps.setInt(6, estimatedStayTime);
+                ps.setInt(7, updated.getOrderId());
+                try (java.sql.ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) booked = rs.getInt("total");
+                }
+            }
+
+            int availablePreorder = maxCapacity - casualGap;
+            String newStatus = ((booked + updated.getVisitorCount()) > availablePreorder)
+                    ? "Waitlisted" : "Confirmed";
+
+            // Recalculate price
+            boolean isSubscriber = false, isGuide = false;
+            String subQ = "SELECT is_guide FROM subscriber WHERE visitor_id=?";
+            try (java.sql.PreparedStatement ps = conn.prepareStatement(subQ)) {
+                ps.setString(1, visitorId);
+                try (java.sql.ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) { isSubscriber = true; isGuide = rs.getBoolean("is_guide"); }
+                }
+            }
+
+            double basePrice = 100.0, price;
+            if (isGuide || orderType.equalsIgnoreCase("Group")) {
+                int paying = Math.max(0, updated.getVisitorCount() - 1);
+                price = paying * (basePrice * 0.75 * 0.88);
+                if (isSubscriber) price *= 0.90;
+            } else if (isSubscriber) {
+                price = updated.getVisitorCount() * (basePrice * 0.85 * 0.90);
+            } else {
+                price = updated.getVisitorCount() * (basePrice * 0.85);
+            }
+            if (activeDiscount > 0) price *= (1.0 - activeDiscount / 100.0);
+
+            String updateQ =
+                "UPDATE visit_order SET visit_date=?, visit_time=?, visitor_count=?, price=?, " +
+                "status=?, notification_time=NULL WHERE order_id=?";
+            try (java.sql.PreparedStatement ps = conn.prepareStatement(updateQ)) {
+                ps.setString(1, updated.getVisitDate());
+                ps.setString(2, updated.getVisitTime());
+                ps.setInt(3, updated.getVisitorCount());
+                ps.setDouble(4, price);
+                ps.setString(5, newStatus);
+                ps.setInt(6, updated.getOrderId());
+                ps.executeUpdate();
+            }
+            return "SUCCESS:" + newStatus + ":" + String.format("%.2f", price);
+
+        } catch (java.sql.SQLException e) {
+            e.printStackTrace();
+            return "ERROR:Database error: " + e.getMessage();
+        }
+    }
+
+    // =========================================================================
+    // --- 18. HTML EMAIL BUILDERS (24h reminder & waitlist promotion) ---
+    // =========================================================================
+
+    /** Builds the styled 24-hour reminder HTML email body. */
+    public static String buildReminderEmail(String firstName, int orderId, String date,
+                                            String time, int visitors,
+                                            String confirmUrl, String cancelUrl) {
+        return "<!DOCTYPE html><html lang='en'><head><meta charset='UTF-8'>"
+            + "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+            + "<title>GoNature — Confirm Your Visit</title>"
+            + "<style>"
+            + "body{margin:0;padding:40px 0;background:#0d1117;font-family:'Segoe UI',Arial,sans-serif;}"
+            + ".w{max-width:560px;margin:0 auto;background:#161b22;border-radius:12px;"
+            + "border:1px solid #30363d;overflow:hidden;}"
+            + ".hd{background:linear-gradient(135deg,#0a3d2e,#00b894);padding:28px;text-align:center;}"
+            + ".hd h1{color:#fff;margin:0;font-size:22px;} .hd p{color:rgba(255,255,255,.8);margin:4px 0 0;font-size:14px;}"
+            + ".bd{padding:32px;}"
+            + ".greet{color:#e6edf3;font-size:15px;margin-bottom:18px;}"
+            + ".note{color:#8b949e;font-size:13px;line-height:1.6;margin-bottom:20px;}"
+            + ".box{background:#0d1117;border-radius:8px;padding:18px;margin:20px 0;}"
+            + ".row{display:flex;justify-content:space-between;padding:8px 0;"
+            + "border-bottom:1px solid #21262d;}"
+            + ".row:last-child{border-bottom:none;}"
+            + ".lbl{color:#8b949e;font-size:13px;}.val{color:#e6edf3;font-size:13px;font-weight:600;}"
+            + ".warn{background:#2d1b00;border:1px solid #f0932b;border-radius:6px;padding:12px;"
+            + "color:#f0932b;font-size:13px;text-align:center;margin:18px 0;}"
+            + "a.btn-c{display:block;background:#00b894;color:#fff!important;text-decoration:none;"
+            + "text-align:center;padding:15px 30px;border-radius:8px;font-size:15px;font-weight:bold;"
+            + "margin:22px 0 10px;}"
+            + "a.btn-x{display:block;text-align:center;color:#8b949e!important;text-decoration:none;"
+            + "font-size:13px;padding:8px;}"
+            + ".ft{background:#0d1117;padding:18px;text-align:center;color:#8b949e;font-size:11px;}"
+            + "</style></head><body>"
+            + "<div class='w'>"
+            + "<div class='hd'><h1>🌿 GoNature</h1><p>Your visit is tomorrow!</p></div>"
+            + "<div class='bd'>"
+            + "<p class='greet'>Hello <strong style='color:#e6edf3'>" + firstName + "</strong>,</p>"
+            + "<p class='note'>This is your 24-hour reminder. Please confirm your attendance within "
+            + "<strong style='color:#f0932b'>2 hours</strong> or your booking will be automatically cancelled.</p>"
+            + "<div class='box'>"
+            + "<div class='row'><span class='lbl'>Order #</span><span class='val'>" + orderId + "</span></div>"
+            + "<div class='row'><span class='lbl'>Date</span><span class='val'>" + date + "</span></div>"
+            + "<div class='row'><span class='lbl'>Time</span><span class='val'>" + time + "</span></div>"
+            + "<div class='row'><span class='lbl'>Visitors</span><span class='val'>" + visitors + "</span></div>"
+            + "</div>"
+            + "<div class='warn'>⏰ You must confirm within <strong>2 hours</strong> of this email.</div>"
+            + "<a href='" + confirmUrl + "' class='btn-c'>✅ Confirm My Visit</a>"
+            + "<a href='" + cancelUrl  + "' class='btn-x'>I can't make it — Cancel my booking</a>"
+            + "</div>"
+            + "<div class='ft'>GoNature Parks Management System · Automated message · Do not reply</div>"
+            + "</div></body></html>";
+    }
+
+    /** Builds the styled waitlist promotion HTML email body. */
+    public static String buildWaitlistEmail(String firstName, int orderId, String date,
+                                            String time, int visitors,
+                                            String confirmUrl, String cancelUrl) {
+        return "<!DOCTYPE html><html lang='en'><head><meta charset='UTF-8'>"
+            + "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+            + "<title>GoNature — Spot Available!</title>"
+            + "<style>"
+            + "body{margin:0;padding:40px 0;background:#0d1117;font-family:'Segoe UI',Arial,sans-serif;}"
+            + ".w{max-width:560px;margin:0 auto;background:#161b22;border-radius:12px;"
+            + "border:1px solid #30363d;overflow:hidden;}"
+            + ".hd{background:linear-gradient(135deg,#1a3a5c,#0984e3);padding:28px;text-align:center;}"
+            + ".hd h1{color:#fff;margin:0;font-size:22px;} .hd p{color:rgba(255,255,255,.8);margin:4px 0 0;font-size:14px;}"
+            + ".bd{padding:32px;}"
+            + ".greet{color:#e6edf3;font-size:15px;margin-bottom:18px;}"
+            + ".note{color:#8b949e;font-size:13px;line-height:1.6;margin-bottom:20px;}"
+            + ".box{background:#0d1117;border-radius:8px;padding:18px;margin:20px 0;}"
+            + ".row{display:flex;justify-content:space-between;padding:8px 0;"
+            + "border-bottom:1px solid #21262d;}"
+            + ".row:last-child{border-bottom:none;}"
+            + ".lbl{color:#8b949e;font-size:13px;}.val{color:#e6edf3;font-size:13px;font-weight:600;}"
+            + ".warn{background:#1a0d2e;border:1px solid #a29bfe;border-radius:6px;padding:12px;"
+            + "color:#a29bfe;font-size:13px;text-align:center;margin:18px 0;}"
+            + "a.btn-c{display:block;background:#0984e3;color:#fff!important;text-decoration:none;"
+            + "text-align:center;padding:15px 30px;border-radius:8px;font-size:15px;font-weight:bold;"
+            + "margin:22px 0 10px;}"
+            + "a.btn-x{display:block;text-align:center;color:#8b949e!important;text-decoration:none;"
+            + "font-size:13px;padding:8px;}"
+            + ".ft{background:#0d1117;padding:18px;text-align:center;color:#8b949e;font-size:11px;}"
+            + "</style></head><body>"
+            + "<div class='w'>"
+            + "<div class='hd'><h1>🎉 A spot opened up!</h1><p>You're off the waitlist!</p></div>"
+            + "<div class='bd'>"
+            + "<p class='greet'>Hello <strong style='color:#e6edf3'>" + firstName + "</strong>,</p>"
+            + "<p class='note'>Great news! A spot has opened for your visit. You now have "
+            + "<strong style='color:#a29bfe'>1 hour</strong> to confirm or the spot will be offered to the next person.</p>"
+            + "<div class='box'>"
+            + "<div class='row'><span class='lbl'>Order #</span><span class='val'>" + orderId + "</span></div>"
+            + "<div class='row'><span class='lbl'>Date</span><span class='val'>" + date + "</span></div>"
+            + "<div class='row'><span class='lbl'>Time</span><span class='val'>" + time + "</span></div>"
+            + "<div class='row'><span class='lbl'>Visitors</span><span class='val'>" + visitors + "</span></div>"
+            + "</div>"
+            + "<div class='warn'>⏳ Confirm within <strong>1 hour</strong> or the spot is given away.</div>"
+            + "<a href='" + confirmUrl + "' class='btn-c'>✅ Confirm My Spot Now</a>"
+            + "<a href='" + cancelUrl  + "' class='btn-x'>I can't make it — Cancel</a>"
+            + "</div>"
+            + "<div class='ft'>GoNature Parks Management System · Automated message · Do not reply</div>"
+            + "</div></body></html>";
     }
 }

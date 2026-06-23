@@ -55,9 +55,9 @@ public class LoginController {
 		// Connect (or reconnect) here — handles the case where the server
 		// wasn't running when this screen opened.
 		try {
-			ChatClient.getInstance("127.0.0.1", 5555, this::handleServerResponse);
+			ChatClient.getInstance(client.ClientConfig.getHost(), client.ClientConfig.getPort(), this::handleServerResponse);
 		} catch (Exception e) {
-			showError("Cannot reach server. Please make sure it is running.");
+			showError("Cannot reach server at " + client.ClientConfig.getHost() + ":" + client.ClientConfig.getPort() + ". Please make sure it is running.");
 			resetLoginButton();
 			return;
 		}

@@ -1,6 +1,7 @@
 package gui.guest;
 
 import client.ChatClient;
+import client.ClientConfig;
 import entities.Message;
 import entities.VisitOrder;
 import gui.core.ThemeManager;
@@ -58,7 +59,7 @@ public class CreateOrderController {
         // Initialize Time Combo
         ObservableList<String> times = FXCollections.observableArrayList(
             "08:00:00", "09:00:00", "10:00:00", "11:00:00", "12:00:00",
-            "13:00:00", "14:00:00", "15:00:00", "16:00:00", "17:00:00", "20:28:00"
+            "13:00:00", "14:00:00", "15:00:00", "16:00:00", "17:00:00", "23:30:00"
         );
         timeCombo.setItems(times);
 
@@ -79,15 +80,11 @@ public class CreateOrderController {
             }
         });
 
-        // --- THE CRITICAL FIX ---
         try {
-            // We MUST pass the IP and Port here so the client initializes if this is the first screen opened!
-            ChatClient.getInstance("127.0.0.1", 5555, this::handleServerResponse);
-            
-            // Now that we are 100% sure the connection exists, ask for the parks
+            ChatClient.getInstance(ClientConfig.getHost(), ClientConfig.getPort(), this::handleServerResponse);
             ChatClient.getInstance().handleMessageFromClientUI(new Message("FETCH_ALL_PARKS", null));
         } catch (Exception e) {
-            showStatus("Error connecting to server. Is it running?", "#d63031");
+            showStatus("Error connecting to server at " + ClientConfig.getHost() + ":" + ClientConfig.getPort() + ". Is it running?", "#d63031");
         }
     }
 
