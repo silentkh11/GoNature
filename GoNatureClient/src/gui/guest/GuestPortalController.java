@@ -69,7 +69,7 @@ public class GuestPortalController {
     }
 
     @FXML
-    void handleSearch(ActionEvent event) {
+    void handleFindOrders(ActionEvent event) {
         currentSearchedId = txtVisitorId.getText().trim();
         if (currentSearchedId.isEmpty()) {
             showStatus("Please enter a Visitor ID to search.", "#d63031");
@@ -166,7 +166,7 @@ public class GuestPortalController {
     private void forceUIToMainMenu() {
         try {
             javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(
-                getClass().getResource("/gui/MainMenu.fxml"));
+                getClass().getResource("/gui/guest/MainMenu.fxml"));
             javafx.scene.Parent root = loader.load();
             Stage stage = (Stage) lblStatus.getScene().getWindow();
             WindowChrome.setContent(stage, root, "GoNature - Welcome");

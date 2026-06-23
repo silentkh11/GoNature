@@ -5,6 +5,9 @@ module GoNatureClient {
     requires javafx.base;
     requires java.prefs;
 	requires java.sql;
+    // --- Allow JavaFX reflection on entity classes (required by PropertyValueFactory) ---
+    opens entities to javafx.base;
+
     // --- Grant JavaFX permission to inject @FXML fields in these packages ---
     opens gui.auth to javafx.fxml;
     opens gui.core to javafx.fxml;
