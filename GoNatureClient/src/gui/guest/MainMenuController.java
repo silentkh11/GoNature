@@ -1,6 +1,7 @@
 package gui.guest;
 
 import client.ChatClient;
+import client.ClientConfig;
 import entities.Message;
 import entities.Park;
 import gui.core.ThemeManager;
@@ -139,8 +140,10 @@ public class MainMenuController {
 
     private void fetchAllParks() {
         try {
-            ChatClient client = ChatClient.getInstance("127.0.0.1", 5555, this::handleServerResponse);
-            client.handleMessageFromClientUI(new Message("FETCH_ALL_PARKS", null));
+            String host = ClientConfig.getHost();
+            int    port = ClientConfig.getPort();
+            ChatClient chatClient = ChatClient.getInstance(host, port, this::handleServerResponse);
+            chatClient.handleMessageFromClientUI(new Message("FETCH_ALL_PARKS", null));
         } catch (Exception e) {
             // Server not reachable; map stays in loading state
         }

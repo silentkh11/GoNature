@@ -27,9 +27,9 @@ public class ChatClient extends AbstractClient {
         } else {
             instance.setResponseHandler(responseHandler);
             if (!instance.isConnected()) {
-                try {
-                    instance.openConnection();
-                } catch (IOException ignored) {} 
+                // Propagate the IOException to the caller so they can show an error;
+                // do NOT swallow it — a silent failure leaves the caller thinking they're connected.
+                instance.openConnection();
             }
         }
         return instance;
@@ -37,7 +37,8 @@ public class ChatClient extends AbstractClient {
 
     public static ChatClient getInstance() {
         if (instance == null) {
-            System.err.println("CRITICAL: ChatClient accessed before initialization!");
+            throw new IllegalStateException(
+                "ChatClient has not been initialized. Call getInstance(host, port, handler) first.");
         }
         return instance;
     }

@@ -16,6 +16,7 @@ import javafx.scene.control.TextField;
 
 public class ServiceRepController {
 
+    // --- Register section ---
     @FXML private TextField txtId;
     @FXML private TextField txtFirst;
     @FXML private TextField txtLast;
@@ -26,6 +27,18 @@ public class ServiceRepController {
     @FXML private CheckBox chkGuide;
     @FXML private Label lblStatus;
     @FXML private Button themeBtn;
+
+    // --- Lookup / update section ---
+    @FXML private TextField txtLookupId;
+    @FXML private TextField txtEditFirst;
+    @FXML private TextField txtEditLast;
+    @FXML private TextField txtEditEmail;
+    @FXML private TextField txtEditPhone;
+    @FXML private TextField txtEditCard;
+    @FXML private TextField txtEditFamilySize;
+    @FXML private Label lblLookupStatus;
+
+    private String currentLookedUpId = null;
 
     @FXML
     public void initialize() {
@@ -68,15 +81,15 @@ public class ServiceRepController {
 
         try {
             int familySize = sizeStr.isEmpty() ? 1 : Integer.parseInt(sizeStr);
-            
+
             Subscriber newSub = new Subscriber(
-                id, 
-                txtFirst.getText().trim(), 
-                txtLast.getText().trim(), 
-                email, 
-                txtPhone.getText().trim(), 
-                familySize, 
-                txtCard.getText().trim(), 
+                id,
+                txtFirst.getText().trim(),
+                txtLast.getText().trim(),
+                email,
+                txtPhone.getText().trim(),
+                familySize,
+                txtCard.getText().trim(),
                 chkGuide.isSelected()
             );
 
@@ -88,28 +101,98 @@ public class ServiceRepController {
         }
     }
 
+    @FXML
+    void handleLookup(ActionEvent event) {
+        String id = txtLookupId.getText().trim();
+        if (id.isEmpty()) {
+            showLookupStatus("Please enter a subscriber ID to look up.", "#d63031");
+            return;
+        }
+        showLookupStatus("Searching...", "#0984e3");
+        ChatClient.getInstance().handleMessageFromClientUI(new Message("FETCH_SUBSCRIBER_REQUEST", id));
+    }
+
+    @FXML
+    void handleUpdate(ActionEvent event) {
+        if (currentLookedUpId == null) {
+            showLookupStatus("Look up a subscriber first before updating.", "#d63031");
+            return;
+        }
+        String sizeStr = txtEditFamilySize.getText().trim();
+        try {
+            int familySize = sizeStr.isEmpty() ? 1 : Integer.parseInt(sizeStr);
+            Subscriber updated = new Subscriber(
+                currentLookedUpId,
+                txtEditFirst.getText().trim(),
+                txtEditLast.getText().trim(),
+                txtEditEmail.getText().trim(),
+                txtEditPhone.getText().trim(),
+                familySize,
+                txtEditCard.getText().trim(),
+                false
+            );
+            showLookupStatus("Saving changes...", "#0984e3");
+            ChatClient.getInstance().handleMessageFromClientUI(new Message("UPDATE_SUBSCRIBER_REQUEST", updated));
+        } catch (NumberFormatException e) {
+            showLookupStatus("Family size must be a valid number.", "#d63031");
+        }
+    }
+
     public void handleServerResponse(Message msg) {
         Platform.runLater(() -> {
-            if (msg.getCommand().equals("REGISTER_SUCCESS")) {
-                showStatus((String) msg.getData(), "#00b894"); 
-                
-                txtId.clear(); txtFirst.clear(); txtLast.clear();
-                txtEmail.clear(); txtPhone.clear(); txtCard.clear();
-                txtFamilySize.clear(); chkGuide.setSelected(false);
-                
-            } else if (msg.getCommand().equals("REGISTER_FAILED")) {
-                showStatus((String) msg.getData(), "#d63031");
-            } 
-            // --- WATCHDOG AUTO-LOGOUT & KICK ---
-            else if (msg.getCommand().equals("SERVER_DISCONNECTED") || msg.getCommand().equals("KICKED")) {
-                if(msg.getCommand().equals("SERVER_DISCONNECTED")) {
-                    javafx.scene.control.Alert alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.ERROR);
+            switch (msg.getCommand()) {
+                case "REGISTER_SUCCESS":
+                    showStatus((String) msg.getData(), "#00b894");
+                    txtId.clear(); txtFirst.clear(); txtLast.clear();
+                    txtEmail.clear(); txtPhone.clear(); txtCard.clear();
+                    txtFamilySize.clear(); chkGuide.setSelected(false);
+                    break;
+
+                case "REGISTER_FAILED":
+                    showStatus((String) msg.getData(), "#d63031");
+                    break;
+
+                case "SUBSCRIBER_DATA": {
+                    Subscriber sub = (Subscriber) msg.getData();
+                    currentLookedUpId = sub.getVisitorId();
+                    txtEditFirst.setText(sub.getFirstName());
+                    txtEditLast.setText(sub.getLastName());
+                    txtEditEmail.setText(sub.getEmail());
+                    txtEditPhone.setText(sub.getPhone());
+                    txtEditCard.setText(sub.getCreditCard() != null ? sub.getCreditCard() : "");
+                    txtEditFamilySize.setText(String.valueOf(sub.getFamilySize()));
+                    showLookupStatus("Subscriber found: " + sub.getFirstName() + " " + sub.getLastName()
+                        + " | Family size: " + sub.getFamilySize()
+                        + (sub.isGuide() ? " | Certified Guide" : ""), "#00b894");
+                    break;
+                }
+
+                case "SUBSCRIBER_NOT_FOUND":
+                    currentLookedUpId = null;
+                    showLookupStatus((String) msg.getData(), "#d63031");
+                    break;
+
+                case "UPDATE_SUBSCRIBER_SUCCESS":
+                    showLookupStatus((String) msg.getData(), "#00b894");
+                    break;
+
+                case "UPDATE_SUBSCRIBER_FAILED":
+                    showLookupStatus((String) msg.getData(), "#d63031");
+                    break;
+
+                case "SERVER_DISCONNECTED":
+                    javafx.scene.control.Alert alert = new javafx.scene.control.Alert(
+                        javafx.scene.control.Alert.AlertType.ERROR);
                     alert.setTitle("Network Security Alert");
                     alert.setHeaderText("Server Connection Lost");
                     alert.setContentText("Connection to the server was lost. For security, you have been logged out.");
                     alert.showAndWait();
-                }
-                forceUIToMainMenu();
+                    forceUIToMainMenu();
+                    break;
+
+                case "KICKED":
+                    forceUIToMainMenu();
+                    break;
             }
         });
     }
@@ -120,13 +203,20 @@ public class ServiceRepController {
             javafx.scene.Parent root = loader.load();
             javafx.stage.Stage stage = (javafx.stage.Stage) lblStatus.getScene().getWindow();
             WindowChrome.setContent(stage, root, "GoNature - Welcome");
-        } catch (Exception e) { 
-            e.printStackTrace(); 
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
     private void showStatus(String message, String hexColor) {
         lblStatus.setText(message);
         lblStatus.setStyle("-fx-text-fill: " + hexColor + ";");
+    }
+
+    private void showLookupStatus(String message, String hexColor) {
+        if (lblLookupStatus != null) {
+            lblLookupStatus.setText(message);
+            lblLookupStatus.setStyle("-fx-text-fill: " + hexColor + "; -fx-font-weight: bold;");
+        }
     }
 }
