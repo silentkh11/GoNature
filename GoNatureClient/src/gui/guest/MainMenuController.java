@@ -160,20 +160,23 @@ public class MainMenuController {
     // ── Resize / clip ─────────────────────────────────────────────────────────
 
     private void applyClips() {
-        double w = mainView.getWidth();
-        double h = mainView.getHeight();
-        if (w <= 0) { w = 850; h = 615; }
-
         openZone.setClip(new Polygon(0, 0, FOLD, 0, 0, FOLD));
         returnZone.setClip(new Polygon(150 - FOLD, 90, 150, 0, 150, 90));
 
-        updateLayout(w, h);
+        // Listen to mainView's own size — fires on every layout pass, including
+        // navigation-back where the scene is already fullscreen and scene listeners
+        // would never fire (no change event).
+        mainView.widthProperty().addListener((obs, o, n) ->
+            updateLayout(n.doubleValue(), mainView.getHeight()));
+        mainView.heightProperty().addListener((obs, o, n) ->
+            updateLayout(mainView.getWidth(), n.doubleValue()));
 
-        Scene scene = mainView.getScene();
-        scene.widthProperty().addListener((obs, o, n) ->
-            Platform.runLater(() -> updateLayout(scene.getWidth(), scene.getHeight())));
-        scene.heightProperty().addListener((obs, o, n) ->
-            Platform.runLater(() -> updateLayout(scene.getWidth(), scene.getHeight())));
+        double w = mainView.getWidth();
+        double h = mainView.getHeight();
+        if (w > 0 && h > 0) {
+            updateLayout(w, h);
+        }
+        // If w == 0 the first widthProperty change (fired after layout) calls updateLayout.
     }
 
     private void updateLayout(double w, double h) {

@@ -130,7 +130,7 @@
                      <Separator />
                      <Label styleClass="subtitle-label" text="Request a temporary discount percentage." wrapText="true" />
                      <HBox spacing="15.0" alignment="CENTER_LEFT">
-                        <TextField fx:id="txtDiscountPercent" promptText="%" prefHeight="40.0" prefWidth="70.0" style="-fx-alignment: center;" />
+                        <TextField fx:id="txtDiscountPercent" promptText="1-100" prefHeight="40.0" prefWidth="70.0" style="-fx-alignment: center;" />
                         <Button fx:id="btnSubmitPromotion" mnemonicParsing="false" onAction="#handleSubmitPromotion" prefHeight="40.0" HBox.hgrow="ALWAYS" maxWidth="Infinity" styleClass="secondary-btn" style="-fx-font-weight: bold; -fx-cursor: hand;" text="Submit Promotion" />
                      </HBox>
                   </VBox>
