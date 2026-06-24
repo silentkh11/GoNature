@@ -17,6 +17,8 @@ public class EchoServer extends AbstractServer {
     private Consumer<String> uiLogger;
     private Consumer<ConnectionToClient> clientConnectedHandler;
     private Consumer<ConnectionToClient> clientDisconnectedHandler;
+    /** Fired on the server's network thread when a client successfully authenticates. */
+    private Consumer<ConnectionToClient> clientLoginHandler;
 
     // Duplicate-login prevention: track which username owns each connection
     private final java.util.Set<String> loggedInUsers =
@@ -30,15 +32,24 @@ public class EchoServer extends AbstractServer {
 
     /**
      * Constructs an instance of the echo server.
+     * @param clientLoginHandler called (on the OCSF network thread) when a client authenticates;
+     *                           lets the server UI update its table row with username/role in real time.
      */
-    public EchoServer(int port, 
-                      Consumer<String> uiLogger, 
-                      Consumer<ConnectionToClient> clientConnectedHandler, 
-                      Consumer<ConnectionToClient> clientDisconnectedHandler) {
+    public EchoServer(int port,
+                      Consumer<String> uiLogger,
+                      Consumer<ConnectionToClient> clientConnectedHandler,
+                      Consumer<ConnectionToClient> clientDisconnectedHandler,
+                      Consumer<ConnectionToClient> clientLoginHandler) {
         super(port);
         this.uiLogger = uiLogger;
         this.clientConnectedHandler = clientConnectedHandler;
         this.clientDisconnectedHandler = clientDisconnectedHandler;
+        this.clientLoginHandler = clientLoginHandler;
+    }
+
+    /** Returns the logged-in Employee for a connection, or null if not authenticated. */
+    public entities.Employee getClientEmployee(ConnectionToClient client) {
+        return clientEmployeeMap.get(client);
     }
 
     @Override
@@ -67,6 +78,11 @@ public class EchoServer extends AbstractServer {
                             clientEmployeeMap.put(client, user);
                             client.sendToClient(new Message("LOGIN_SUCCESS", user));
                             uiLogger.accept("> " + user.getRole() + " (" + username + ") logged in.\n");
+                            // Notify server UI to update this client's row with username/role
+                            if (clientLoginHandler != null) clientLoginHandler.accept(client);
+                            // Push live user list to every connected DeptManager
+                            java.util.ArrayList<String> users = new java.util.ArrayList<>(loggedInUsers);
+                            broadcastToRole("DeptManager", new Message("CONNECTED_USERS_DATA", users));
                         }
                     } else {
                         client.sendToClient(new Message("LOGIN_FAILED", "Invalid username or password."));
@@ -517,13 +533,11 @@ public class EchoServer extends AbstractServer {
                 }
 
                 else if (request.getCommand().equals("LOGOUT_REQUEST")) {
+                    // Close the TCP connection — clientDisconnected() handles all map cleanup
+                    // and broadcasts the updated user list to DeptManagers automatically.
                     String username = clientUserMap.get(client);
-                    if (username != null) {
-                        loggedInUsers.remove(username);
-                        clientUserMap.remove(client);
-                        clientEmployeeMap.remove(client);
-                        uiLogger.accept("> " + username + " logged out gracefully.\n");
-                    }
+                    uiLogger.accept("> Logout requested" + (username != null ? " by " + username : "") + " — closing connection.\n");
+                    try { client.close(); } catch (Exception ignored) {}
                 }
 
                 else if (request.getCommand().equals("FETCH_CONNECTED_USERS")) {
@@ -546,12 +560,16 @@ public class EchoServer extends AbstractServer {
                     if (targetClient != null) {
                         loggedInUsers.remove(targetUsername);
                         clientUserMap.remove(targetClient);
+                        clientEmployeeMap.remove(targetClient);
                         try {
                             targetClient.sendToClient(new Message("KICKED", "Your session was terminated by the Department Manager."));
                             targetClient.close();
                         } catch (Exception ignored) {}
                         client.sendToClient(new Message("KICK_SUCCESS", targetUsername + " has been disconnected."));
                         uiLogger.accept("> Dept Manager force-disconnected: " + targetUsername + "\n");
+                        // Push live update to all DeptManagers so their connected-users list refreshes
+                        java.util.ArrayList<String> updatedAfterKick = new java.util.ArrayList<>(loggedInUsers);
+                        broadcastToRole("DeptManager", new Message("CONNECTED_USERS_DATA", updatedAfterKick));
                     } else {
                         client.sendToClient(new Message("KICK_FAILED", "User '" + targetUsername + "' is not connected."));
                     }
@@ -656,6 +674,9 @@ public class EchoServer extends AbstractServer {
         if (username != null) {
             loggedInUsers.remove(username);
             uiLogger.accept("> " + username + " disconnected — session released.\n");
+            // Push live user list to every connected DeptManager so their view updates instantly
+            java.util.ArrayList<String> updatedUsers = new java.util.ArrayList<>(loggedInUsers);
+            broadcastToRole("DeptManager", new Message("CONNECTED_USERS_DATA", updatedUsers));
         } else {
             uiLogger.accept("> Client disconnected.\n");
         }

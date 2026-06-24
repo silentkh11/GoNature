@@ -26,25 +26,25 @@ public class ClientUI extends Application {
         primaryStage.setScene(scene);
         primaryStage.setResizable(true); 
         
-        // --- THE AUTO-LOGOUT ON EXIT FIX ---
+        // --- CLEAN SHUTDOWN ON WINDOW CLOSE ---
         primaryStage.setOnCloseRequest(event -> {
             System.out.println("Closing client application...");
             try {
-                // 1. Check if the network client exists and is connected
-                ChatClient networkClient = ChatClient.getInstance();
+                // Use null-safe getter — user may close before ever making a network request
+                ChatClient networkClient = ChatClient.getInstanceIfExists();
                 if (networkClient != null && networkClient.isConnected()) {
-                    
-                    // 2. Fire the logout request to the server
+                    // Send logout so the server cleans up session maps
                     networkClient.handleMessageFromClientUI(new Message("LOGOUT_REQUEST", null));
-                    
-                    // 3. CRITICAL: Give the network stream 150 milliseconds to actually transmit 
-                    // the packet before Java violently kills the application!
+                    // Give the packet 150 ms to reach the server before we kill the JVM.
+                    // The server will also close the TCP socket from its side upon receiving
+                    // LOGOUT_REQUEST, but we close from our side too as a safety net so the
+                    // server table clears immediately even in edge cases.
                     Thread.sleep(150);
+                    try { networkClient.closeConnection(); } catch (Exception ignored) {}
                 }
             } catch (Exception e) {
-                System.err.println("Logout on exit failed: " + e.getMessage());
+                System.err.println("Cleanup on exit failed: " + e.getMessage());
             }
-            
             Platform.exit();
             System.exit(0);
         });

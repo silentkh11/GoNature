@@ -43,6 +43,11 @@ public class ChatClient extends AbstractClient {
         return instance;
     }
 
+    /** Returns the singleton if it has been initialized, null otherwise (never throws). */
+    public static ChatClient getInstanceIfExists() {
+        return instance;
+    }
+
     public void setResponseHandler(Consumer<Message> responseHandler) {
         this.responseHandler = responseHandler;
     }
