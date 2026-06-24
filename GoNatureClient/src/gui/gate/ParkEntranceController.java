@@ -59,6 +59,23 @@ public class ParkEntranceController {
             if (val != null && !val.matches("[0-9]*"))
                 txtManualExitCount.setText(val.replaceAll("[^0-9]", ""));
         });
+
+        // Payment buttons are disabled until the relevant booking fields are filled
+        btnPayment.setDisable(true);
+        btnWalkInPayment.setDisable(true);
+
+        txtOrderId.textProperty().addListener((obs, old, val) ->
+            btnPayment.setDisable(val == null || val.trim().isEmpty())
+        );
+
+        txtWalkInCount.textProperty().addListener((obs, old, val) ->
+            btnWalkInPayment.setDisable(
+                val == null || val.trim().isEmpty() || cmbWalkInType.getValue() == null)
+        );
+        cmbWalkInType.valueProperty().addListener((obs, old, val) ->
+            btnWalkInPayment.setDisable(
+                val == null || txtWalkInCount.getText().trim().isEmpty())
+        );
     }
 
     public void setUser(Employee user) {

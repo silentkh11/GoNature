@@ -45,6 +45,7 @@ public final class PaymentOverlay {
         card.setMinWidth(300);
         card.setMaxWidth(300);
         card.setOpacity(0);
+        card.setMaxHeight(Region.USE_PREF_SIZE); // prevent StackPane from stretching it full-screen
         card.setStyle(
             "-fx-background-color: #0D1F35;" +
             "-fx-background-radius: 20;" +
@@ -66,7 +67,7 @@ public final class PaymentOverlay {
         VBox.setMargin(divider, new Insets(14, 0, 18, 0));
 
         // ── NFC PHASE ─────────────────────────────────────────
-        Label nfcEmoji = new Label("🛜");
+        Label nfcEmoji = new Label("📲");
         nfcEmoji.setStyle("-fx-font-size: 50px;");
 
         Label nfcTitle = new Label("Tap Card or Phone");
@@ -159,9 +160,9 @@ public final class PaymentOverlay {
         );
         lblDone.setOpacity(0);
 
-        VBox bottomArea = new VBox(5, lblProcessing, lblAccepted, lblDone);
+        VBox bottomArea = new VBox(4, lblProcessing, lblAccepted, lblDone);
         bottomArea.setAlignment(Pos.CENTER);
-        VBox.setMargin(bottomArea, new Insets(14, 0, 26, 0));
+        VBox.setMargin(bottomArea, new Insets(10, 0, 20, 0));
 
         card.getChildren().addAll(header, divider, centerArea, bottomArea);
         backdrop.getChildren().add(card);
