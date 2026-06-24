@@ -4,71 +4,180 @@
 <?import javafx.scene.layout.*?>
 <?import javafx.scene.text.Font?>
 
-<ScrollPane fitToWidth="true" styleClass="page-root" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="gui.gate.ParkEntranceController">
+<ScrollPane fitToWidth="true" styleClass="page-root"
+            xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="gui.gate.ParkEntranceController">
    <content>
-      <VBox alignment="TOP_CENTER" prefWidth="850.0" spacing="25.0" styleClass="page-root">
-         <padding><Insets bottom="30.0" left="35.0" right="35.0" top="20.0" /></padding>
+      <VBox alignment="TOP_CENTER" prefWidth="900.0" spacing="22.0" styleClass="page-root">
+         <padding><Insets bottom="36.0" left="36.0" right="36.0" top="20.0" /></padding>
 
-         <HBox alignment="CENTER_RIGHT" spacing="12.0">
-            <Label styleClass="title-label" text="Gate Terminal" HBox.hgrow="ALWAYS" maxWidth="Infinity"><font><Font name="Segoe UI Bold" size="24.0" /></font></Label>
+         <!-- Header Bar -->
+         <HBox alignment="CENTER_LEFT" spacing="12.0" styleClass="header-bar">
+            <Label text="🚧" style="-fx-font-size: 22px;" />
+            <VBox spacing="1.0">
+               <Label text="Gate Terminal" styleClass="title-label"
+                      style="-fx-font-size: 22px; -fx-font-weight: bold;" />
+               <Label text="Park Entry &amp; Exit Processing" styleClass="subtitle-label"
+                      style="-fx-font-size: 11px;" />
+            </VBox>
             <Region HBox.hgrow="ALWAYS" />
-            <Label fx:id="lblEmployeeName" style="-fx-font-size: 13px; -fx-font-weight: bold; -fx-padding: 0 8 0 0;" text="" />
-            <Button focusTraversable="false" mnemonicParsing="false" onAction="#handleViewMyProfile"
-                    styleClass="secondary-btn" style="-fx-font-size: 13px; -fx-padding: 6 15;" text="👤 My Profile" />
-            <Button fx:id="themeBtn" focusTraversable="false" mnemonicParsing="false" onAction="#handleToggleTheme" styleClass="theme-toggle" text="🌙 Dark Mode" />
-            <Button focusTraversable="false" mnemonicParsing="false" onAction="#handleLogout" styleClass="danger-btn" style="-fx-font-size: 13px; -fx-padding: 6 15;" text="🚪 Logout" />
+            <Label fx:id="lblEmployeeName"
+                   style="-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #1DC98A;" />
+            <Button focusTraversable="false" mnemonicParsing="false"
+                    onAction="#handleViewMyProfile"
+                    styleClass="secondary-btn"
+                    style="-fx-font-size: 13px; -fx-padding: 7 16;" text="👤  Profile" />
+            <Button fx:id="themeBtn" focusTraversable="false" mnemonicParsing="false"
+                    onAction="#handleToggleTheme" styleClass="theme-toggle" text="☀ Light Mode" />
+            <Button focusTraversable="false" mnemonicParsing="false" onAction="#handleLogout"
+                    styleClass="danger-btn"
+                    style="-fx-font-size: 13px; -fx-padding: 7 16;" text="🚪  Logout" />
          </HBox>
-         
-         <HBox spacing="25.0" alignment="TOP_CENTER">
-            <VBox spacing="15.0" styleClass="card" HBox.hgrow="ALWAYS" maxWidth="420.0" minHeight="380.0">
-               <padding><Insets bottom="25.0" left="25.0" right="25.0" top="25.0" /></padding>
-               <Label styleClass="section-blue" text="Pre-Booked Entry"><font><Font name="Segoe UI Bold" size="18.0" /></font></Label>
-               <Separator />
-               <Label styleClass="body-label" text="Scan or manually enter the Order ID to process park entry or exit." wrapText="true" />
-               <Region VBox.vgrow="ALWAYS" />
-               <TextField fx:id="txtOrderId" prefHeight="50.0" promptText="Enter Order ID" style="-fx-font-size: 18px; -fx-alignment: center;" />
-               <Region VBox.vgrow="ALWAYS" />
-               <HBox spacing="15.0" alignment="CENTER">
-                  <Button fx:id="btnAdmit" mnemonicParsing="false" onAction="#handleAdmit" prefHeight="45.0" prefWidth="160.0" styleClass="success-btn" style="-fx-font-weight: bold; -fx-font-size: 14px;" text="✅ Admit Entry" />
-                  <Button fx:id="btnExit" mnemonicParsing="false" onAction="#handleExit" prefHeight="45.0" prefWidth="160.0" styleClass="secondary-btn" style="-fx-font-weight: bold; -fx-font-size: 14px;" text="🚪 Register Exit" />
+
+         <!-- Main 2-column Layout -->
+         <HBox spacing="22.0" alignment="TOP_CENTER">
+
+            <!-- LEFT: Pre-booked Entry (main action) -->
+            <VBox spacing="0" styleClass="card" HBox.hgrow="ALWAYS" maxWidth="430.0"
+                  style="-fx-border-color: rgba(29,201,138,0.14) rgba(29,201,138,0.14) rgba(29,201,138,0.14) rgba(29,201,138,0.70); -fx-border-width: 1 1 1 3; -fx-border-radius: 0 14 14 0; -fx-background-radius: 0 14 14 0;">
+               <padding><Insets bottom="28.0" left="26.0" right="26.0" top="24.0" /></padding>
+
+               <HBox alignment="CENTER_LEFT" spacing="8.0">
+                  <VBox.margin><Insets bottom="6.0" /></VBox.margin>
+                  <Label text="🎟" style="-fx-font-size: 18px;" />
+                  <Label styleClass="section-blue" text="Pre-Booked Entry"
+                         style="-fx-font-size: 17px;" />
                </HBox>
-               <Region VBox.vgrow="ALWAYS" />
-               <Label fx:id="lblStatus" alignment="CENTER" maxWidth="Infinity" wrapText="true" minHeight="50.0" />
+
+               <Label styleClass="subtitle-label"
+                      text="Scan or manually enter the Order ID to process park entry or exit."
+                      wrapText="true" style="-fx-font-size: 12.5px;">
+                  <VBox.margin><Insets bottom="20.0" /></VBox.margin>
+               </Label>
+
+               <Label text="Order ID" styleClass="body-label"
+                      style="-fx-font-weight: bold; -fx-font-size: 12px;">
+                  <VBox.margin><Insets bottom="6.0" /></VBox.margin>
+               </Label>
+               <TextField fx:id="txtOrderId" prefHeight="52.0"
+                          promptText="Enter or scan Order ID…"
+                          style="-fx-font-size: 20px; -fx-alignment: center; -fx-font-weight: bold;">
+                  <VBox.margin><Insets bottom="20.0" /></VBox.margin>
+               </TextField>
+
+               <HBox spacing="14.0" alignment="CENTER">
+                  <VBox.margin><Insets bottom="18.0" /></VBox.margin>
+                  <Button fx:id="btnAdmit" mnemonicParsing="false" onAction="#handleAdmit"
+                          prefHeight="48.0" HBox.hgrow="ALWAYS" maxWidth="Infinity"
+                          styleClass="success-btn"
+                          style="-fx-font-weight: bold; -fx-font-size: 14px;"
+                          text="✅  Admit Entry" />
+                  <Button fx:id="btnExit" mnemonicParsing="false" onAction="#handleExit"
+                          prefHeight="48.0" HBox.hgrow="ALWAYS" maxWidth="Infinity"
+                          styleClass="secondary-btn"
+                          style="-fx-font-weight: bold; -fx-font-size: 14px;"
+                          text="🚪  Register Exit" />
+               </HBox>
+
+               <Label fx:id="lblStatus" alignment="CENTER" maxWidth="Infinity"
+                      wrapText="true" minHeight="50.0"
+                      style="-fx-font-size: 13.5px; -fx-font-weight: bold;" />
             </VBox>
 
-            <VBox spacing="25.0" HBox.hgrow="ALWAYS" maxWidth="380.0">
-               
-               <VBox spacing="15.0" styleClass="card">
-                  <padding><Insets bottom="20.0" left="20.0" right="20.0" top="20.0" /></padding>
-                  <Label styleClass="section-blue" text="Casual Walk-In"><font><Font name="Segoe UI Bold" size="16.0" /></font></Label>
-                  <Separator />
-                  <GridPane hgap="10.0" vgap="15.0">
+            <!-- RIGHT: Walk-in + Manual Exit -->
+            <VBox spacing="18.0" HBox.hgrow="ALWAYS" maxWidth="410.0">
+
+               <!-- Casual Walk-In Card -->
+               <VBox spacing="0" styleClass="card"
+                     style="-fx-border-color: rgba(76,158,232,0.14) rgba(76,158,232,0.14) rgba(76,158,232,0.14) rgba(76,158,232,0.60); -fx-border-width: 1 1 1 3; -fx-border-radius: 0 14 14 0; -fx-background-radius: 0 14 14 0;">
+                  <padding><Insets bottom="22.0" left="22.0" right="22.0" top="20.0" /></padding>
+
+                  <HBox alignment="CENTER_LEFT" spacing="8.0">
+                     <VBox.margin><Insets bottom="6.0" /></VBox.margin>
+                     <Label text="🚶" style="-fx-font-size: 16px;" />
+                     <Label styleClass="section-blue" text="Casual Walk-In"
+                            style="-fx-font-size: 15px;" />
+                  </HBox>
+
+                  <Separator style="-fx-opacity: 0.4;">
+                     <VBox.margin><Insets bottom="14.0" /></VBox.margin>
+                  </Separator>
+
+                  <GridPane hgap="12.0" vgap="13.0">
                      <columnConstraints>
-                        <ColumnConstraints hgrow="SOMETIMES" minWidth="60.0" />
+                        <ColumnConstraints hgrow="SOMETIMES" minWidth="100.0" prefWidth="115.0" />
                         <ColumnConstraints hgrow="ALWAYS" minWidth="10.0" />
                      </columnConstraints>
-                     <Label styleClass="body-label" text="Type:" GridPane.rowIndex="0"><font><Font name="Segoe UI Bold" size="13.0"/></font></Label>
-                     <ComboBox fx:id="cmbWalkInType" maxWidth="Infinity" promptText="Select..." GridPane.columnIndex="1" GridPane.rowIndex="0" />
-                     <Label styleClass="body-label" text="Count:" GridPane.rowIndex="1"><font><Font name="Segoe UI Bold" size="13.0"/></font></Label>
-                     <TextField fx:id="txtWalkInCount" promptText="Num of visitors" GridPane.columnIndex="1" GridPane.rowIndex="1" />
-                     <Label styleClass="body-label" text="Subscriber ID:" GridPane.rowIndex="2"><font><Font name="Segoe UI Bold" size="13.0"/></font></Label>
-                     <TextField fx:id="txtSubscriberId" promptText="Optional — 10% off" GridPane.columnIndex="1" GridPane.rowIndex="2" />
+
+                     <Label styleClass="body-label" text="Visit Type"
+                            style="-fx-font-weight: bold; -fx-font-size: 12px;"
+                            GridPane.rowIndex="0" />
+                     <ComboBox fx:id="cmbWalkInType" maxWidth="Infinity" promptText="Select type…"
+                               GridPane.columnIndex="1" GridPane.rowIndex="0" />
+
+                     <Label styleClass="body-label" text="Visitor Count"
+                            style="-fx-font-weight: bold; -fx-font-size: 12px;"
+                            GridPane.rowIndex="1" />
+                     <TextField fx:id="txtWalkInCount" promptText="Number of visitors"
+                                GridPane.columnIndex="1" GridPane.rowIndex="1" />
+
+                     <Label styleClass="body-label" text="Subscriber ID"
+                            style="-fx-font-weight: bold; -fx-font-size: 12px;"
+                            GridPane.rowIndex="2" />
+                     <TextField fx:id="txtSubscriberId" promptText="Optional — 10% off"
+                                GridPane.columnIndex="1" GridPane.rowIndex="2" />
                   </GridPane>
-                  <Button fx:id="btnWalkIn" mnemonicParsing="false" onAction="#handleWalkIn" prefHeight="40.0" maxWidth="Infinity" styleClass="primary-btn" style="-fx-font-weight: bold;" text="Register Walk-In" />
-                  <Label fx:id="lblWalkInStatus" alignment="CENTER" maxWidth="Infinity" wrapText="true" />
+
+                  <Button fx:id="btnWalkIn" mnemonicParsing="false" onAction="#handleWalkIn"
+                          prefHeight="42.0" maxWidth="Infinity" styleClass="primary-btn"
+                          style="-fx-font-weight: bold; -fx-font-size: 13px;"
+                          text="Register Walk-In">
+                     <VBox.margin><Insets top="14.0" /></VBox.margin>
+                  </Button>
+
+                  <Label fx:id="lblWalkInStatus" alignment="CENTER" maxWidth="Infinity"
+                         wrapText="true" style="-fx-font-size: 12px;">
+                     <VBox.margin><Insets top="6.0" /></VBox.margin>
+                  </Label>
                </VBox>
 
-               <VBox spacing="15.0" styleClass="card">
-                  <padding><Insets bottom="20.0" left="20.0" right="20.0" top="20.0" /></padding>
-                  <Label styleClass="section-red" text="Manual Exit Adjustment"><font><Font name="Segoe UI Bold" size="16.0" /></font></Label>
-                  <Separator />
-                  <HBox spacing="15.0" alignment="CENTER_LEFT">
-                     <TextField fx:id="txtManualExitCount" prefWidth="100.0" prefHeight="40.0" promptText="Count" />
-                     <Button fx:id="btnManualExit" mnemonicParsing="false" onAction="#handleManualExit" prefHeight="40.0" HBox.hgrow="ALWAYS" maxWidth="Infinity" styleClass="danger-btn" style="-fx-font-weight: bold;" text="Decrement Park" />
+               <!-- Manual Exit Adjustment Card -->
+               <VBox spacing="0" styleClass="card"
+                     style="-fx-border-color: rgba(192,48,64,0.14) rgba(192,48,64,0.14) rgba(192,48,64,0.14) rgba(192,48,64,0.60); -fx-border-width: 1 1 1 3; -fx-border-radius: 0 14 14 0; -fx-background-radius: 0 14 14 0;">
+                  <padding><Insets bottom="20.0" left="22.0" right="22.0" top="20.0" /></padding>
+
+                  <HBox alignment="CENTER_LEFT" spacing="8.0">
+                     <VBox.margin><Insets bottom="6.0" /></VBox.margin>
+                     <Label text="⚠" style="-fx-font-size: 15px; -fx-text-fill: #E54040;" />
+                     <Label styleClass="section-red" text="Manual Exit Adjustment"
+                            style="-fx-font-size: 15px;" />
                   </HBox>
-                  <Label fx:id="lblManualExitStatus" alignment="CENTER" maxWidth="Infinity" wrapText="true" />
+
+                  <Separator style="-fx-opacity: 0.4;">
+                     <VBox.margin><Insets bottom="14.0" /></VBox.margin>
+                  </Separator>
+
+                  <Label styleClass="subtitle-label"
+                         text="Manually decrement the park's visitor counter. Use only to correct errors."
+                         wrapText="true" style="-fx-font-size: 11.5px;">
+                     <VBox.margin><Insets bottom="12.0" /></VBox.margin>
+                  </Label>
+
+                  <HBox spacing="12.0" alignment="CENTER_LEFT">
+                     <TextField fx:id="txtManualExitCount" prefWidth="100.0" prefHeight="42.0"
+                                promptText="Count" style="-fx-alignment: center; -fx-font-size: 14px;" />
+                     <Button fx:id="btnManualExit" mnemonicParsing="false"
+                             onAction="#handleManualExit" prefHeight="42.0"
+                             HBox.hgrow="ALWAYS" maxWidth="Infinity" styleClass="danger-btn"
+                             style="-fx-font-weight: bold;" text="Decrement Count" />
+                  </HBox>
+
+                  <Label fx:id="lblManualExitStatus" alignment="CENTER" maxWidth="Infinity"
+                         wrapText="true" style="-fx-font-size: 12px;">
+                     <VBox.margin><Insets top="8.0" /></VBox.margin>
+                  </Label>
                </VBox>
-               
+
             </VBox>
          </HBox>
       </VBox>

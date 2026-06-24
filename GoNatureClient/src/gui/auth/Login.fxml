@@ -5,61 +5,99 @@
 <?import javafx.scene.control.PasswordField?>
 <?import javafx.scene.control.TextField?>
 <?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
 
-<BorderPane prefHeight="650.0" prefWidth="850.0" styleClass="page-root" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="gui.auth.LoginController">
+<StackPane prefHeight="620.0" prefWidth="860.0" styleClass="page-root"
+           xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
+           fx:controller="gui.auth.LoginController">
 
-   <top>
-      <BorderPane BorderPane.alignment="CENTER">
-         <padding><Insets left="20.0" right="20.0" top="15.0" bottom="5.0" /></padding>
-         <left>
-            <Button focusTraversable="false" mnemonicParsing="false" onAction="#handleGoBack" styleClass="back-link" text="&lt; Back to Main Menu" />
-         </left>
-         <right>
-            <Button fx:id="themeBtn" focusTraversable="false" mnemonicParsing="false" onAction="#handleToggleTheme" styleClass="theme-toggle" text="🌙 Dark Mode" />
-         </right>
-      </BorderPane>
-   </top>
+   <!-- Subtle grid/dot texture layer -->
+   <StackPane style="-fx-background-color: radial-gradient(center 50% 30%, radius 65%, rgba(29,201,138,0.06), rgba(0,0,0,0.0));" mouseTransparent="true" />
 
-   <center>
-      <VBox alignment="CENTER" maxWidth="400.0" maxHeight="450.0" spacing="20.0" BorderPane.alignment="CENTER">
-         <children>
-            <Label alignment="CENTER" maxWidth="Infinity" text="🏕️">
-               <font><Font size="42.0" /></font>
-            </Label>
+   <BorderPane>
+      <top>
+         <HBox alignment="CENTER_LEFT" spacing="10.0">
+            <padding><Insets left="24.0" right="24.0" top="18.0" bottom="10.0" /></padding>
+            <Button focusTraversable="false" mnemonicParsing="false" onAction="#handleGoBack"
+                    styleClass="back-link" text="← Back to Main Menu" />
+            <Region HBox.hgrow="ALWAYS" />
+            <Button fx:id="themeBtn" focusTraversable="false" mnemonicParsing="false"
+                    onAction="#handleToggleTheme" styleClass="theme-toggle" text="☀ Light Mode" />
+         </HBox>
+      </top>
 
-            <Label styleClass="title-label" text="GoNature Portal">
-               <font>
-                  <Font name="Segoe UI Bold" size="26.0" />
-               </font>
-            </Label>
+      <center>
+         <VBox alignment="CENTER" spacing="0" BorderPane.alignment="CENTER">
+            <BorderPane.margin><Insets bottom="60.0" /></BorderPane.margin>
 
-            <VBox spacing="15.0" styleClass="card" style="-fx-padding: 25;">
-               <VBox spacing="5.0">
-                  <Label styleClass="body-label" text="Username">
-                     <font><Font name="Segoe UI Bold" size="14.0" /></font>
-                  </Label>
-                  <TextField fx:id="usernameField" onAction="#handleLogin" promptText="Enter username..." style="-fx-padding: 10; -fx-font-size: 14px;" />
-               </VBox>
+            <!-- Logo / Brand header -->
+            <VBox alignment="CENTER" spacing="6.0">
+               <Label text="🌿" alignment="CENTER" maxWidth="Infinity"
+                      style="-fx-font-size: 44px;" />
+               <Label text="GoNature" alignment="CENTER" maxWidth="Infinity"
+                      styleClass="title-label"
+                      style="-fx-font-size: 30px; -fx-font-weight: bold;" />
+               <Label text="EMPLOYEE PORTAL" alignment="CENTER" maxWidth="Infinity"
+                      style="-fx-font-size: 11px; -fx-letter-spacing: 3;
+                             -fx-text-fill: rgba(29,201,138,0.55);">
+                  <VBox.margin><Insets bottom="24.0" /></VBox.margin>
+               </Label>
+            </VBox>
 
-               <VBox spacing="5.0">
-                  <Label styleClass="body-label" text="Password">
-                     <font><Font name="Segoe UI Bold" size="14.0" /></font>
-                  </Label>
-                  <PasswordField fx:id="passwordField" onAction="#handleLogin" promptText="Enter password..." style="-fx-padding: 10; -fx-font-size: 14px;" />
-               </VBox>
+            <!-- Login Card -->
+            <VBox styleClass="card" maxWidth="400.0" spacing="0"
+                  style="-fx-border-color: rgba(29,201,138,0.18); -fx-border-width: 1 1 1 4; -fx-border-radius: 0 14 14 0; -fx-background-radius: 0 14 14 0;">
+               <padding><Insets bottom="32.0" left="32.0" right="32.0" top="28.0" /></padding>
 
-               <Label fx:id="errorLabel" style="-fx-text-fill: #E83A5A; -fx-font-weight: bold;" text="Error message here" visible="false" wrapText="true" />
+               <Label text="Sign In" styleClass="section-blue"
+                      style="-fx-font-size: 18px;">
+                  <VBox.margin><Insets bottom="20.0" /></VBox.margin>
+               </Label>
 
-               <Button fx:id="loginBtn" maxWidth="Infinity" mnemonicParsing="false" onAction="#handleLogin" styleClass="primary-btn" style="-fx-font-size: 15px; -fx-padding: 12;" text="Login">
-                  <VBox.margin><Insets top="10.0" /></VBox.margin>
+               <Label text="Username" styleClass="body-label"
+                      style="-fx-font-size: 12px; -fx-font-weight: bold;">
+                  <VBox.margin><Insets bottom="5.0" /></VBox.margin>
+               </Label>
+               <TextField fx:id="usernameField" onAction="#handleLogin"
+                          promptText="Enter your username"
+                          style="-fx-font-size: 14px; -fx-padding: 11 14;">
+                  <VBox.margin><Insets bottom="16.0" /></VBox.margin>
+               </TextField>
+
+               <Label text="Password" styleClass="body-label"
+                      style="-fx-font-size: 12px; -fx-font-weight: bold;">
+                  <VBox.margin><Insets bottom="5.0" /></VBox.margin>
+               </Label>
+               <PasswordField fx:id="passwordField" onAction="#handleLogin"
+                              promptText="Enter your password"
+                              style="-fx-font-size: 14px; -fx-padding: 11 14;">
+                  <VBox.margin><Insets bottom="6.0" /></VBox.margin>
+               </PasswordField>
+
+               <Label fx:id="errorLabel"
+                      style="-fx-text-fill: #E54040; -fx-font-size: 12px; -fx-font-weight: bold;"
+                      text="" visible="false" wrapText="true">
+                  <VBox.margin><Insets bottom="4.0" top="4.0" /></VBox.margin>
+               </Label>
+
+               <Button fx:id="loginBtn" maxWidth="Infinity" mnemonicParsing="false"
+                       onAction="#handleLogin" styleClass="primary-btn"
+                       style="-fx-font-size: 15px; -fx-padding: 13;" text="Sign In">
+                  <VBox.margin><Insets top="14.0" /></VBox.margin>
                </Button>
             </VBox>
-         </children>
-         <BorderPane.margin>
-            <Insets bottom="50.0" />
-         </BorderPane.margin>
-      </VBox>
-   </center>
-</BorderPane>
+
+            <!-- Footer hint -->
+            <Label text="GoNature National Parks · Secure Portal"
+                   alignment="CENTER" maxWidth="Infinity"
+                   style="-fx-font-size: 11px; -fx-text-fill: rgba(122,152,178,0.40);">
+               <VBox.margin><Insets top="22.0" /></VBox.margin>
+            </Label>
+         </VBox>
+      </center>
+   </BorderPane>
+</StackPane>
