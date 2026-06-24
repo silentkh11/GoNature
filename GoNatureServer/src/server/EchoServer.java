@@ -483,9 +483,9 @@ public class EchoServer extends AbstractServer {
                         // Push live update: all DeptManagers see the promotion leave their pending table
                         java.util.ArrayList<entities.Promotion> pending = DBController.getPendingPromotions();
                         broadcastToRole("DeptManager", new Message("PENDING_PROMOTIONS_DATA", pending));
-                        // Push live update: any DeptManager viewing the parks list sees updated active discount
+                        // Push live update: ALL clients (including guest visitors on MainMenu) see updated parks
                         java.util.ArrayList<entities.Park> allParks = DBController.getAllParks();
-                        broadcastToRole("DeptManager", new Message("ALL_PARKS_DATA", allParks));
+                        broadcastToAllClients(new Message("ALL_PARKS_DATA", allParks));
                     } else {
                         client.sendToClient(new Message("PROMOTION_DECISION_FAILED", "Database error."));
                     }
@@ -503,9 +503,9 @@ public class EchoServer extends AbstractServer {
                             broadcastToPark(parkId, new Message("PARK_DETAILS_DATA", updated));
                             broadcastToPark(parkId, new Message("PROMOTION_DECISION_MADE", "Cancelled"));
                         }
-                        // Push live update: every DeptManager refreshes their park list (active discount changed)
+                        // Push live update: ALL clients (including guest visitors on MainMenu) see updated parks
                         java.util.ArrayList<entities.Park> allParks = DBController.getAllParks();
-                        broadcastToRole("DeptManager", new Message("ALL_PARKS_DATA", allParks));
+                        broadcastToAllClients(new Message("ALL_PARKS_DATA", allParks));
                         uiLogger.accept("> Active discount cancelled for park " + parkId + "\n");
                     } else {
                         client.sendToClient(new Message("CANCEL_PROMOTION_FAILED", result));
@@ -720,6 +720,20 @@ public class EchoServer extends AbstractServer {
         if (parkId > 0) {
             entities.Park updatedPark = DBController.getParkById(parkId);
             if (updatedPark != null) broadcastToPark(parkId, new Message("PARK_DETAILS_DATA", updatedPark));
+        }
+    }
+
+    /**
+     * Push a message to every connected client regardless of role or login status.
+     * Used for park data changes (discount approve/cancel) so unauthenticated
+     * visitors viewing the main menu also receive the update.
+     */
+    private void broadcastToAllClients(Message msg) {
+        Thread[] clients = getClientConnections();
+        for (Thread t : clients) {
+            if (t instanceof ConnectionToClient) {
+                try { ((ConnectionToClient) t).sendToClient(msg); } catch (Exception ignored) {}
+            }
         }
     }
 }
