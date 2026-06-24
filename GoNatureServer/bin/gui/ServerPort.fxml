@@ -56,9 +56,11 @@
          </Label>
          <TableView fx:id="clientsTable" VBox.vgrow="ALWAYS">
            <columns>
-             <TableColumn fx:id="ipCol" prefWidth="120.0" text="IP Address" />
-             <TableColumn fx:id="hostCol" prefWidth="120.0" text="Host" />
-             <TableColumn fx:id="statusCol" prefWidth="80.0" text="Status" />
+             <TableColumn fx:id="ipCol" prefWidth="105.0" text="IP Address" />
+             <TableColumn fx:id="hostCol" prefWidth="100.0" text="Host" />
+             <TableColumn fx:id="userCol" prefWidth="120.0" text="Username" />
+             <TableColumn fx:id="roleCol" prefWidth="100.0" text="Role" />
+             <TableColumn fx:id="statusCol" prefWidth="75.0" text="Status" />
            </columns>
             <columnResizePolicy>
                <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
