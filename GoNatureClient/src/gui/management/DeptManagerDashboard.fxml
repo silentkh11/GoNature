@@ -126,7 +126,7 @@
                         </VBox>
                      </HBox>
 
-                     <HBox alignment="CENTER_LEFT" spacing="12.0" wrapLength="600.0">
+                     <HBox alignment="CENTER_LEFT" spacing="12.0">
                         <Label text="Park" styleClass="park-label-dark" />
                         <ComboBox fx:id="cmbCancelPark" prefWidth="240.0"
                                   promptText="Select park to cancel discount…"
