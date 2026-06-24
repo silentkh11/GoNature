@@ -86,6 +86,8 @@ public class DBController {
             addColumnIfMissing(st, "visit_order", "entry_timestamp", "TIMESTAMP NULL DEFAULT NULL");
             addColumnIfMissing(st, "visit_order", "exit_timestamp",  "TIMESTAMP NULL DEFAULT NULL");
             addColumnIfMissing(st, "park",        "active_discount", "DECIMAL(5,2) NOT NULL DEFAULT 0");
+            // created_at: guards the 24h reminder from firing on same-day/next-day bookings
+            addColumnIfMissing(st, "visit_order", "created_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP");
 
             st.execute(
                 "CREATE TABLE IF NOT EXISTS park_promotion (" +
@@ -156,12 +158,15 @@ public class DBController {
             try (Connection conn = getConnection()) {
 
                 // PHASE 1: Send 24-Hour Reminders
+                // Guard: created_at < visit_timestamp - 25h ensures we never fire immediately
+                // on bookings made within 25h of the visit (those visitors just booked — no reminder needed).
                 String reminderQuery =
                     "SELECT v.order_id, v.visit_date, v.visit_time, v.visitor_count, " +
                     "vis.first_name, vis.email, vis.phone FROM visit_order v " +
                     "JOIN visitor vis ON v.visitor_id = vis.visitor_id " +
                     "WHERE v.status = 'Booked' AND v.notification_time IS NULL " +
-                    "AND TIMESTAMP(v.visit_date, v.visit_time) BETWEEN NOW() + INTERVAL 23 HOUR AND NOW() + INTERVAL 25 HOUR";
+                    "AND TIMESTAMP(v.visit_date, v.visit_time) BETWEEN NOW() + INTERVAL 23 HOUR AND NOW() + INTERVAL 25 HOUR " +
+                    "AND v.created_at < TIMESTAMP(v.visit_date, v.visit_time) - INTERVAL 25 HOUR";
                 String updateReminder =
                     "UPDATE visit_order SET status = 'Pending Confirm', notification_time = NOW() WHERE order_id = ?";
 
@@ -418,22 +423,32 @@ public class DBController {
                         order.setOrderId(keys.getInt(1));
                         order.setStatus(assignedStatus);
 
-                        // Send booking confirmation email for non-waitlisted orders only
-                        if (assignedStatus.equals("Booked")
-                                && order.getEmail() != null
-                                && order.getEmail().contains("@")) {
+                        // Send booking confirmation email + SMS immediately on booking
+                        if (assignedStatus.equals("Booked")) {
+                            String cancelUrl = serverBaseUrl + "/cancel?id=" + order.getOrderId();
+                            String shortTime = (order.getVisitTime() != null)
+                                ? order.getVisitTime().substring(0, Math.min(5, order.getVisitTime().length()))
+                                : "";
                             try {
-                                String cancelUrl = serverBaseUrl + "/cancel?id=" + order.getOrderId();
-                                String shortTime = (order.getVisitTime() != null)
-                                    ? order.getVisitTime().substring(0, Math.min(5, order.getVisitTime().length()))
-                                    : "";
-                                String subject = "✅ GoNature Booking Confirmed — Order #" + order.getOrderId();
-                                String htmlBody = buildBookingConfirmEmail(
-                                    order.getOrderId(), order.getVisitDate(), shortTime,
-                                    order.getVisitorCount(), calculatedPrice, cancelUrl);
-                                EmailSender.sendHtmlEmail(order.getEmail(), subject, htmlBody);
+                                if (order.getEmail() != null && order.getEmail().contains("@")) {
+                                    String subject = "✅ GoNature Booking Confirmed — Order #" + order.getOrderId();
+                                    String htmlBody = buildBookingConfirmEmail(
+                                        order.getOrderId(), order.getVisitDate(), shortTime,
+                                        order.getVisitorCount(), calculatedPrice, cancelUrl);
+                                    EmailSender.sendHtmlEmail(order.getEmail(), subject, htmlBody);
+                                }
                             } catch (Throwable mailEx) {
                                 System.err.println("Booking confirmation email failed: " + mailEx.getMessage());
+                            }
+                            try {
+                                if (order.getPhone() != null && !order.getPhone().isBlank()) {
+                                    SmsSender.sendSms(order.getPhone(),
+                                        "GoNature: Booking confirmed! Order #" + order.getOrderId()
+                                        + " for " + order.getVisitDate() + " at " + shortTime
+                                        + ". A reminder will arrive 24h before your visit.");
+                                }
+                            } catch (Throwable smsEx) {
+                                System.err.println("Booking confirmation SMS failed: " + smsEx.getMessage());
                             }
                         }
 
@@ -1889,32 +1904,38 @@ public class DBController {
             + "<meta name='viewport' content='width=device-width,initial-scale=1'>"
             + "<title>GoNature — Booking Confirmed</title>"
             + "<style>"
-            + "body{margin:0;padding:40px 0;background:#0d1117;font-family:'Segoe UI',Arial,sans-serif;}"
-            + ".w{max-width:560px;margin:0 auto;background:#161b22;border-radius:12px;"
-            + "border:1px solid #30363d;overflow:hidden;}"
-            + ".hd{background:linear-gradient(135deg,#1a3a5c,#0984e3);padding:28px;text-align:center;}"
-            + ".hd h1{color:#fff;margin:0;font-size:22px;} .hd p{color:rgba(255,255,255,.8);margin:4px 0 0;font-size:14px;}"
+            + "body{margin:0;padding:40px 0;background:#edf7ee;font-family:'Segoe UI',Arial,sans-serif;}"
+            + ".w{max-width:560px;margin:0 auto;background:#ffffff;border-radius:14px;"
+            + "border:1px solid rgba(30,160,90,0.20);overflow:hidden;"
+            + "box-shadow:0 6px 24px rgba(0,60,30,0.10);}"
+            + ".hd{background:linear-gradient(135deg,#1A9E5A,#2DC975);padding:32px;text-align:center;}"
+            + ".hd h1{color:#fff;margin:0;font-size:24px;font-weight:700;letter-spacing:.5px;}"
+            + ".hd p{color:rgba(255,255,255,.85);margin:6px 0 0;font-size:14px;}"
             + ".bd{padding:32px;}"
-            + ".greet{color:#e6edf3;font-size:15px;margin-bottom:18px;}"
-            + ".note{color:#8b949e;font-size:13px;line-height:1.6;margin-bottom:20px;}"
-            + ".box{background:#0d1117;border-radius:8px;padding:18px;margin:20px 0;}"
-            + ".row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #21262d;}"
+            + ".greet{color:#0D2118;font-size:15px;margin-bottom:16px;font-weight:600;}"
+            + ".note{color:#3D6B52;font-size:13px;line-height:1.7;margin-bottom:22px;}"
+            + ".box{background:#f0fdf4;border-radius:10px;padding:20px;margin:20px 0;"
+            + "border:1px solid rgba(30,160,90,0.18);}"
+            + ".row{display:flex;justify-content:space-between;padding:9px 0;"
+            + "border-bottom:1px solid rgba(30,160,90,0.12);}"
             + ".row:last-child{border-bottom:none;}"
-            + ".lbl{color:#8b949e;font-size:13px;}.val{color:#e6edf3;font-size:13px;font-weight:600;}"
-            + ".qr{background:#0d1117;border:2px solid #0984e3;border-radius:8px;padding:20px;"
-            + "text-align:center;margin:20px 0;}"
-            + ".qr-code{font-size:48px;font-weight:bold;color:#0984e3;letter-spacing:6px;}"
-            + ".qr-label{color:#8b949e;font-size:11px;margin-top:6px;}"
-            + "a.btn-x{display:block;text-align:center;color:#8b949e!important;text-decoration:none;"
-            + "font-size:13px;padding:10px;margin-top:12px;}"
-            + ".ft{background:#0d1117;padding:18px;text-align:center;color:#8b949e;font-size:11px;}"
+            + ".lbl{color:#5a8a6a;font-size:13px;}.val{color:#0D2118;font-size:13px;font-weight:700;}"
+            + ".qr{background:#f0fdf4;border:2px solid #1A9E5A;border-radius:10px;padding:22px;"
+            + "text-align:center;margin:22px 0;}"
+            + ".qr-code{font-size:44px;font-weight:900;color:#1A9E5A;letter-spacing:6px;}"
+            + ".qr-label{color:#5a8a6a;font-size:11px;margin-top:8px;font-weight:600;letter-spacing:1px;}"
+            + "a.btn-x{display:block;text-align:center;color:#5a8a6a!important;text-decoration:none;"
+            + "font-size:13px;padding:10px;margin-top:10px;}"
+            + ".ft{background:#f0fdf4;border-top:1px solid rgba(30,160,90,0.12);padding:18px;"
+            + "text-align:center;color:#8aaa9a;font-size:11px;}"
             + "</style></head><body>"
             + "<div class='w'>"
             + "<div class='hd'><h1>🌿 GoNature</h1><p>Your booking is confirmed!</p></div>"
             + "<div class='bd'>"
             + "<p class='greet'>Your visit has been successfully booked.</p>"
-            + "<p class='note'>Present your Order ID at the park entrance. A 24-hour reminder will be sent before your visit — "
-            + "please confirm within <strong style='color:#f0932b'>2 hours</strong> of that reminder to keep your spot.</p>"
+            + "<p class='note'>Present your Order ID at the park entrance. A confirmation reminder will be sent "
+            + "24 hours before your visit — please confirm within <strong style='color:#d97706'>2 hours</strong> "
+            + "of that reminder to keep your spot.</p>"
             + "<div class='box'>"
             + "<div class='row'><span class='lbl'>Order #</span><span class='val'>" + orderId + "</span></div>"
             + "<div class='row'><span class='lbl'>Date</span><span class='val'>" + date + "</span></div>"
@@ -1928,7 +1949,7 @@ public class DBController {
             + "</div>"
             + "<a href='" + cancelUrl + "' class='btn-x'>I can't make it — Cancel this booking</a>"
             + "</div>"
-            + "<div class='ft'>GoNature Parks Management System · Automated message · Do not reply</div>"
+            + "<div class='ft'>GoNature Parks Management System &nbsp;·&nbsp; Automated message &nbsp;·&nbsp; Do not reply</div>"
             + "</div></body></html>";
     }
 
@@ -1940,45 +1961,51 @@ public class DBController {
             + "<meta name='viewport' content='width=device-width,initial-scale=1'>"
             + "<title>GoNature — Confirm Your Visit</title>"
             + "<style>"
-            + "body{margin:0;padding:40px 0;background:#0d1117;font-family:'Segoe UI',Arial,sans-serif;}"
-            + ".w{max-width:560px;margin:0 auto;background:#161b22;border-radius:12px;"
-            + "border:1px solid #30363d;overflow:hidden;}"
-            + ".hd{background:linear-gradient(135deg,#0a3d2e,#00b894);padding:28px;text-align:center;}"
-            + ".hd h1{color:#fff;margin:0;font-size:22px;} .hd p{color:rgba(255,255,255,.8);margin:4px 0 0;font-size:14px;}"
+            + "body{margin:0;padding:40px 0;background:#edf7ee;font-family:'Segoe UI',Arial,sans-serif;}"
+            + ".w{max-width:560px;margin:0 auto;background:#ffffff;border-radius:14px;"
+            + "border:1px solid rgba(30,160,90,0.20);overflow:hidden;"
+            + "box-shadow:0 6px 24px rgba(0,60,30,0.10);}"
+            + ".hd{background:linear-gradient(135deg,#1A9E5A,#2DC975);padding:32px;text-align:center;}"
+            + ".hd h1{color:#fff;margin:0;font-size:24px;font-weight:700;letter-spacing:.5px;}"
+            + ".hd p{color:rgba(255,255,255,.85);margin:6px 0 0;font-size:14px;}"
             + ".bd{padding:32px;}"
-            + ".greet{color:#e6edf3;font-size:15px;margin-bottom:18px;}"
-            + ".note{color:#8b949e;font-size:13px;line-height:1.6;margin-bottom:20px;}"
-            + ".box{background:#0d1117;border-radius:8px;padding:18px;margin:20px 0;}"
-            + ".row{display:flex;justify-content:space-between;padding:8px 0;"
-            + "border-bottom:1px solid #21262d;}"
+            + ".greet{color:#0D2118;font-size:15px;margin-bottom:16px;}"
+            + ".note{color:#3D6B52;font-size:13px;line-height:1.7;margin-bottom:22px;}"
+            + ".box{background:#f0fdf4;border-radius:10px;padding:20px;margin:20px 0;"
+            + "border:1px solid rgba(30,160,90,0.18);}"
+            + ".row{display:flex;justify-content:space-between;padding:9px 0;"
+            + "border-bottom:1px solid rgba(30,160,90,0.12);}"
             + ".row:last-child{border-bottom:none;}"
-            + ".lbl{color:#8b949e;font-size:13px;}.val{color:#e6edf3;font-size:13px;font-weight:600;}"
-            + ".warn{background:#2d1b00;border:1px solid #f0932b;border-radius:6px;padding:12px;"
-            + "color:#f0932b;font-size:13px;text-align:center;margin:18px 0;}"
-            + "a.btn-c{display:block;background:#00b894;color:#fff!important;text-decoration:none;"
-            + "text-align:center;padding:15px 30px;border-radius:8px;font-size:15px;font-weight:bold;"
-            + "margin:22px 0 10px;}"
-            + "a.btn-x{display:block;text-align:center;color:#8b949e!important;text-decoration:none;"
+            + ".lbl{color:#5a8a6a;font-size:13px;}.val{color:#0D2118;font-size:13px;font-weight:700;}"
+            + ".warn{background:#fffbeb;border:1px solid #f59e0b;border-radius:8px;padding:14px;"
+            + "color:#92400e;font-size:13px;text-align:center;margin:20px 0;}"
+            + "a.btn-c{display:block;background:#1A9E5A;color:#fff!important;text-decoration:none;"
+            + "text-align:center;padding:16px 30px;border-radius:10px;font-size:16px;font-weight:700;"
+            + "margin:22px 0 12px;letter-spacing:.3px;}"
+            + "a.btn-c:hover{background:#20B868;}"
+            + "a.btn-x{display:block;text-align:center;color:#5a8a6a!important;text-decoration:none;"
             + "font-size:13px;padding:8px;}"
-            + ".ft{background:#0d1117;padding:18px;text-align:center;color:#8b949e;font-size:11px;}"
+            + ".ft{background:#f0fdf4;border-top:1px solid rgba(30,160,90,0.12);padding:18px;"
+            + "text-align:center;color:#8aaa9a;font-size:11px;}"
             + "</style></head><body>"
             + "<div class='w'>"
-            + "<div class='hd'><h1>🌿 GoNature</h1><p>Your visit is tomorrow!</p></div>"
+            + "<div class='hd'><h1>🌿 GoNature</h1><p>Your visit is tomorrow — action required</p></div>"
             + "<div class='bd'>"
-            + "<p class='greet'>Hello <strong style='color:#e6edf3'>" + firstName + "</strong>,</p>"
-            + "<p class='note'>This is your 24-hour reminder. Please confirm your attendance within "
-            + "<strong style='color:#f0932b'>2 hours</strong> or your booking will be automatically cancelled.</p>"
+            + "<p class='greet'>Hello <strong style='color:#0D2118'>" + firstName + "</strong>,</p>"
+            + "<p class='note'>This is your 24-hour reminder for tomorrow's visit. "
+            + "Please confirm your attendance within <strong style='color:#d97706'>2 hours</strong> "
+            + "or your booking will be automatically cancelled.</p>"
             + "<div class='box'>"
             + "<div class='row'><span class='lbl'>Order #</span><span class='val'>" + orderId + "</span></div>"
             + "<div class='row'><span class='lbl'>Date</span><span class='val'>" + date + "</span></div>"
             + "<div class='row'><span class='lbl'>Time</span><span class='val'>" + time + "</span></div>"
             + "<div class='row'><span class='lbl'>Visitors</span><span class='val'>" + visitors + "</span></div>"
             + "</div>"
-            + "<div class='warn'>⏰ You must confirm within <strong>2 hours</strong> of this email.</div>"
+            + "<div class='warn'>⏰ You must confirm within <strong>2 hours</strong> of receiving this email.</div>"
             + "<a href='" + confirmUrl + "' class='btn-c'>✅ Confirm My Visit</a>"
             + "<a href='" + cancelUrl  + "' class='btn-x'>I can't make it — Cancel my booking</a>"
             + "</div>"
-            + "<div class='ft'>GoNature Parks Management System · Automated message · Do not reply</div>"
+            + "<div class='ft'>GoNature Parks Management System &nbsp;·&nbsp; Automated message &nbsp;·&nbsp; Do not reply</div>"
             + "</div></body></html>";
     }
 
@@ -1990,45 +2017,49 @@ public class DBController {
             + "<meta name='viewport' content='width=device-width,initial-scale=1'>"
             + "<title>GoNature — Spot Available!</title>"
             + "<style>"
-            + "body{margin:0;padding:40px 0;background:#0d1117;font-family:'Segoe UI',Arial,sans-serif;}"
-            + ".w{max-width:560px;margin:0 auto;background:#161b22;border-radius:12px;"
-            + "border:1px solid #30363d;overflow:hidden;}"
-            + ".hd{background:linear-gradient(135deg,#1a3a5c,#0984e3);padding:28px;text-align:center;}"
-            + ".hd h1{color:#fff;margin:0;font-size:22px;} .hd p{color:rgba(255,255,255,.8);margin:4px 0 0;font-size:14px;}"
+            + "body{margin:0;padding:40px 0;background:#edf7ee;font-family:'Segoe UI',Arial,sans-serif;}"
+            + ".w{max-width:560px;margin:0 auto;background:#ffffff;border-radius:14px;"
+            + "border:1px solid rgba(30,160,90,0.20);overflow:hidden;"
+            + "box-shadow:0 6px 24px rgba(0,60,30,0.10);}"
+            + ".hd{background:linear-gradient(135deg,#1A9E5A,#2DC975);padding:32px;text-align:center;}"
+            + ".hd h1{color:#fff;margin:0;font-size:24px;font-weight:700;letter-spacing:.5px;}"
+            + ".hd p{color:rgba(255,255,255,.85);margin:6px 0 0;font-size:14px;}"
             + ".bd{padding:32px;}"
-            + ".greet{color:#e6edf3;font-size:15px;margin-bottom:18px;}"
-            + ".note{color:#8b949e;font-size:13px;line-height:1.6;margin-bottom:20px;}"
-            + ".box{background:#0d1117;border-radius:8px;padding:18px;margin:20px 0;}"
-            + ".row{display:flex;justify-content:space-between;padding:8px 0;"
-            + "border-bottom:1px solid #21262d;}"
+            + ".greet{color:#0D2118;font-size:15px;margin-bottom:16px;}"
+            + ".note{color:#3D6B52;font-size:13px;line-height:1.7;margin-bottom:22px;}"
+            + ".box{background:#f0fdf4;border-radius:10px;padding:20px;margin:20px 0;"
+            + "border:1px solid rgba(30,160,90,0.18);}"
+            + ".row{display:flex;justify-content:space-between;padding:9px 0;"
+            + "border-bottom:1px solid rgba(30,160,90,0.12);}"
             + ".row:last-child{border-bottom:none;}"
-            + ".lbl{color:#8b949e;font-size:13px;}.val{color:#e6edf3;font-size:13px;font-weight:600;}"
-            + ".warn{background:#1a0d2e;border:1px solid #a29bfe;border-radius:6px;padding:12px;"
-            + "color:#a29bfe;font-size:13px;text-align:center;margin:18px 0;}"
-            + "a.btn-c{display:block;background:#0984e3;color:#fff!important;text-decoration:none;"
-            + "text-align:center;padding:15px 30px;border-radius:8px;font-size:15px;font-weight:bold;"
-            + "margin:22px 0 10px;}"
-            + "a.btn-x{display:block;text-align:center;color:#8b949e!important;text-decoration:none;"
+            + ".lbl{color:#5a8a6a;font-size:13px;}.val{color:#0D2118;font-size:13px;font-weight:700;}"
+            + ".warn{background:#fffbeb;border:1px solid #f59e0b;border-radius:8px;padding:14px;"
+            + "color:#92400e;font-size:13px;text-align:center;margin:20px 0;}"
+            + "a.btn-c{display:block;background:#1A9E5A;color:#fff!important;text-decoration:none;"
+            + "text-align:center;padding:16px 30px;border-radius:10px;font-size:16px;font-weight:700;"
+            + "margin:22px 0 12px;letter-spacing:.3px;}"
+            + "a.btn-x{display:block;text-align:center;color:#5a8a6a!important;text-decoration:none;"
             + "font-size:13px;padding:8px;}"
-            + ".ft{background:#0d1117;padding:18px;text-align:center;color:#8b949e;font-size:11px;}"
+            + ".ft{background:#f0fdf4;border-top:1px solid rgba(30,160,90,0.12);padding:18px;"
+            + "text-align:center;color:#8aaa9a;font-size:11px;}"
             + "</style></head><body>"
             + "<div class='w'>"
-            + "<div class='hd'><h1>🎉 A spot opened up!</h1><p>You're off the waitlist!</p></div>"
+            + "<div class='hd'><h1>🎉 A spot opened up!</h1><p>You're off the waitlist — act now!</p></div>"
             + "<div class='bd'>"
-            + "<p class='greet'>Hello <strong style='color:#e6edf3'>" + firstName + "</strong>,</p>"
+            + "<p class='greet'>Hello <strong style='color:#0D2118'>" + firstName + "</strong>,</p>"
             + "<p class='note'>Great news! A spot has opened for your visit. You now have "
-            + "<strong style='color:#a29bfe'>1 hour</strong> to confirm or the spot will be offered to the next person.</p>"
+            + "<strong style='color:#d97706'>1 hour</strong> to confirm, or the spot will be offered to the next person on the waitlist.</p>"
             + "<div class='box'>"
             + "<div class='row'><span class='lbl'>Order #</span><span class='val'>" + orderId + "</span></div>"
             + "<div class='row'><span class='lbl'>Date</span><span class='val'>" + date + "</span></div>"
             + "<div class='row'><span class='lbl'>Time</span><span class='val'>" + time + "</span></div>"
             + "<div class='row'><span class='lbl'>Visitors</span><span class='val'>" + visitors + "</span></div>"
             + "</div>"
-            + "<div class='warn'>⏳ Confirm within <strong>1 hour</strong> or the spot is given away.</div>"
+            + "<div class='warn'>⏳ Confirm within <strong>1 hour</strong> or the spot is given to the next person.</div>"
             + "<a href='" + confirmUrl + "' class='btn-c'>✅ Confirm My Spot Now</a>"
             + "<a href='" + cancelUrl  + "' class='btn-x'>I can't make it — Cancel</a>"
             + "</div>"
-            + "<div class='ft'>GoNature Parks Management System · Automated message · Do not reply</div>"
+            + "<div class='ft'>GoNature Parks Management System &nbsp;·&nbsp; Automated message &nbsp;·&nbsp; Do not reply</div>"
             + "</div></body></html>";
     }
 }

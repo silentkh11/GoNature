@@ -117,7 +117,7 @@ public class ConfirmationHttpServer {
     }
 
     // -------------------------------------------------------------------------
-    // HTML page builders — matching GoNature dark theme
+    // HTML page builders — matching GoNature light theme
     // -------------------------------------------------------------------------
 
     private String thankYouPage(VisitOrder order) {
@@ -126,7 +126,7 @@ public class ConfirmationHttpServer {
         return page(
             "Visit Confirmed!",
             "✅",
-            "#00b894",
+            "#1A9E5A",
             "Visit Confirmed!",
             "Thank you for confirming your visit. We look forward to seeing you!",
             "<div class='details'>"
@@ -136,9 +136,9 @@ public class ConfirmationHttpServer {
             + row("Visitors", String.valueOf(order.getVisitorCount()))
             + row("Type", order.getOrderType())
             + "</div>"
-            + "<p style='color:#8b949e;margin-top:20px;'>Bring your Order ID <strong style='color:#e6edf3'>#"
-            + order.getOrderId() + "</strong> to the park entrance. See you on <strong style='color:#00b894'>"
-            + order.getVisitDate() + " at " + time + "</strong>!</p>"
+            + "<p style='color:#3D6B52;margin-top:20px;'>Bring your Order ID "
+            + "<strong style='color:#0D2118'>#" + order.getOrderId() + "</strong> to the park entrance. "
+            + "See you on <strong style='color:#1A9E5A'>" + order.getVisitDate() + " at " + time + "</strong>!</p>"
         );
     }
 
@@ -146,7 +146,7 @@ public class ConfirmationHttpServer {
         return page(
             "Already Confirmed",
             "☑️",
-            "#0984e3",
+            "#1A9E5A",
             "Already Confirmed",
             "Order #" + order.getOrderId() + " was already confirmed. See you on " + order.getVisitDate() + "!",
             ""
@@ -157,7 +157,7 @@ public class ConfirmationHttpServer {
         return page(
             "Visit Cancelled",
             "❌",
-            "#e17055",
+            "#C0303A",
             "Booking Cancelled",
             "Order #" + orderId + " has been cancelled. We hope to see you another time!",
             ""
@@ -165,7 +165,7 @@ public class ConfirmationHttpServer {
     }
 
     private String errorPage(String message) {
-        return page("Error", "⚠️", "#d63031", "Something went wrong", message, "");
+        return page("Error", "⚠️", "#C0303A", "Something went wrong", message, "");
     }
 
     private String page(String title, String icon, String accentColor,
@@ -174,18 +174,21 @@ public class ConfirmationHttpServer {
             + "<meta name='viewport' content='width=device-width,initial-scale=1'>"
             + "<title>GoNature — " + title + "</title>"
             + "<style>"
-            + "body{margin:0;font-family:'Segoe UI',Arial,sans-serif;background:#0d1117;"
-            + "color:#e6edf3;display:flex;align-items:center;justify-content:center;min-height:100vh;}"
-            + ".card{background:#161b22;border:1px solid #30363d;border-radius:16px;padding:48px;"
-            + "max-width:520px;width:90%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.4);}"
+            + "body{margin:0;font-family:'Segoe UI',Arial,sans-serif;background:#edf7ee;"
+            + "display:flex;align-items:center;justify-content:center;min-height:100vh;}"
+            + ".card{background:#ffffff;border:1px solid rgba(30,160,90,0.20);border-radius:16px;"
+            + "padding:48px;max-width:520px;width:90%;text-align:center;"
+            + "box-shadow:0 8px 32px rgba(0,60,30,0.10);}"
             + ".icon{font-size:72px;margin-bottom:16px;}"
-            + ".brand{color:#58a6ff;font-weight:700;font-size:22px;margin-bottom:28px;letter-spacing:.5px;}"
+            + ".brand{color:#1A9E5A;font-weight:700;font-size:22px;margin-bottom:28px;letter-spacing:.5px;}"
             + "h1{color:" + accentColor + ";font-size:26px;margin:0 0 12px;}"
-            + "p{color:#8b949e;font-size:15px;line-height:1.6;}"
-            + ".details{background:#0d1117;border-radius:10px;padding:20px;margin:24px 0;text-align:left;}"
-            + ".row{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #21262d;}"
+            + "p{color:#3D6B52;font-size:15px;line-height:1.6;}"
+            + ".details{background:#f0fdf4;border:1px solid rgba(30,160,90,0.18);border-radius:10px;"
+            + "padding:20px;margin:24px 0;text-align:left;}"
+            + ".row{display:flex;justify-content:space-between;padding:9px 0;"
+            + "border-bottom:1px solid rgba(30,160,90,0.12);}"
             + ".row:last-child{border-bottom:none;}"
-            + ".lbl{color:#8b949e;font-size:14px;}.val{color:#e6edf3;font-size:14px;font-weight:600;}"
+            + ".lbl{color:#5a8a6a;font-size:14px;}.val{color:#0D2118;font-size:14px;font-weight:700;}"
             + "</style></head><body>"
             + "<div class='card'>"
             + "<div class='brand'>🌿 GoNature</div>"
