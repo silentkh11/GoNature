@@ -87,7 +87,8 @@ public class DBController {
             addColumnIfMissing(st, "visit_order", "exit_timestamp",  "TIMESTAMP NULL DEFAULT NULL");
             addColumnIfMissing(st, "park",        "active_discount", "DECIMAL(5,2) NOT NULL DEFAULT 0");
             // created_at: guards the 24h reminder from firing on same-day/next-day bookings
-            addColumnIfMissing(st, "visit_order", "created_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP");
+            addColumnIfMissing(st, "visit_order", "created_at",        "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP");
+            addColumnIfMissing(st, "visit_order", "notification_time", "TIMESTAMP NULL DEFAULT NULL");
 
             st.execute(
                 "CREATE TABLE IF NOT EXISTS park_promotion (" +
@@ -158,15 +159,18 @@ public class DBController {
             try (Connection conn = getConnection()) {
 
                 // PHASE 1: Send 24-Hour Reminders
-                // Guard: created_at < visit_timestamp - 25h ensures we never fire immediately
-                // on bookings made within 25h of the visit (those visitors just booked — no reminder needed).
+                // Window  : visit is 23h58m–24h00m away (2-min slot at the exact 24h mark).
+                // Guard   : booking was made BEFORE the 24h mark (created_at < visit − 24h).
+                // Result  : reminder fires at the 24h mark regardless of when the booking
+                //           was made, as long as the booking itself was before that mark.
+                //           notification_time IS NULL ensures it fires exactly once.
                 String reminderQuery =
                     "SELECT v.order_id, v.visit_date, v.visit_time, v.visitor_count, " +
                     "vis.first_name, vis.email, vis.phone FROM visit_order v " +
                     "JOIN visitor vis ON v.visitor_id = vis.visitor_id " +
                     "WHERE v.status = 'Booked' AND v.notification_time IS NULL " +
-                    "AND TIMESTAMP(v.visit_date, v.visit_time) BETWEEN NOW() + INTERVAL 23 HOUR AND NOW() + INTERVAL 25 HOUR " +
-                    "AND v.created_at < TIMESTAMP(v.visit_date, v.visit_time) - INTERVAL 25 HOUR";
+                    "AND TIMESTAMP(v.visit_date, v.visit_time) BETWEEN NOW() + INTERVAL 1438 MINUTE AND NOW() + INTERVAL 1440 MINUTE " +
+                    "AND v.created_at < TIMESTAMP(v.visit_date, v.visit_time) - INTERVAL 1440 MINUTE";
                 String updateReminder =
                     "UPDATE visit_order SET status = 'Pending Confirm', notification_time = NOW() WHERE order_id = ?";
 
@@ -431,7 +435,7 @@ public class DBController {
                                 : "";
                             try {
                                 if (order.getEmail() != null && order.getEmail().contains("@")) {
-                                    String subject = "✅ GoNature Booking Confirmed — Order #" + order.getOrderId();
+                                    String subject = "Your GoNature visit details — Order #" + order.getOrderId();
                                     String htmlBody = buildBookingConfirmEmail(
                                         order.getOrderId(), order.getVisitDate(), shortTime,
                                         order.getVisitorCount(), calculatedPrice, cancelUrl);
@@ -995,13 +999,58 @@ public class DBController {
      * Returns false (no-op) for any other status — prevents re-confirming cancelled/completed orders.
      */
     public static boolean confirmOrder(int orderId) {
+        // Fetch visit and visitor details for the response email before updating
+        String fetchQ =
+            "SELECT v.visit_date, v.visit_time, v.visitor_count, " +
+            "vis.first_name, vis.email, vis.phone " +
+            "FROM visit_order v JOIN visitor vis ON v.visitor_id = vis.visitor_id " +
+            "WHERE v.order_id = ?";
+        String fName = null, email = null, phone = null;
+        String visitDate = null, visitTime = null;
+        int visitorCount = 0;
+        try (java.sql.Connection conn = getInstance().getConnection();
+             java.sql.PreparedStatement ps = conn.prepareStatement(fetchQ)) {
+            ps.setInt(1, orderId);
+            try (java.sql.ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    visitDate    = rs.getString("visit_date");
+                    visitTime    = rs.getString("visit_time");
+                    visitorCount = rs.getInt("visitor_count");
+                    fName        = rs.getString("first_name");
+                    email        = rs.getString("email");
+                    phone        = rs.getString("phone");
+                }
+            }
+        } catch (java.sql.SQLException e) {
+            e.printStackTrace();
+        }
+
         String query =
             "UPDATE visit_order SET status = 'Confirmed', notification_time = NULL " +
             "WHERE order_id = ? AND status IN ('Pending Confirm', 'Waitlist Pending')";
         try (java.sql.Connection conn = getInstance().getConnection();
              java.sql.PreparedStatement ps = conn.prepareStatement(query)) {
             ps.setInt(1, orderId);
-            return ps.executeUpdate() > 0;
+            boolean updated = ps.executeUpdate() > 0;
+            if (updated) {
+                String shortTime = visitTime != null
+                    ? visitTime.substring(0, Math.min(5, visitTime.length())) : "";
+                try {
+                    if (email != null && email.contains("@")) {
+                        String subject = "You're all set! — GoNature Order #" + orderId;
+                        String htmlBody = buildConfirmResponseEmail(fName, orderId, visitDate, shortTime, visitorCount);
+                        EmailSender.sendHtmlEmail(email, subject, htmlBody);
+                    }
+                } catch (Throwable ex) {
+                    System.err.println("Confirm response email failed: " + ex.getMessage());
+                }
+                try {
+                    SmsSender.sendSms(phone,
+                        "GoNature: Visit confirmed! Order #" + orderId + " on " + visitDate
+                        + " at " + shortTime + ". See you there!");
+                } catch (Throwable ignored) {}
+            }
+            return updated;
         } catch (java.sql.SQLException e) {
             e.printStackTrace();
         }
@@ -1048,22 +1097,15 @@ public class DBController {
 
                     // --- Notify the booker (Email + SMS) per spec ---
                     try {
-                        String subject = "GoNature: Booking Cancelled (Order #" + orderId + ")";
-                        String body =
-                            "Hello " + (vName != null ? vName : "") + ",\n\n" +
-                            "Your booking #" + orderId + " for " + vDate + " at " + vTime + "\n" +
-                            "has been cancelled.\n\n" +
-                            "If you did not confirm the visit within the 2-hour window after\n" +
-                            "the 24-hour reminder, or if the 1-hour waitlist confirmation\n" +
-                            "window expired, the system cancelled it automatically.\n\n" +
-                            "You are welcome to book a new visit anytime via the\n" +
-                            "GoNature Guest Portal.\n\n" +
-                            "The GoNature Team";
+                        String shortT = (vTime != null)
+                            ? vTime.substring(0, Math.min(5, vTime.length())) : "";
                         if (vEmail != null && vEmail.contains("@")) {
-                            EmailSender.sendEmail(vEmail, subject, body);
+                            String subject = "Your GoNature booking has been cancelled — Order #" + orderId;
+                            String htmlBody = buildCancelEmail(vName, orderId, vDate, shortT);
+                            EmailSender.sendHtmlEmail(vEmail, subject, htmlBody);
                         }
                         SmsSender.sendSms(vPhone,
-                            "GoNature: Your booking #" + orderId + " for " + vDate +
+                            "GoNature: Booking #" + orderId + " for " + vDate +
                             " at " + vTime + " has been cancelled.");
                     } catch (Throwable notifyEx) {
                         System.err.println("Cancellation notification failed: "
@@ -1930,12 +1972,12 @@ public class DBController {
             + "text-align:center;color:#8aaa9a;font-size:11px;}"
             + "</style></head><body>"
             + "<div class='w'>"
-            + "<div class='hd'><h1>🌿 GoNature</h1><p>Your booking is confirmed!</p></div>"
+            + "<div class='hd'><h1>🌿 GoNature</h1><p>Your upcoming visit</p></div>"
             + "<div class='bd'>"
-            + "<p class='greet'>Your visit has been successfully booked.</p>"
-            + "<p class='note'>Present your Order ID at the park entrance. A confirmation reminder will be sent "
-            + "24 hours before your visit — please confirm within <strong style='color:#d97706'>2 hours</strong> "
-            + "of that reminder to keep your spot.</p>"
+            + "<p class='greet'>Thanks for booking with GoNature!</p>"
+            + "<p class='note'>Here are the details for your upcoming visit. Present your Order ID at the park entrance when you arrive. "
+            + "A reminder will be sent <strong>24 hours before your visit</strong> — you'll need to confirm within "
+            + "<strong style='color:#d97706'>2 hours</strong> of that reminder to keep your spot.</p>"
             + "<div class='box'>"
             + "<div class='row'><span class='lbl'>Order #</span><span class='val'>" + orderId + "</span></div>"
             + "<div class='row'><span class='lbl'>Date</span><span class='val'>" + date + "</span></div>"
@@ -1945,9 +1987,9 @@ public class DBController {
             + "</div>"
             + "<div class='qr'>"
             + "<div class='qr-code'>#" + orderId + "</div>"
-            + "<div class='qr-label'>SHOW THIS AT PARK ENTRANCE</div>"
+            + "<div class='qr-label'>PRESENT AT PARK ENTRANCE</div>"
             + "</div>"
-            + "<a href='" + cancelUrl + "' class='btn-x'>I can't make it — Cancel this booking</a>"
+            + "<a href='" + cancelUrl + "' class='btn-x'>Something came up? Cancel this booking</a>"
             + "</div>"
             + "<div class='ft'>GoNature Parks Management System &nbsp;·&nbsp; Automated message &nbsp;·&nbsp; Do not reply</div>"
             + "</div></body></html>";
@@ -2004,6 +2046,94 @@ public class DBController {
             + "<div class='warn'>⏰ You must confirm within <strong>2 hours</strong> of receiving this email.</div>"
             + "<a href='" + confirmUrl + "' class='btn-c'>✅ Confirm My Visit</a>"
             + "<a href='" + cancelUrl  + "' class='btn-x'>I can't make it — Cancel my booking</a>"
+            + "</div>"
+            + "<div class='ft'>GoNature Parks Management System &nbsp;·&nbsp; Automated message &nbsp;·&nbsp; Do not reply</div>"
+            + "</div></body></html>";
+    }
+
+    /** Response email sent when visitor clicks Confirm in the 24h reminder. */
+    public static String buildConfirmResponseEmail(String firstName, int orderId, String date,
+                                                    String time, int visitors) {
+        String name = (firstName != null && !firstName.isBlank()) ? firstName : "there";
+        return "<!DOCTYPE html><html lang='en'><head><meta charset='UTF-8'>"
+            + "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+            + "<title>GoNature — You're All Set!</title>"
+            + "<style>"
+            + "body{margin:0;padding:40px 0;background:#edf7ee;font-family:'Segoe UI',Arial,sans-serif;}"
+            + ".w{max-width:560px;margin:0 auto;background:#ffffff;border-radius:14px;"
+            + "border:1px solid rgba(30,160,90,0.20);overflow:hidden;"
+            + "box-shadow:0 6px 24px rgba(0,60,30,0.10);}"
+            + ".hd{background:linear-gradient(135deg,#1A9E5A,#2DC975);padding:32px;text-align:center;}"
+            + ".hd h1{color:#fff;margin:0;font-size:24px;font-weight:700;}"
+            + ".hd p{color:rgba(255,255,255,.85);margin:6px 0 0;font-size:14px;}"
+            + ".bd{padding:32px;}"
+            + ".greet{color:#0D2118;font-size:15px;margin-bottom:16px;font-weight:600;}"
+            + ".note{color:#3D6B52;font-size:13px;line-height:1.7;margin-bottom:22px;}"
+            + ".box{background:#f0fdf4;border-radius:10px;padding:20px;margin:20px 0;"
+            + "border:1px solid rgba(30,160,90,0.18);}"
+            + ".row{display:flex;justify-content:space-between;padding:9px 0;"
+            + "border-bottom:1px solid rgba(30,160,90,0.12);}"
+            + ".row:last-child{border-bottom:none;}"
+            + ".lbl{color:#5a8a6a;font-size:13px;}.val{color:#0D2118;font-size:13px;font-weight:700;}"
+            + ".badge{background:#1A9E5A;color:#fff;border-radius:10px;padding:18px;"
+            + "text-align:center;margin:22px 0;font-size:16px;font-weight:700;letter-spacing:.3px;}"
+            + ".ft{background:#f0fdf4;border-top:1px solid rgba(30,160,90,0.12);padding:18px;"
+            + "text-align:center;color:#8aaa9a;font-size:11px;}"
+            + "</style></head><body>"
+            + "<div class='w'>"
+            + "<div class='hd'><h1>✅ You're all set!</h1><p>We'll see you at the park</p></div>"
+            + "<div class='bd'>"
+            + "<p class='greet'>Hi " + name + ",</p>"
+            + "<p class='note'>Your visit has been confirmed — no further action needed. "
+            + "Just show up and enjoy the park! Don't forget to bring your Order ID to the entrance.</p>"
+            + "<div class='box'>"
+            + "<div class='row'><span class='lbl'>Order #</span><span class='val'>" + orderId + "</span></div>"
+            + "<div class='row'><span class='lbl'>Date</span><span class='val'>" + date + "</span></div>"
+            + "<div class='row'><span class='lbl'>Time</span><span class='val'>" + time + "</span></div>"
+            + "<div class='row'><span class='lbl'>Visitors</span><span class='val'>" + visitors + "</span></div>"
+            + "</div>"
+            + "<div class='badge'>Order #" + orderId + " — Show at entrance</div>"
+            + "</div>"
+            + "<div class='ft'>GoNature Parks Management System &nbsp;·&nbsp; Automated message &nbsp;·&nbsp; Do not reply</div>"
+            + "</div></body></html>";
+    }
+
+    /** Response email sent when visitor clicks Cancel (from any email link). */
+    public static String buildCancelEmail(String firstName, int orderId, String date, String time) {
+        String name = (firstName != null && !firstName.isBlank()) ? firstName : "there";
+        return "<!DOCTYPE html><html lang='en'><head><meta charset='UTF-8'>"
+            + "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+            + "<title>GoNature — Booking Cancelled</title>"
+            + "<style>"
+            + "body{margin:0;padding:40px 0;background:#edf7ee;font-family:'Segoe UI',Arial,sans-serif;}"
+            + ".w{max-width:560px;margin:0 auto;background:#ffffff;border-radius:14px;"
+            + "border:1px solid rgba(30,160,90,0.20);overflow:hidden;"
+            + "box-shadow:0 6px 24px rgba(0,60,30,0.10);}"
+            + ".hd{background:linear-gradient(135deg,#C0303A,#E05060);padding:32px;text-align:center;}"
+            + ".hd h1{color:#fff;margin:0;font-size:24px;font-weight:700;}"
+            + ".hd p{color:rgba(255,255,255,.85);margin:6px 0 0;font-size:14px;}"
+            + ".bd{padding:32px;}"
+            + ".greet{color:#0D2118;font-size:15px;margin-bottom:16px;font-weight:600;}"
+            + ".note{color:#3D6B52;font-size:13px;line-height:1.7;margin-bottom:22px;}"
+            + ".box{background:#fff5f5;border-radius:10px;padding:20px;margin:20px 0;"
+            + "border:1px solid rgba(192,48,58,0.18);}"
+            + ".row{display:flex;justify-content:space-between;padding:9px 0;"
+            + "border-bottom:1px solid rgba(192,48,58,0.10);}"
+            + ".row:last-child{border-bottom:none;}"
+            + ".lbl{color:#9a6a6a;font-size:13px;}.val{color:#3D0D0D;font-size:13px;font-weight:700;}"
+            + ".ft{background:#f9f0f0;border-top:1px solid rgba(192,48,58,0.10);padding:18px;"
+            + "text-align:center;color:#aaa;font-size:11px;}"
+            + "</style></head><body>"
+            + "<div class='w'>"
+            + "<div class='hd'><h1>❌ Booking Cancelled</h1><p>We hope to see you another time</p></div>"
+            + "<div class='bd'>"
+            + "<p class='greet'>Hi " + name + ",</p>"
+            + "<p class='note'>Your booking has been cancelled. If this was a mistake or you'd like to visit another time, "
+            + "you're welcome to make a new booking anytime via the GoNature Guest Portal.</p>"
+            + "<div class='box'>"
+            + "<div class='row'><span class='lbl'>Cancelled Order #</span><span class='val'>" + orderId + "</span></div>"
+            + "<div class='row'><span class='lbl'>Was scheduled for</span><span class='val'>" + date + " at " + time + "</span></div>"
+            + "</div>"
             + "</div>"
             + "<div class='ft'>GoNature Parks Management System &nbsp;·&nbsp; Automated message &nbsp;·&nbsp; Do not reply</div>"
             + "</div></body></html>";

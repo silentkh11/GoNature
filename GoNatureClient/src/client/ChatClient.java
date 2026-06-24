@@ -13,6 +13,7 @@ public class ChatClient extends AbstractClient {
 
     private static ChatClient instance;
     private Consumer<Message> responseHandler;
+    private volatile boolean isLoggingOut = false;
 
     // --- Singleton Pattern ---
     private ChatClient(String host, int port, Consumer<Message> responseHandler) throws IOException {
@@ -54,16 +55,20 @@ public class ChatClient extends AbstractClient {
 
     public void handleMessageFromClientUI(Object message) {
         try {
+            // Flag intentional logouts so connectionException doesn't treat the
+            // subsequent socket close as a server crash.
+            if (message instanceof Message
+                    && "LOGOUT_REQUEST".equals(((Message) message).getCommand())) {
+                isLoggingOut = true;
+            }
             // --- THE AUTO-RECONNECT ENGINE ---
             if (!isConnected()) {
-                openConnection(); 
-                // CRITICAL FIX: Give OCSF's internal streams 200ms to wake up before firing the message!
+                openConnection();
                 try { Thread.sleep(200); } catch (InterruptedException ignored) {}
             }
             sendToServer(message);
         } catch (Exception e) {
-            // Watchdog: If it STILL fails to send, the server is truly offline. Alert the UI.
-            if (responseHandler != null) {
+            if (responseHandler != null && !isLoggingOut) {
                 responseHandler.accept(new Message("SERVER_DISCONNECTED", "Network link dropped."));
             }
         }
@@ -82,11 +87,21 @@ public class ChatClient extends AbstractClient {
     
     @Override
     protected void connectionClosed() {
+        if (isLoggingOut) {
+            isLoggingOut = false;
+            System.out.println("Logged out — connection closed cleanly.");
+            return;
+        }
         System.out.println("Connection to server closed cleanly.");
     }
 
     @Override
     protected void connectionException(Exception exception) {
+        if (isLoggingOut) {
+            isLoggingOut = false;
+            System.out.println("Logged out — server closed the socket.");
+            return;
+        }
         System.err.println("WATCHDOG TRIGGERED: Sudden server disconnect detected.");
         if (responseHandler != null) {
             responseHandler.accept(new Message("SERVER_DISCONNECTED", "Crash detected"));
