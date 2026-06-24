@@ -79,6 +79,15 @@
                           text="🚪  Register Exit" />
                </HBox>
 
+               <Button fx:id="btnPayment" mnemonicParsing="false"
+                       onAction="#handleCollectPayment"
+                       prefHeight="44.0" maxWidth="Infinity"
+                       styleClass="gold-btn"
+                       style="-fx-font-weight: bold; -fx-font-size: 13px;"
+                       text="💳  Collect Payment">
+                  <VBox.margin><Insets bottom="10.0" /></VBox.margin>
+               </Button>
+
                <Label fx:id="lblStatus" alignment="CENTER" maxWidth="Infinity"
                       wrapText="true" minHeight="50.0"
                       style="-fx-font-size: 13.5px; -fx-font-weight: bold;" />
@@ -133,6 +142,15 @@
                           style="-fx-font-weight: bold; -fx-font-size: 13px;"
                           text="Register Walk-In">
                      <VBox.margin><Insets top="14.0" /></VBox.margin>
+                  </Button>
+
+                  <Button fx:id="btnWalkInPayment" mnemonicParsing="false"
+                          onAction="#handleWalkInPayment"
+                          prefHeight="40.0" maxWidth="Infinity"
+                          styleClass="gold-btn"
+                          style="-fx-font-weight: bold; -fx-font-size: 13px;"
+                          text="💳  Collect Payment">
+                     <VBox.margin><Insets top="6.0" /></VBox.margin>
                   </Button>
 
                   <Label fx:id="lblWalkInStatus" alignment="CENTER" maxWidth="Infinity"

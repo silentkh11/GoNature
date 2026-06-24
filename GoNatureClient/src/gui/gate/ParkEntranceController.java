@@ -17,6 +17,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.text.Font;
+import javafx.stage.Stage;
 
 public class ParkEntranceController {
 
@@ -32,6 +33,9 @@ public class ParkEntranceController {
     @FXML private ComboBox<String> cmbWalkInType;
     @FXML private Button btnWalkIn;
     @FXML private Label lblWalkInStatus;
+
+    @FXML private Button btnPayment;
+    @FXML private Button btnWalkInPayment;
 
     @FXML private TextField txtManualExitCount;
     @FXML private Button btnManualExit;
@@ -103,6 +107,18 @@ public class ParkEntranceController {
     @FXML
     void handleExit(ActionEvent event) {
         processGateAction("EXIT_PARK_REQUEST", "Registering exit...");
+    }
+
+    @FXML
+    void handleCollectPayment(ActionEvent event) {
+        Stage stage = (Stage) btnPayment.getScene().getWindow();
+        PaymentOverlay.show(stage, null);
+    }
+
+    @FXML
+    void handleWalkInPayment(ActionEvent event) {
+        Stage stage = (Stage) btnWalkInPayment.getScene().getWindow();
+        PaymentOverlay.show(stage, null);
     }
 
     private void processGateAction(String command, String loadingMessage) {
