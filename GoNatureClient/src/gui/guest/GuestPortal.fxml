@@ -60,7 +60,7 @@
                   <HBox alignment="CENTER_LEFT" spacing="10.0">
                      <Label styleClass="section-blue" text="🧾 My Subscriber Profile"><font><Font name="Segoe UI Bold" size="17.0" /></font></Label>
                      <Region HBox.hgrow="ALWAYS" />
-                     <Label fx:id="lblSubId" style="-fx-text-fill: #0984e3; -fx-font-weight: bold; -fx-font-size: 13px;" />
+                     <Label fx:id="lblSubId" style="-fx-text-fill: #34C3FF; -fx-font-weight: bold; -fx-font-size: 13px;" />
                   </HBox>
                   <Separator />
 
@@ -104,7 +104,7 @@
 
                   <HBox alignment="CENTER_LEFT" spacing="10.0">
                      <Label styleClass="section-blue" text="Edit Booking"><font><Font name="Segoe UI Bold" size="17.0" /></font></Label>
-                     <Label fx:id="lblEditStatus" style="-fx-text-fill: #f39c12; -fx-font-size: 13px; -fx-font-weight: bold;" />
+                     <Label fx:id="lblEditStatus" style="-fx-text-fill: #ECC94B; -fx-font-size: 13px; -fx-font-weight: bold;" />
                   </HBox>
                   <Separator />
 
@@ -126,7 +126,7 @@
                      <TextField fx:id="editCount" promptText="Number of visitors" GridPane.columnIndex="1" GridPane.rowIndex="1" />
 
                      <Label styleClass="body-label" text="Current Price:" GridPane.columnIndex="2" GridPane.rowIndex="1"><font><Font name="Segoe UI Bold" size="13.0"/></font></Label>
-                     <Label fx:id="lblCurrentPrice" style="-fx-text-fill: #00b894; -fx-font-weight: bold; -fx-font-size: 14px;" GridPane.columnIndex="3" GridPane.rowIndex="1" />
+                     <Label fx:id="lblCurrentPrice" style="-fx-text-fill: #3DDC97; -fx-font-weight: bold; -fx-font-size: 14px;" GridPane.columnIndex="3" GridPane.rowIndex="1" />
                   </GridPane>
 
                   <Separator />
@@ -144,7 +144,7 @@
                   <Separator />
 
                   <Label fx:id="lblConfirmDetail" wrapText="true" maxWidth="Infinity"
-                         style="-fx-text-fill: #f39c12; -fx-font-size: 13px;" />
+                         style="-fx-text-fill: #ECC94B; -fx-font-size: 13px;" />
 
                   <HBox alignment="CENTER" spacing="20.0">
                      <Button mnemonicParsing="false" onAction="#handleConfirmOrder" prefHeight="48.0" prefWidth="240.0"

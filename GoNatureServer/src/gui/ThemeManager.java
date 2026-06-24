@@ -15,7 +15,7 @@ public class ThemeManager {
 
     private ThemeManager() {
         prefs = Preferences.userNodeForPackage(ThemeManager.class);
-        darkMode = prefs.getBoolean(PREF_KEY, false);
+        darkMode = prefs.getBoolean(PREF_KEY, true);
     }
 
     public static ThemeManager getInstance() {
