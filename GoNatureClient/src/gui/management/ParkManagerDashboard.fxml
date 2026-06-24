@@ -6,8 +6,8 @@
 
 <StackPane prefHeight="700.0" prefWidth="850.0" style="-fx-background-color: transparent;" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="gui.management.ParkManagerController">
 
-   <!-- Layer 0: Premium Parchment Base (Matching Main Menu) -->
-   <Pane style="-fx-background-color: linear-gradient(to bottom right, #f5e6c8, #ede0c4, #e8d5a3);" />
+   <!-- Layer 0: Deep forest base (replaces parchment) -->
+   <Pane style="-fx-background-color: linear-gradient(to bottom right, #040D08, #07110D, #0A1A10);" />
 
    <!-- Layer 1: The Dashboard Content -->
    <ScrollPane fitToWidth="true" style="-fx-background: transparent; -fx-background-color: transparent; -fx-border-color: transparent;">
@@ -15,36 +15,47 @@
          <VBox alignment="TOP_CENTER" prefWidth="850.0" spacing="25.0">
             <padding><Insets bottom="40.0" left="35.0" right="35.0" top="20.0" /></padding>
 
-            <!-- Premium Header matching Main Menu Typography & Buttons -->
+            <!-- Header -->
             <HBox alignment="CENTER_RIGHT" spacing="12.0">
-               <Label text="Park Manager Dashboard" HBox.hgrow="ALWAYS" maxWidth="Infinity" style="-fx-font-family: 'Segoe UI'; -fx-font-weight: bold; -fx-text-fill: #3d1f05;">
+               <Label text="Park Manager Dashboard" HBox.hgrow="ALWAYS" maxWidth="Infinity"
+                      style="-fx-font-family: 'Segoe UI Light'; -fx-font-weight: bold; -fx-text-fill: rgba(255,255,255,0.95); -fx-effect: dropshadow(gaussian, rgba(61,220,151,0.28), 10, 0, 0, 0);">
                   <font><Font size="26.0" /></font>
                </Label>
                <Region HBox.hgrow="ALWAYS" />
-               <Label fx:id="lblEmployeeName" style="-fx-font-size: 13px; -fx-text-fill: #5a3810; -fx-font-weight: bold; -fx-padding: 0 10 0 0;" text="" />
-               <Button mnemonicParsing="false" onAction="#handleViewMyProfile" style="-fx-background-color: rgba(100,70,25,0.12); -fx-border-color: #a08040; -fx-border-radius: 6; -fx-border-width: 1.5; -fx-text-fill: #5a3810; -fx-font-size: 13px; -fx-padding: 6 15; -fx-cursor: hand;" text="👤 My Profile" />
-               <Button mnemonicParsing="false" onAction="#handleViewReports" style="-fx-background-color: rgba(100,70,25,0.12); -fx-border-color: #a08040; -fx-border-radius: 6; -fx-border-width: 1.5; -fx-text-fill: #5a3810; -fx-font-size: 13px; -fx-padding: 6 15; -fx-cursor: hand; -fx-font-weight: bold;" text="📊 Statistical Reports" />
-               <Button fx:id="themeBtn" focusTraversable="false" mnemonicParsing="false" onAction="#handleToggleTheme" style="-fx-background-color: rgba(180,140,60,0.18); -fx-border-color: #c4a558; -fx-border-radius: 6; -fx-border-width: 1.5; -fx-text-fill: #5a3810; -fx-font-size: 13px; -fx-padding: 6 15; -fx-cursor: hand;" text="🌙 Dark Mode" />
-               <Button focusTraversable="false" mnemonicParsing="false" onAction="#handleLogout" style="-fx-background-color: #c62828; -fx-text-fill: white; -fx-background-radius: 6; -fx-font-size: 13px; -fx-padding: 7 16; -fx-font-weight: bold; -fx-cursor: hand;" text="🚪 Logout" />
+               <Label fx:id="lblEmployeeName" style="-fx-font-size: 13px; -fx-text-fill: rgba(61,220,151,0.80); -fx-font-weight: bold; -fx-padding: 0 10 0 0;" text="" />
+               <Button mnemonicParsing="false" onAction="#handleViewMyProfile"
+                       style="-fx-background-color: rgba(255,255,255,0.07); -fx-border-color: rgba(255,255,255,0.16); -fx-border-radius: 9; -fx-border-width: 1; -fx-text-fill: rgba(255,255,255,0.78); -fx-font-size: 13px; -fx-padding: 6 15; -fx-cursor: hand; -fx-background-radius: 9;"
+                       text="👤 My Profile" />
+               <Button mnemonicParsing="false" onAction="#handleViewReports"
+                       style="-fx-background-color: rgba(61,220,151,0.80); -fx-text-fill: #020C06; -fx-background-radius: 9; -fx-font-size: 13px; -fx-padding: 6 15; -fx-cursor: hand; -fx-font-weight: bold; -fx-effect: dropshadow(gaussian, rgba(61,220,151,0.35), 10, 0, 0, 2);"
+                       text="📊 Statistical Reports" />
+               <Button fx:id="themeBtn" focusTraversable="false" mnemonicParsing="false" onAction="#handleToggleTheme"
+                       style="-fx-background-color: rgba(61,220,151,0.09); -fx-border-color: rgba(61,220,151,0.30); -fx-border-radius: 20; -fx-border-width: 1; -fx-text-fill: rgba(61,220,151,0.85); -fx-font-size: 13px; -fx-padding: 6 15; -fx-cursor: hand; -fx-background-radius: 20;"
+                       text="☀ Light Mode" />
+               <Button focusTraversable="false" mnemonicParsing="false" onAction="#handleLogout"
+                       style="-fx-background-color: rgba(220,55,80,0.80); -fx-text-fill: white; -fx-background-radius: 9; -fx-font-size: 13px; -fx-padding: 7 16; -fx-font-weight: bold; -fx-cursor: hand; -fx-effect: dropshadow(gaussian, rgba(220,55,80,0.35), 10, 0, 0, 2);"
+                       text="🚪 Logout" />
             </HBox>
-            
-            <!-- Elegant Accent Divider -->
-            <Label text="────── ✦ ──────" alignment="CENTER" maxWidth="Infinity" style="-fx-text-fill: #c4a558; -fx-font-size: 15px;">
+
+            <!-- Eco Accent Divider -->
+            <Label text="────── ✦ ──────" alignment="CENTER" maxWidth="Infinity"
+                   style="-fx-text-fill: rgba(61,220,151,0.40); -fx-font-size: 15px;">
                <VBox.margin><Insets top="-15.0" bottom="5.0" /></VBox.margin>
             </Label>
 
-            <!-- Park Selector Card (Glass Morphism) -->
+            <!-- Park Selector Card -->
             <HBox alignment="CENTER" spacing="15.0" styleClass="card" maxWidth="800.0">
                <padding><Insets bottom="15.0" left="25.0" right="25.0" top="15.0" /></padding>
                <Label styleClass="body-label" text="Active Park:">
                   <font><Font name="Segoe UI Bold" size="16.0" /></font>
                </Label>
-               <ComboBox fx:id="parkCombo" prefWidth="350.0" promptText="Select Park to Manage..." style="-fx-font-size: 15px; -fx-font-weight: bold; -fx-cursor: hand;" />
+               <ComboBox fx:id="parkCombo" prefWidth="350.0" promptText="Select Park to Manage..."
+                         style="-fx-font-size: 15px; -fx-font-weight: bold; -fx-cursor: hand;" />
             </HBox>
 
             <!-- Main Two-Column Layout -->
             <HBox spacing="25.0" alignment="TOP_CENTER" maxWidth="800.0">
-               
+
                <!-- LEFT COLUMN: Live Parameters -->
                <VBox spacing="20.0" styleClass="card" HBox.hgrow="ALWAYS" maxWidth="400.0" minHeight="400.0">
                   <padding><Insets bottom="25.0" left="25.0" right="25.0" top="25.0" /></padding>
@@ -57,31 +68,33 @@
                         <ColumnConstraints hgrow="SOMETIMES" minWidth="130.0" />
                         <ColumnConstraints hgrow="ALWAYS" />
                      </columnConstraints>
-                     
+
                      <Label text="Park Name:" GridPane.rowIndex="0" GridPane.columnIndex="0" styleClass="body-label"><font><Font name="Segoe UI Bold" size="14.0"/></font></Label>
                      <Label fx:id="lblParkName" text="—" GridPane.rowIndex="0" GridPane.columnIndex="1" styleClass="body-label" style="-fx-font-size: 15px;" />
-                     
+
                      <Label text="Max Capacity:" GridPane.rowIndex="1" GridPane.columnIndex="0" styleClass="body-label"><font><Font name="Segoe UI Bold" size="14.0"/></font></Label>
                      <Label fx:id="lblMaxCapacity" text="—" GridPane.rowIndex="1" GridPane.columnIndex="1" styleClass="body-label" style="-fx-font-size: 15px;" />
-                     
+
                      <Label text="Casual Gap:" GridPane.rowIndex="2" GridPane.columnIndex="0" styleClass="body-label"><font><Font name="Segoe UI Bold" size="14.0"/></font></Label>
                      <Label fx:id="lblCasualGap" text="—" GridPane.rowIndex="2" GridPane.columnIndex="1" styleClass="body-label" style="-fx-font-size: 15px;" />
-                     
+
                      <Label text="Est. Stay (Hours):" GridPane.rowIndex="3" GridPane.columnIndex="0" styleClass="body-label"><font><Font name="Segoe UI Bold" size="14.0"/></font></Label>
                      <Label fx:id="lblEstStay" text="—" GridPane.rowIndex="3" GridPane.columnIndex="1" styleClass="body-label" style="-fx-font-size: 15px;" />
-                     
+
                      <Label text="Current Visitors:" GridPane.rowIndex="4" GridPane.columnIndex="0" styleClass="body-label"><font><Font name="Segoe UI Bold" size="14.0"/></font></Label>
-                     <Label fx:id="lblCurrentVisitors" text="—" GridPane.rowIndex="4" GridPane.columnIndex="1" style="-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: #00b894;" />
-                     
+                     <Label fx:id="lblCurrentVisitors" text="—" GridPane.rowIndex="4" GridPane.columnIndex="1"
+                            style="-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: #3DDC97;" />
+
                      <Label text="Active Discount:" GridPane.rowIndex="5" GridPane.columnIndex="0" styleClass="body-label"><font><Font name="Segoe UI Bold" size="14.0"/></font></Label>
-                     <Label fx:id="lblActiveDiscount" text="—" GridPane.rowIndex="5" GridPane.columnIndex="1" style="-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: #0984e3;" />
+                     <Label fx:id="lblActiveDiscount" text="—" GridPane.rowIndex="5" GridPane.columnIndex="1"
+                            style="-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: #34C3FF;" />
                   </GridPane>
                   <Region VBox.vgrow="ALWAYS" />
                </VBox>
 
                <!-- RIGHT COLUMN: Actions & Requests -->
                <VBox spacing="25.0" HBox.hgrow="ALWAYS" maxWidth="380.0">
-                  
+
                   <!-- Parameter Request Card -->
                   <VBox spacing="15.0" styleClass="card">
                      <padding><Insets bottom="20.0" left="20.0" right="20.0" top="20.0" /></padding>
@@ -90,7 +103,7 @@
                      </Label>
                      <Separator />
                      <Label styleClass="subtitle-label" text="Submit new capacity rules to the Department Manager for approval." wrapText="true" />
-                     
+
                      <GridPane vgap="12.0" hgap="10.0">
                         <columnConstraints>
                            <ColumnConstraints hgrow="SOMETIMES" minWidth="120.0" />
@@ -98,10 +111,10 @@
                         </columnConstraints>
                         <Label text="New Capacity:" GridPane.rowIndex="0" GridPane.columnIndex="0" styleClass="body-label"><font><Font name="Segoe UI Bold" size="13.0"/></font></Label>
                         <TextField fx:id="txtNewMaxCapacity" promptText="e.g. 500" GridPane.rowIndex="0" GridPane.columnIndex="1" />
-                        
+
                         <Label text="Casual Gap:" GridPane.rowIndex="1" GridPane.columnIndex="0" styleClass="body-label"><font><Font name="Segoe UI Bold" size="13.0"/></font></Label>
                         <TextField fx:id="txtNewCasualGap" promptText="e.g. 50" GridPane.rowIndex="1" GridPane.columnIndex="1" />
-                        
+
                         <Label text="Est. Stay:" GridPane.rowIndex="2" GridPane.columnIndex="0" styleClass="body-label"><font><Font name="Segoe UI Bold" size="13.0"/></font></Label>
                         <TextField fx:id="txtNewEstStay" promptText="e.g. 4" GridPane.rowIndex="2" GridPane.columnIndex="1" />
                      </GridPane>
@@ -117,11 +130,11 @@
                      <Separator />
                      <Label styleClass="subtitle-label" text="Request a temporary discount percentage." wrapText="true" />
                      <HBox spacing="15.0" alignment="CENTER_LEFT">
-                        <TextField fx:id="txtDiscountPercent" promptText="\%" prefHeight="40.0" prefWidth="70.0" style="-fx-alignment: center;" />
+                        <TextField fx:id="txtDiscountPercent" promptText="%" prefHeight="40.0" prefWidth="70.0" style="-fx-alignment: center;" />
                         <Button fx:id="btnSubmitPromotion" mnemonicParsing="false" onAction="#handleSubmitPromotion" prefHeight="40.0" HBox.hgrow="ALWAYS" maxWidth="Infinity" styleClass="secondary-btn" style="-fx-font-weight: bold; -fx-cursor: hand;" text="Submit Promotion" />
                      </HBox>
                   </VBox>
-                  
+
                </VBox>
             </HBox>
 

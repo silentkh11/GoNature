@@ -15,17 +15,17 @@
            xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
            fx:controller="gui.guest.MainMenuController">
 
-   <!-- Layer 0: Parchment base — always visible, shows through parks-view fold corner -->
+   <!-- Layer 0: Deep forest night base — always visible, shows through parks-view fold corner -->
    <Pane prefHeight="615.0" prefWidth="850.0"
-         style="-fx-background-color: linear-gradient(to bottom right, #f5e6c8, #ede0c4, #e8d5a3);" />
+         style="-fx-background-color: linear-gradient(to bottom right, #040D08, #06110A, #0A1A10);" />
 
-   <!-- Layer 1: Parks view (dark space — stars + circles added by controller) -->
+   <!-- Layer 1: Parks view (dark forest-space — stars + circles added by controller) -->
    <Pane fx:id="parksView" prefHeight="615.0" prefWidth="850.0"
-         style="-fx-background-color: linear-gradient(to bottom right, #050c1a, #0d1b2a, #182240);" />
+         style="-fx-background-color: linear-gradient(to bottom right, #020A05, #060F08, #0C1A0F);" />
 
-   <!-- Layer 2: Main dashboard (paper map — clip applied by controller) -->
+   <!-- Layer 2: Main dashboard (glass eco card — clip applied by controller) -->
    <StackPane fx:id="mainView" prefHeight="615.0" prefWidth="850.0"
-              style="-fx-background-color: linear-gradient(to bottom right, #f5e6c8, #ede0c4, #e8d5a3);">
+              style="-fx-background-color: linear-gradient(to bottom right, #04100A, #07120C, #0D1C13);">
 
       <BorderPane maxHeight="Infinity" maxWidth="Infinity">
 
@@ -33,11 +33,11 @@
             <HBox alignment="CENTER_RIGHT" spacing="10.0" BorderPane.alignment="CENTER">
                <padding><Insets bottom="8.0" left="20.0" right="20.0" top="16.0" /></padding>
                <Button fx:id="themeBtn" focusTraversable="false" mnemonicParsing="false"
-                       onAction="#handleToggleTheme" prefWidth="118.0" text="🌙 Dark Mode"
-                       style="-fx-background-color: rgba(180,140,60,0.18); -fx-border-color: #c4a558; -fx-border-radius: 6; -fx-border-width: 1.5; -fx-text-fill: #5a3810; -fx-font-size: 12px; -fx-padding: 6 12; -fx-cursor: hand;" />
+                       onAction="#handleToggleTheme" prefWidth="118.0" text="☀ Light Mode"
+                       style="-fx-background-color: rgba(61,220,151,0.09); -fx-border-color: rgba(61,220,151,0.30); -fx-border-radius: 20; -fx-border-width: 1; -fx-text-fill: rgba(61,220,151,0.85); -fx-font-size: 12px; -fx-padding: 6 12; -fx-cursor: hand; -fx-background-radius: 20;" />
                <Button fx:id="loginBtn" focusTraversable="false" mnemonicParsing="false"
                        onAction="#handleEmployeeLogin" prefWidth="138.0" text="Employee Login"
-                       style="-fx-background-color: rgba(100,70,25,0.12); -fx-border-color: #a08040; -fx-border-radius: 6; -fx-border-width: 1.5; -fx-text-fill: #5a3810; -fx-font-size: 12px; -fx-padding: 6 12; -fx-cursor: hand;" />
+                       style="-fx-background-color: rgba(255,255,255,0.06); -fx-border-color: rgba(255,255,255,0.16); -fx-border-radius: 20; -fx-border-width: 1; -fx-text-fill: rgba(255,255,255,0.75); -fx-font-size: 12px; -fx-padding: 6 12; -fx-cursor: hand; -fx-background-radius: 20;" />
             </HBox>
          </top>
 
@@ -45,17 +45,17 @@
             <VBox alignment="CENTER" spacing="14.0" BorderPane.alignment="CENTER">
                <padding><Insets bottom="20.0" /></padding>
 
-               <Label text="🗺" alignment="CENTER" maxWidth="Infinity"
+               <Label text="🌿" alignment="CENTER" maxWidth="Infinity"
                       style="-fx-font-size: 46px;" />
 
                <Label text="GoNature" alignment="CENTER" maxWidth="Infinity"
-                      style="-fx-font-family: 'Segoe UI'; -fx-font-size: 38px; -fx-font-weight: bold; -fx-text-fill: #3d1f05;" />
+                      style="-fx-font-family: 'Segoe UI Light'; -fx-font-size: 40px; -fx-font-weight: bold; -fx-text-fill: rgba(255,255,255,0.95); -fx-effect: dropshadow(gaussian, rgba(61,220,151,0.40), 18, 0, 0, 0);" />
 
                <Label text="NATIONAL PARKS PORTAL" alignment="CENTER" maxWidth="Infinity"
-                      style="-fx-font-family: 'Segoe UI'; -fx-font-size: 12px; -fx-text-fill: #8b6914;" />
+                      style="-fx-font-family: 'Segoe UI'; -fx-font-size: 12px; -fx-letter-spacing: 3; -fx-text-fill: rgba(61,220,151,0.70);" />
 
                <Label text="────── ✦ ──────" alignment="CENTER" maxWidth="Infinity"
-                      style="-fx-text-fill: #c4a558; -fx-font-size: 14px;">
+                      style="-fx-text-fill: rgba(61,220,151,0.45); -fx-font-size: 14px;">
                   <VBox.margin><Insets top="-2.0" bottom="2.0" /></VBox.margin>
                </Label>
 
@@ -78,7 +78,7 @@
                        text="Manage My Orders" />
 
                <Label text="↖  hover to peek · click to lock" alignment="CENTER" maxWidth="Infinity"
-                      style="-fx-text-fill: rgba(100,70,25,0.4); -fx-font-size: 11px;">
+                      style="-fx-text-fill: rgba(61,220,151,0.30); -fx-font-size: 11px;">
                   <VBox.margin><Insets top="4.0" /></VBox.margin>
                </Label>
 

@@ -50,7 +50,7 @@
                   <PasswordField fx:id="passwordField" onAction="#handleLogin" promptText="Enter password..." style="-fx-padding: 10; -fx-font-size: 14px;" />
                </VBox>
 
-               <Label fx:id="errorLabel" style="-fx-text-fill: #d63031; -fx-font-weight: bold;" text="Error message here" visible="false" wrapText="true" />
+               <Label fx:id="errorLabel" style="-fx-text-fill: #E83A5A; -fx-font-weight: bold;" text="Error message here" visible="false" wrapText="true" />
 
                <Button fx:id="loginBtn" maxWidth="Infinity" mnemonicParsing="false" onAction="#handleLogin" styleClass="primary-btn" style="-fx-font-size: 15px; -fx-padding: 12;" text="Login">
                   <VBox.margin><Insets top="10.0" /></VBox.margin>
