@@ -13,6 +13,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
+import java.util.regex.Pattern;
 
 public class ServiceRepController {
 
@@ -38,6 +39,11 @@ public class ServiceRepController {
     @FXML private TextField txtEditCard;
     @FXML private TextField txtEditFamilySize;
     @FXML private Label lblLookupStatus;
+
+    private static final Pattern EMAIL_RE =
+        Pattern.compile("^[\\w._%+\\-]+@[\\w.\\-]+\\.[a-zA-Z]{2,}$");
+    private static final Pattern PHONE_RE =
+        Pattern.compile("^05[0-9]{8}$");
 
     private String currentLookedUpId = null;
     private entities.Employee currentUser = null;
@@ -105,12 +111,28 @@ public class ServiceRepController {
 
     @FXML
     void handleRegister(ActionEvent event) {
-        String id = txtId.getText().trim();
+        String id    = txtId.getText().trim();
+        String first = txtFirst.getText().trim();
+        String last  = txtLast.getText().trim();
         String email = txtEmail.getText().trim();
+        String phone = txtPhone.getText().trim();
+        String card  = txtCard.getText().trim();
         String sizeStr = txtFamilySize.getText().trim();
 
-        if (id.isEmpty() || email.isEmpty()) {
-            showStatus("ID and Email are mandatory fields.", "#d63031");
+        if (id.isEmpty() || first.isEmpty() || last.isEmpty() || email.isEmpty()) {
+            showStatus("ID, First Name, Last Name and Email are required.", "#d63031");
+            return;
+        }
+        if (id.length() != 9 || !id.matches("\\d+")) {
+            showStatus("Visitor ID must be exactly 9 digits.", "#d63031");
+            return;
+        }
+        if (!EMAIL_RE.matcher(email).matches()) {
+            showStatus("Please enter a valid email address (e.g. user@example.com).", "#d63031");
+            return;
+        }
+        if (!phone.isEmpty() && !PHONE_RE.matcher(phone).matches()) {
+            showStatus("Phone must be a 10-digit Israeli mobile number (e.g. 0501234567).", "#d63031");
             return;
         }
 
@@ -118,14 +140,8 @@ public class ServiceRepController {
             int familySize = sizeStr.isEmpty() ? 1 : Integer.parseInt(sizeStr);
 
             Subscriber newSub = new Subscriber(
-                id,
-                txtFirst.getText().trim(),
-                txtLast.getText().trim(),
-                email,
-                txtPhone.getText().trim(),
-                familySize,
-                txtCard.getText().trim(),
-                chkGuide.isSelected()
+                id, first, last, email, phone,
+                familySize, card, chkGuide.isSelected()
             );
 
             showStatus("Processing registration...", "#0984e3");

@@ -13,6 +13,7 @@ public class Subscriber implements Serializable {
     private String phone;
     
     // Subscriber Table Fields
+    private int subscriberId;   // auto-increment member number (e.g. 1001)
     private int familySize;
     private String creditCard;
     private boolean isGuide;
@@ -30,6 +31,7 @@ public class Subscriber implements Serializable {
 
     // --- Getters ---
     public String getVisitorId() { return visitorId; }
+    public int    getSubscriberId() { return subscriberId; }
     public String getFirstName() { return firstName; }
     public String getLastName() { return lastName; }
     public String getEmail() { return email; }
@@ -37,4 +39,7 @@ public class Subscriber implements Serializable {
     public int getFamilySize() { return familySize; }
     public String getCreditCard() { return creditCard; }
     public boolean isGuide() { return isGuide; }
+
+    /** Called by DBController after construction to inject the auto-increment member number. */
+    public void setSubscriberId(int id) { this.subscriberId = id; }
 }

@@ -164,6 +164,10 @@ public class ParkEntranceController {
                 showWalkInStatus("Visitor count must be between 1 and 50.", "#d63031");
                 return;
             }
+            if (type.equals("Group") && count > 15) {
+                showWalkInStatus("Organized groups cannot exceed 15 participants.", "#d63031");
+                return;
+            }
             String orderType = type.equals("Group") ? "Group" : "Solo";
             String subscriberId = (txtSubscriberId != null) ? txtSubscriberId.getText().trim() : "";
             String[] data = { String.valueOf(parkId), String.valueOf(count), orderType, subscriberId };

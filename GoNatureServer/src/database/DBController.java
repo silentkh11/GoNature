@@ -432,7 +432,7 @@ public class DBController {
             }
 
             double calculatedPrice;
-            if (isGuide || order.getOrderType().equalsIgnoreCase("Group")) {
+            if (order.getOrderType().equalsIgnoreCase("Group")) {
                 // Pre-booked group: 25% off + 12% advance; guide goes free
                 int payingVisitors = Math.max(0, order.getVisitorCount() - 1);
                 calculatedPrice = payingVisitors * (basePrice * 0.75 * 0.88);
@@ -1081,7 +1081,7 @@ public class DBController {
         // Fetch visit and visitor details for the response email before updating
         String fetchQ =
             "SELECT v.visit_date, v.visit_time, v.visitor_count, " +
-            "vis.first_name, vis.email, vis.phone " +
+            "vis.first_name, v.email, v.phone " +
             "FROM visit_order v JOIN visitor vis ON v.visitor_id = vis.visitor_id " +
             "WHERE v.order_id = ?";
         String fName = null, email = null, phone = null;
@@ -1142,7 +1142,7 @@ public class DBController {
     public static boolean cancelOrder(int orderId) {
         String getDetails =
             "SELECT v.park_id, v.visit_date, v.visit_time, " +
-            "       vis.first_name, vis.email, vis.phone " +
+            "       vis.first_name, v.email, v.phone " +
             "FROM visit_order v " +
             "JOIN visitor vis ON v.visitor_id = vis.visitor_id " +
             "WHERE v.order_id = ?";
@@ -1240,7 +1240,7 @@ public class DBController {
             if (availableSpace <= 0) return;
 
             String waitlistQ =
-                "SELECT v.order_id, v.visitor_count, vis.first_name, vis.email, vis.phone " +
+                "SELECT v.order_id, v.visitor_count, vis.first_name, v.email, v.phone " +
                 "FROM visit_order v JOIN visitor vis ON v.visitor_id = vis.visitor_id " +
                 "WHERE v.park_id = ? AND v.visit_date = ? AND v.visit_time = ? AND v.status = 'Waitlisted' " +
                 "ORDER BY v.order_id ASC";
@@ -1842,7 +1842,7 @@ public class DBController {
     public static entities.Subscriber getSubscriberById(String visitorId) {
         String query =
             "SELECT v.visitor_id, v.first_name, v.last_name, v.email, v.phone, " +
-            "s.family_size, s.credit_card, s.is_guide " +
+            "s.subscriber_id, s.family_size, s.credit_card, s.is_guide " +
             "FROM visitor v JOIN subscriber s ON v.visitor_id = s.visitor_id " +
             "WHERE v.visitor_id = ?";
         try (java.sql.Connection conn = getInstance().getConnection();
@@ -1850,7 +1850,7 @@ public class DBController {
             ps.setString(1, visitorId);
             try (java.sql.ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    return new entities.Subscriber(
+                    entities.Subscriber sub = new entities.Subscriber(
                         rs.getString("visitor_id"),
                         rs.getString("first_name"),
                         rs.getString("last_name"),
@@ -1860,6 +1860,8 @@ public class DBController {
                         rs.getString("credit_card"),
                         rs.getBoolean("is_guide")
                     );
+                    sub.setSubscriberId(rs.getInt("subscriber_id"));
+                    return sub;
                 }
             }
         } catch (java.sql.SQLException e) {
@@ -1998,7 +2000,7 @@ public class DBController {
             }
 
             double basePrice = 100.0, price;
-            if (isGuide || orderType.equalsIgnoreCase("Group")) {
+            if (orderType.equalsIgnoreCase("Group")) {
                 int paying = Math.max(0, updated.getVisitorCount() - 1);
                 price = paying * (basePrice * 0.75 * 0.88);
                 if (isSubscriber) price *= 0.90;
