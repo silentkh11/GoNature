@@ -2,6 +2,11 @@ package entities;
 
 import java.io.Serializable;
 
+/**
+ * The universal envelope for all client-server communication in GoNature.
+ * Every request and response is wrapped in a {@code Message} and sent over
+ * the OCSF TCP socket via Java object serialization.
+ */
 public class Message implements Serializable {
     
     private static final long serialVersionUID = 1L;

@@ -48,6 +48,14 @@
             <!-- ── FILTER ROW ─────────────────────────────── -->
             <HBox alignment="CENTER_LEFT" spacing="16.0" styleClass="card"
                   style="-fx-padding: 14 20;">
+               <Label text="🏞" style="-fx-font-size: 15px;" />
+               <Label styleClass="body-label" text="Park"
+                      style="-fx-font-weight: 700; -fx-font-size: 13px;" />
+               <ComboBox fx:id="parkCombo" prefWidth="200.0" promptText="Loading parks…"
+                         style="-fx-font-size: 13px; -fx-cursor: hand;" />
+
+               <Separator orientation="VERTICAL" style="-fx-opacity: 0.5;" />
+
                <Label text="📅" style="-fx-font-size: 15px;" />
                <Label styleClass="body-label" text="Month"
                       style="-fx-font-weight: 700; -fx-font-size: 13px;" />

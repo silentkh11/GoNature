@@ -23,6 +23,12 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.regex.Pattern;
 
+/**
+ * FXML controller for the booking creation form.
+ * Validates visitor input (ID, date, group type), checks park capacity via the server,
+ * and sends a {@code PROCESS_NEW_ORDER_REQUEST}. Displays the confirmed order price
+ * and auto-fills subscriber details when a member ID is recognized.
+ */
 public class CreateOrderController {
 
     @FXML private ComboBox<String> parkCombo;

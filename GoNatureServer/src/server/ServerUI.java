@@ -7,6 +7,11 @@ import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
 
+/**
+ * JavaFX application entry point for the GoNature server.
+ * Loads the {@code ServerPort.fxml} configuration screen where the operator
+ * enters the MySQL password and starts the OCSF TCP server.
+ */
 public class ServerUI extends Application {
 
     public static void main(String[] args) {

@@ -26,6 +26,12 @@ import javafx.stage.Stage;
 
 import java.util.ArrayList;
 
+/**
+ * FXML controller for the Department Manager dashboard.
+ * Displays pending park parameter change requests and promotional discount requests;
+ * allows the Dept Manager to approve or deny each one.
+ * Receives real-time updates from the server when new requests are submitted.
+ */
 public class DeptManagerController {
 
     @FXML private TableView<ParameterRequest> requestsTable;
@@ -68,17 +74,7 @@ public class DeptManagerController {
 
     @FXML
     void handleViewMyProfile(ActionEvent event) {
-        if (currentUser == null) return;
-        javafx.scene.control.Alert alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.INFORMATION);
-        alert.setTitle("My Profile");
-        alert.setHeaderText("Employee Information");
-        alert.setContentText(
-            "Name:        " + currentUser.getFirstName() + " " + currentUser.getLastName() + "\n" +
-            "Employee ID:  " + currentUser.getEmployeeId() + "\n" +
-            "Email:        " + (currentUser.getEmail() != null ? currentUser.getEmail() : "—") + "\n" +
-            "Role:         " + currentUser.getRole()
-        );
-        alert.showAndWait();
+        gui.core.ProfileDialog.show(currentUser);
     }
 
     @FXML

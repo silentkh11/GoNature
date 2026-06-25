@@ -20,6 +20,7 @@ import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.effect.DropShadow;
+import javafx.scene.effect.GaussianBlur;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.input.ScrollEvent;
 import javafx.scene.layout.*;
@@ -35,6 +36,13 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Random;
 
+/**
+ * FXML controller for the main landing screen of the GoNature client.
+ * Renders the animated park map with an interactive 3-D card fold, a scrollable
+ * park strip, and a pool of animated shooting stars for ambiance.
+ * Also serves as the navigation hub: routes to Login, Guest Portal,
+ * Order Creation, and any active employee session's role dashboard.
+ */
 public class MainMenuController {
 
     @FXML private Button    themeBtn, loginBtn, guestBtn, manageOrdersBtn;
@@ -51,13 +59,59 @@ public class MainMenuController {
     private Timeline currentAnim;
     private boolean  lockedToParks = false;
 
-    // Shooting star state
-    private SequentialTransition shootingStarAnim;
-    private Group                shootingStarNode;
-    private final Random         STAR_RNG = new Random();
+    // Shooting star state — pool of independent, concurrently-animating stars
+    private static final int             STAR_POOL      = 5;
+    private final SequentialTransition[] shootingStarAnims = new SequentialTransition[STAR_POOL];
+    private final Group[]                shootingStarNodes  = new Group[STAR_POOL];
+    private final Random                 STAR_RNG = new Random();
 
     // Server retry — re-fetches parks every 3.5s until data arrives
     private Timeline retryTimeline;
+
+    // ── Park info-panel descriptions (2 sentences per park name) ────────────
+    private static final java.util.Map<String, String[]> PARK_DESCRIPTIONS = new java.util.HashMap<>();
+    static {
+        PARK_DESCRIPTIONS.put("Carmel National Park", new String[]{
+            "The largest forested area in Israel, blanketing the Carmel mountain range with Mediterranean woodland and diverse wildlife.",
+            "Home to ancient monasteries, Druze villages, and dozens of marked hiking trails with panoramic sea views."
+        });
+        PARK_DESCRIPTIONS.put("Carmel Nature Reserve", new String[]{
+            "A protected stretch of the Carmel Ridge featuring rare wildflowers, limestone caves, and panoramic views of the Mediterranean coast.",
+            "The reserve shelters jackals, wild boars, and over 200 bird species in a landscape shaped by ancient geological forces."
+        });
+        PARK_DESCRIPTIONS.put("Ein Gedi Nature Reserve", new String[]{
+            "A lush desert oasis rising beside the Dead Sea, fed by freshwater springs that cascade into emerald pools and waterfalls.",
+            "Famous for David's Stream canyon and resident herds of Nubian ibex that roam freely among the palms and cliffs."
+        });
+        PARK_DESCRIPTIONS.put("Banias Nature Reserve", new String[]{
+            "Site of a powerful spring at the foot of Mount Hermon, once home to a Hellenistic temple to Pan and a grand Herodian palace.",
+            "Visitors can walk along the roaring Banias waterfall and follow an ancient Roman road through dramatic basalt gorges."
+        });
+        PARK_DESCRIPTIONS.put("Masada National Park", new String[]{
+            "A UNESCO World Heritage fortress perched on an isolated rock plateau above the Dead Sea, last stronghold of Jewish rebels against Rome in 73 CE.",
+            "The site offers a cable car, a famous sunrise hike, and sweeping views across the Judean Desert and the Dead Sea."
+        });
+        PARK_DESCRIPTIONS.put("Caesarea National Park", new String[]{
+            "An ancient Roman port city founded by King Herod, featuring a stunning harbour, amphitheater, hippodrome, and coastal aqueduct.",
+            "One of Israel's most visited archaeological sites, where Roman columns and Byzantine mosaics meet the Mediterranean shoreline."
+        });
+        PARK_DESCRIPTIONS.put("Timna Valley Park", new String[]{
+            "A vast desert valley in the southern Negev renowned for its striking sandstone formations and ancient Egyptian copper mines.",
+            "The iconic Solomon's Pillars and the colourful geological layers spanning hundreds of millions of years make it a geological wonder."
+        });
+        PARK_DESCRIPTIONS.put("Nahal Ayun Nature Reserve", new String[]{
+            "A northern stream reserve celebrated for four successive waterfalls, including the dramatic Tanur waterfall that plunges into a basalt gorge.",
+            "The lush canyon is rich with plane trees, willows, and rare migrating songbirds travelling along the Syrian-African rift."
+        });
+        PARK_DESCRIPTIONS.put("Apollonia National Park", new String[]{
+            "A coastal Crusader fortress perched on dramatic sea cliffs north of Herzliya, overlooking one of Israel's most beautiful shorelines.",
+            "The site preserves layers of Hellenistic, Persian, Islamic, and Crusader history within a single breathtaking promontory."
+        });
+        PARK_DESCRIPTIONS.put("Gamla Nature Reserve", new String[]{
+            "Home to the largest griffon vulture colony in Israel and a dramatic ancient Jewish city that fell to Roman siege in 67 CE.",
+            "The site features impressive waterfalls, basalt landscapes, and the iconic 'Camel Hump' hill rising from the Golan plateau."
+        });
+    }
 
     // ── Dashboard strip: 4 featured parks (fixed) ────────────────────────────
 
@@ -324,9 +378,11 @@ public class MainMenuController {
     private void buildParksView() {
         boolean dark = ThemeManager.getInstance().isDarkMode();
 
-        // Stop any existing shooting star before rebuild
-        if (shootingStarAnim != null) { shootingStarAnim.stop(); shootingStarAnim = null; }
-        shootingStarNode = null;
+        // Stop any existing shooting stars before rebuild
+        for (int si = 0; si < STAR_POOL; si++) {
+            if (shootingStarAnims[si] != null) { shootingStarAnims[si].stop(); shootingStarAnims[si] = null; }
+            shootingStarNodes[si] = null;
+        }
 
         // Full-coverage background set from Java so theme-toggle can update it
         parksView.setStyle(dark
@@ -449,11 +505,20 @@ public class MainMenuController {
         buildInfoPanel();
         parksView.getChildren().add(infoPanel);
 
-        // Shooting star beacon — animates across the map viewport periodically
-        shootingStarNode = buildShootingStarNode(dark);
-        shootingStarNode.setOpacity(0);
-        parksView.getChildren().add(shootingStarNode);
-        fireStar();
+        // Shooting star pool — 5 independent stars, varied sizes, staggered start delays
+        // Sizes: 1 full, 2 medium, 2 small — gives depth/distance illusion
+        double[] starScales = { 1.00, 0.78, 0.58, 0.85, 0.48 };
+        // Stagger initial delays so they don't all appear at once (seconds)
+        double[] starDelays = { 0.0, 3.8, 1.5, 6.2, 9.0 };
+        for (int si = 0; si < STAR_POOL; si++) {
+            Group node = buildShootingStarNode(dark);
+            node.setScaleX(starScales[si]);
+            node.setScaleY(starScales[si]);
+            node.setOpacity(0);
+            parksView.getChildren().add(node);
+            shootingStarNodes[si] = node;
+            fireStar(si, starDelays[si]);
+        }
     }
 
     // ── Dynamic park map ──────────────────────────────────────────────────────
@@ -643,13 +708,18 @@ public class MainMenuController {
         infoAccentBar.setPrefHeight(1.5); infoAccentBar.setMaxWidth(Double.MAX_VALUE);
 
         infoParkVisitors = new Label();
-        infoParkVisitors.setStyle("-fx-font-size:11.5px; -fx-text-fill:rgba(255,255,255,0.82);");
+        infoParkVisitors.setStyle("-fx-font-size:12px; -fx-text-fill:rgba(255,255,255,0.85);");
+        infoParkVisitors.setWrapText(true);
+        infoParkVisitors.setMaxWidth(230);
 
         infoParkCapacity = new Label();
-        infoParkCapacity.setStyle("-fx-font-size:11px; -fx-text-fill:rgba(255,255,255,0.55);");
+        infoParkCapacity.setStyle("-fx-font-size:12px; -fx-text-fill:rgba(255,255,255,0.60);");
+        infoParkCapacity.setWrapText(true);
+        infoParkCapacity.setMaxWidth(230);
 
         infoParkStay = new Label();
-        infoParkStay.setStyle("-fx-font-size:11px; -fx-text-fill:rgba(255,255,255,0.55);");
+        infoParkStay.setVisible(false);
+        infoParkStay.setManaged(false);
 
         infoParkDiscount = new Label();
         infoParkDiscount.setStyle("-fx-font-size:11px; -fx-font-weight:bold; -fx-text-fill:#f0b429;");
@@ -677,7 +747,7 @@ public class MainMenuController {
             "-fx-padding:18 20 22 20;"
         );
         infoPanel.setEffect(new DropShadow(30, Color.web("#000", 0.55)));
-        infoPanel.setPrefWidth(268); infoPanel.setMaxWidth(268);
+        infoPanel.setPrefWidth(290); infoPanel.setMaxWidth(290);
         infoPanel.setOpacity(0);
         infoPanel.setMouseTransparent(true);
         infoPanel.setLayoutX(490); infoPanel.setLayoutY(170);
@@ -699,10 +769,12 @@ public class MainMenuController {
         infoParkIcon.setText(icon);
         infoParkName.setText(park.getName());
         infoAccentBar.setStyle("-fx-background-color:" + color + "; -fx-background-radius:1;");
-        infoParkVisitors.setText("👥  " + park.getCurrentVisitors() + " visitors now");
-        infoParkCapacity.setText("🏕  Capacity: " + park.getMaxCapacity() +
-                                 "  ·  Gap: " + park.getCasualGap());
-        infoParkStay.setText("⏱  Avg visit: ~" + park.getEstimatedStayTime() + " min");
+        String[] desc = PARK_DESCRIPTIONS.getOrDefault(park.getName(), new String[]{
+            "A protected nature site in Israel with unique landscapes, flora, and fauna.",
+            "Explore scenic trails and breathtaking views year-round."
+        });
+        infoParkVisitors.setText(desc[0]);
+        infoParkCapacity.setText(desc[1]);
         if (park.getActiveDiscount() > 0) {
             infoParkDiscount.setText("🏷  " + (int) park.getActiveDiscount() + "% discount active");
             infoParkDiscount.setVisible(true);
@@ -794,19 +866,30 @@ public class MainMenuController {
     private void buildZoneHints() {
         boolean dark = ThemeManager.getInstance().isDarkMode();
 
-        // Theme-aware: sky-blue lettering on deep space / cream-white lettering on meadow
-        String expTextColor = dark ? "rgba(170,225,255,0.95)" : "rgba(248,248,240,0.97)";
+        // Dark mode: pure white — maximum contrast against stars/space
+        // Light mode: very dark forest green — maximum contrast against meadow/parchment
+        String expTextColor = dark ? "rgba(255,255,255,0.93)" : "rgba(10,35,10,0.96)";
         String dotHex       = dark ? "#70d0ff" : "#F8E060";
 
         Label expText = new Label("E X P L O R E");
-        expText.setStyle("-fx-font-family:'Segoe UI'; -fx-font-size:8px; -fx-font-weight:bold;" +
+        expText.setStyle("-fx-font-family:'Segoe UI'; -fx-font-size:9px; -fx-font-weight:bold;" +
                          "-fx-text-fill:" + expTextColor + ";");
-        // In light mode: strong dark-forest shadow makes white text pop on any meadow shade
+        // Shadow gives the text a crisp edge on any background shade
         expText.setEffect(dark
-            ? null
-            : new DropShadow(5, Color.web("#1A3A0A", 0.90)));
-        expText.setRotate(-45); expText.setLayoutX(-6); expText.setLayoutY(29);
+            ? new DropShadow(4, Color.web("#000020", 0.75))   // dark halo separates from starfield
+            : new DropShadow(3, Color.web("#FFFFFF", 0.85))); // white halo lifts dark text off meadow
+        expText.setRotate(-45);
         expText.setMouseTransparent(true);
+        // Auto-center along the triangle diagonal (hypotenuse midpoint ≈ (40, 40))
+        // layoutBoundsProperty fires once the label is measured by JavaFX layout
+        expText.layoutBoundsProperty().addListener((obs, o, b) -> {
+            if (b.getWidth() > 0) {
+                expText.setLayoutX(40 - b.getWidth()  / 2.0);
+                expText.setLayoutY(40 - b.getHeight() / 2.0);
+            }
+        });
+        expText.setLayoutX(5);  // placeholder until bounds are known
+        expText.setLayoutY(28);
 
         Circle expDot = new Circle(72, 8, 3, Color.web(dotHex, 0.85));
         expDot.setEffect(new DropShadow(12, Color.web(dotHex, 0.9)));
@@ -993,54 +1076,90 @@ public class MainMenuController {
     // ── Shooting star ─────────────────────────────────────────────────────────
 
     private Group buildShootingStarNode(boolean dark) {
-        String coreColor = dark ? "#FFFFFF"  : "#FFF4A8";
-        String glowColor = dark ? "#A0C8FF"  : "#FFD040";
-        Line halo = new Line(0, 0, 72, 0);
-        halo.setStroke(Color.web(glowColor, 0.30));
-        halo.setStrokeWidth(5.5);
-        Line core = new Line(0, 0, 72, 0);
-        core.setStroke(Color.web(coreColor, 0.95));
-        core.setStrokeWidth(1.5);
-        core.setEffect(new DropShadow(9, Color.web(glowColor, 1.0)));
-        Group g = new Group(halo, core);
-        g.setRotate(42);
+        String coreColor = dark ? "#FFFFFF" : "#FFF8C0";
+        String glowColor = dark ? "#B0D4FF" : "#FFD040";
+
+        // Layer 1 — wide soft glow: blurry aura around the whole streak
+        Rectangle outerGlow = new Rectangle(-5, -5, 88, 10);
+        outerGlow.setFill(new LinearGradient(0, 0, 1, 0, true, CycleMethod.NO_CYCLE,
+            new Stop(0.00, Color.web(glowColor, 0.60)),  // bright at head
+            new Stop(0.12, Color.web(glowColor, 0.28)),
+            new Stop(0.45, Color.web(glowColor, 0.07)),
+            new Stop(1.00, Color.TRANSPARENT)             // fully fade at tail tip
+        ));
+        outerGlow.setArcWidth(5); outerGlow.setArcHeight(5);
+        outerGlow.setEffect(new GaussianBlur(3.5));
+
+        // Layer 2 — core streak: sharp bright line that tapers to nothing
+        Rectangle coreStreak = new Rectangle(0, -1, 74, 2);
+        coreStreak.setFill(new LinearGradient(0, 0, 1, 0, true, CycleMethod.NO_CYCLE,
+            new Stop(0.00, Color.web(coreColor, 1.00)),  // solid bright at head
+            new Stop(0.22, Color.web(coreColor, 0.82)),
+            new Stop(0.58, Color.web(coreColor, 0.22)),
+            new Stop(1.00, Color.TRANSPARENT)             // vanishes at tail
+        ));
+
+        // Layer 3 — head spark: the actual "star" — bright point at the leading tip
+        Circle headSpark = new Circle(0, 0, 2.5, Color.web(coreColor, 1.0));
+        DropShadow headGlow = new DropShadow(14, Color.web(glowColor, 1.0));
+        headGlow.setSpread(0.45);
+        headSpark.setEffect(headGlow);
+
+        Group g = new Group(outerGlow, coreStreak, headSpark);
+        g.setRotate(-42); // tail trails upper-right, head leads lower-left (direction of travel)
         g.setMouseTransparent(true);
         return g;
     }
 
-    private void fireStar() {
-        if (shootingStarNode == null) return;
-        if (!parksView.getChildren().contains(shootingStarNode)) return;
+    private void fireStar(int idx, double initialDelaySecs) {
+        Group node = shootingStarNodes[idx];
+        if (node == null) return;
+        if (!parksView.getChildren().contains(node)) return;
 
-        double startX = 530 + STAR_RNG.nextDouble() * 270;
-        double startY = -28 + STAR_RNG.nextDouble() * 105;
-        double angle  = 36  + STAR_RNG.nextDouble() * 14;
-        double dist   = 790 + STAR_RNG.nextDouble() * 270;
+        // Spawn position spread across the full viewport
+        // — 50%: top strip,  30%: upper-right,  20%: upper-left
+        double startX, startY;
+        double roll = STAR_RNG.nextDouble();
+        if (roll < 0.50) {
+            startX = STAR_RNG.nextDouble() * viewW;
+            startY = -35 + STAR_RNG.nextDouble() * 55;
+        } else if (roll < 0.80) {
+            startX = viewW * 0.38 + STAR_RNG.nextDouble() * viewW * 0.62;
+            startY = -25 + STAR_RNG.nextDouble() * viewH * 0.38;
+        } else {
+            startX = STAR_RNG.nextDouble() * viewW * 0.48;
+            startY = -20 + STAR_RNG.nextDouble() * viewH * 0.22;
+        }
 
-        shootingStarNode.setTranslateX(0); shootingStarNode.setTranslateY(0);
-        shootingStarNode.setLayoutX(startX); shootingStarNode.setLayoutY(startY);
-        shootingStarNode.setOpacity(0);
+        double angle   = 28  + STAR_RNG.nextDouble() * 26;   // 28°–54° diagonal
+        double dist    = 600 + STAR_RNG.nextDouble() * 550;   // travel distance
+        double speedMs = 900 + STAR_RNG.nextDouble() * 900;   // 0.9 s – 1.8 s streak
+        double pauseSec = 2.2 + STAR_RNG.nextDouble() * 6.5;  // gap before next fire
 
-        FadeTransition flashIn = new FadeTransition(Duration.millis(90), shootingStarNode);
+        node.setTranslateX(0); node.setTranslateY(0);
+        node.setLayoutX(startX); node.setLayoutY(startY);
+        node.setOpacity(0);
+
+        FadeTransition flashIn = new FadeTransition(Duration.millis(85), node);
         flashIn.setFromValue(0); flashIn.setToValue(1.0);
 
-        TranslateTransition travel = new TranslateTransition(Duration.millis(1380), shootingStarNode);
+        TranslateTransition travel = new TranslateTransition(Duration.millis(speedMs), node);
         travel.setByX(-dist * Math.cos(Math.toRadians(angle)));
         travel.setByY( dist * Math.sin(Math.toRadians(angle)));
         travel.setInterpolator(Interpolator.LINEAR);
 
-        FadeTransition dim = new FadeTransition(Duration.millis(1380), shootingStarNode);
+        FadeTransition dim = new FadeTransition(Duration.millis(speedMs), node);
         dim.setFromValue(1.0); dim.setToValue(0.0);
         dim.setInterpolator(Interpolator.EASE_IN);
 
-        PauseTransition pause = new PauseTransition(
-            Duration.seconds(3.5 + STAR_RNG.nextDouble() * 5.0));
+        PauseTransition wait = new PauseTransition(
+            Duration.seconds(initialDelaySecs + pauseSec));
 
-        shootingStarAnim = new SequentialTransition(
-            flashIn, new ParallelTransition(travel, dim), pause);
-        shootingStarAnim.setCycleCount(1);
-        shootingStarAnim.setOnFinished(ev -> fireStar());
-        shootingStarAnim.play();
+        shootingStarAnims[idx] = new SequentialTransition(
+            wait, flashIn, new ParallelTransition(travel, dim));
+        shootingStarAnims[idx].setCycleCount(1);
+        shootingStarAnims[idx].setOnFinished(ev -> fireStar(idx, 0));
+        shootingStarAnims[idx].play();
     }
 
     // ── Employee session helpers ───────────────────────────────────────────────

@@ -18,6 +18,11 @@ import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.stage.Stage;
 
+/**
+ * FXML controller for the subscriber/guide self-registration screen.
+ * Validates input and sends a {@code REGISTER_SUBSCRIBER_REQUEST} to the server.
+ * On success, displays the generated subscriber ID and navigates back to the main menu.
+ */
 public class RegisterController {
 
     @FXML private TextField txtId;

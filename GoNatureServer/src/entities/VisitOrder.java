@@ -2,6 +2,17 @@ package entities;
 
 import java.io.Serializable;
 
+/**
+ * A booking (pre-planned or walk-in) in the GoNature system.
+ * Carries the full lifecycle status of a visit from initial booking through entry and exit.
+ *
+ * <p>Status values: Booked → Pending Confirm → Confirmed → In Park → Completed
+ * (or Waitlisted → Waitlist Pending → Confirmed → In Park → Completed)
+ * Terminal states: Cancelled, Expired.
+ *
+ * <p>Two constructors are provided: the 9-arg form for DB fetches; the 11-arg form
+ * for fresh bookings that include the booker's contact info for notifications.
+ */
 public class VisitOrder implements Serializable {
     private static final long serialVersionUID = 1L;
     

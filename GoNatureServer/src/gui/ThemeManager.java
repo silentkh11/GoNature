@@ -3,6 +3,10 @@ package gui;
 import javafx.scene.Scene;
 import java.util.prefs.Preferences;
 
+/**
+ * Singleton that manages dark/light theme switching for the server GUI.
+ * Mirrors the client-side {@link gui.core.ThemeManager} but lives in the server module.
+ */
 public class ThemeManager {
 
     private static ThemeManager instance;

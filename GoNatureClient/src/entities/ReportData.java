@@ -3,6 +3,11 @@ package entities;
 import java.io.Serializable;
 import java.util.HashMap;
 
+/**
+ * Aggregated monthly report for a single park.
+ * Visitor counts and income figures are broken down by order type
+ * ("Personal", "Family", "Group") and sent from server to client for display.
+ */
 public class ReportData implements Serializable {
     private static final long serialVersionUID = 1L;
 

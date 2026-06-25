@@ -2,6 +2,12 @@ package entities;
 
 import java.io.Serializable;
 
+/**
+ * Represents a GoNature staff member.
+ * Roles: "Park Manager", "Dept Manager", "Gate Worker", "Service Rep".
+ * Department Managers have a null {@code parkId} because they oversee all parks.
+ * Serializable so it can be sent across the OCSF network channel.
+ */
 public class Employee implements Serializable {
     private static final long serialVersionUID = 1L;
     

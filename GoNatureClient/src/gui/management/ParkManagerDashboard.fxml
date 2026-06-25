@@ -233,20 +233,6 @@
                             styleClass="body-label" />
                   </VBox>
 
-                  <!-- Quick Actions card -->
-                  <VBox styleClass="card" spacing="8.0">
-                     <padding><Insets bottom="16.0" left="18.0" right="18.0" top="14.0" /></padding>
-                     <Label text="Quick Actions" styleClass="section-blue"
-                            style="-fx-font-size: 13px;" />
-                     <Button mnemonicParsing="false" onAction="#handleViewReports"
-                             prefHeight="38.0" maxWidth="Infinity"
-                             styleClass="primary-btn"
-                             style="-fx-font-size: 12px;" text="📊  View Full Reports" />
-                     <Button mnemonicParsing="false" onAction="#handleViewMyProfile"
-                             prefHeight="38.0" maxWidth="Infinity"
-                             styleClass="secondary-btn"
-                             style="-fx-font-size: 12px;" text="👤  My Profile" />
-                  </VBox>
                </VBox>
             </HBox>
 

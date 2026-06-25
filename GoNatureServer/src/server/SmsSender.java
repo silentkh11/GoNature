@@ -11,6 +11,12 @@ import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Properties;
 
+/**
+ * Utility class for sending SMS messages via the Twilio REST API.
+ * Credentials are loaded once at class-load time from {@code credentials.properties}.
+ * Israeli mobile numbers in 05X format are automatically converted to +972 international format.
+ * All calls are no-ops when credentials are absent so the server degrades gracefully.
+ */
 public class SmsSender {
 
     private static final String ACCOUNT_SID;

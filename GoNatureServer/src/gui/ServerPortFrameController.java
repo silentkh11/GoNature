@@ -21,6 +21,11 @@ import server.EchoServer;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.Map;
 
+/**
+ * FXML controller for the server configuration and monitoring screen.
+ * Handles database connection setup, OCSF server start/stop, and displays
+ * a live table of connected clients with their login status and role.
+ */
 public class ServerPortFrameController {
 
     @FXML private Label statusIndicator;

@@ -14,6 +14,11 @@ import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
 
+/**
+ * FXML controller for the login screen.
+ * Sends a {@code LOGIN_REQUEST} to the server with the entered credentials;
+ * on success it navigates to the appropriate role-specific dashboard.
+ */
 public class LoginController {
 
 	@FXML private TextField usernameField;

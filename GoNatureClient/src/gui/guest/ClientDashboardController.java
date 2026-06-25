@@ -15,6 +15,11 @@ import java.sql.Date;
 import java.time.LocalDate;
 import java.util.ArrayList;
 
+/**
+ * Legacy client dashboard controller retained for compatibility.
+ * Active visitor-facing flows use {@link GuestPortalController} and
+ * {@link CreateOrderController} instead.
+ */
 public class ClientDashboardController {
 
     // --- FXML UI Elements ---
