@@ -720,7 +720,63 @@ public class MainMenuController {
     }
 
     @FXML void handleEmployeeLogin(ActionEvent event) {
+        // If an employee session is still active (they used "← Main Menu" without
+        // logging out), go straight back to their dashboard — no login form needed.
+        entities.Employee active = client.ChatClient.getLoggedInEmployee();
+        if (active != null) {
+            restoreEmployeeSession(active, event);
+            return;
+        }
         switchScene(event, "/gui/auth/Login.fxml", "GoNature - Employee Login");
+    }
+
+    private void restoreEmployeeSession(entities.Employee user, ActionEvent event) {
+        String targetFxml;
+        String windowTitle;
+        switch (user.getRole()) {
+            case "ParkManager":
+                targetFxml = "/gui/management/ParkManagerDashboard.fxml";
+                windowTitle = "GoNature - Park Manager";
+                break;
+            case "GateWorker":
+                targetFxml = "/gui/gate/ParkEntrance.fxml";
+                windowTitle = "GoNature - Park Gate Scanner";
+                break;
+            case "DeptManager":
+                targetFxml = "/gui/management/DeptManagerDashboard.fxml";
+                windowTitle = "GoNature - Department Manager";
+                break;
+            case "ServiceRep":
+                targetFxml = "/gui/service/ServiceRepDashboard.fxml";
+                windowTitle = "GoNature - Service Representative";
+                break;
+            default:
+                switchScene(event, "/gui/auth/Login.fxml", "GoNature - Employee Login");
+                return;
+        }
+        try {
+            javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(getClass().getResource(targetFxml));
+            javafx.scene.Parent root = loader.load();
+            switch (user.getRole()) {
+                case "ParkManager":
+                    ((gui.management.ParkManagerController) loader.getController()).setUser(user);
+                    break;
+                case "GateWorker":
+                    ((gui.gate.ParkEntranceController) loader.getController()).setUser(user);
+                    break;
+                case "DeptManager":
+                    ((gui.management.DeptManagerController) loader.getController()).setUser(user);
+                    break;
+                case "ServiceRep":
+                    ((gui.service.ServiceRepController) loader.getController()).setUser(user);
+                    break;
+            }
+            javafx.stage.Stage stage = (javafx.stage.Stage) ((javafx.scene.Node) event.getSource()).getScene().getWindow();
+            gui.core.WindowChrome.setContent(stage, root, windowTitle);
+        } catch (Exception e) {
+            e.printStackTrace();
+            switchScene(event, "/gui/auth/Login.fxml", "GoNature - Employee Login");
+        }
     }
 
     @FXML void handleManageOrders(ActionEvent event) {

@@ -79,7 +79,7 @@
 
                <!-- Visitor Pie Chart -->
                <VBox styleClass="card" HBox.hgrow="ALWAYS" spacing="10.0"
-                     style="-fx-border-color: #E2DFD9 #E2DFD9 #E2DFD9 #1A7A5E; -fx-border-width: 1 1 1 3; -fx-border-radius: 0 10 10 0; -fx-background-radius: 0 10 10 0;">
+                     style="-fx-border-color: rgba(29,201,138,0.14) rgba(29,201,138,0.14) rgba(29,201,138,0.14) rgba(29,201,138,0.70); -fx-border-width: 1 1 1 3; -fx-border-radius: 0 10 10 0; -fx-background-radius: 0 10 10 0;">
                   <padding><Insets bottom="16.0" left="18.0" right="18.0" top="16.0" /></padding>
                   <Label text="Visitor Type Breakdown" styleClass="section-blue"
                          style="-fx-font-size: 13px;" />
@@ -89,7 +89,7 @@
 
                <!-- Income Bar Chart -->
                <VBox styleClass="card" HBox.hgrow="ALWAYS" spacing="10.0"
-                     style="-fx-border-color: #E2DFD9 #E2DFD9 #E2DFD9 #B8750A; -fx-border-width: 1 1 1 3; -fx-border-radius: 0 10 10 0; -fx-background-radius: 0 10 10 0;">
+                     style="-fx-border-color: rgba(232,160,32,0.14) rgba(232,160,32,0.14) rgba(232,160,32,0.14) rgba(232,160,32,0.70); -fx-border-width: 1 1 1 3; -fx-border-radius: 0 10 10 0; -fx-background-radius: 0 10 10 0;">
                   <padding><Insets bottom="16.0" left="18.0" right="18.0" top="16.0" /></padding>
                   <Label text="Monthly Income" styleClass="section-gold"
                          style="-fx-font-size: 13px;" />

@@ -11,6 +11,9 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -89,6 +92,10 @@ public class DBController {
             // created_at: guards the 24h reminder from firing on same-day/next-day bookings
             addColumnIfMissing(st, "visit_order", "created_at",        "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP");
             addColumnIfMissing(st, "visit_order", "notification_time", "TIMESTAMP NULL DEFAULT NULL");
+            // email + phone on the order itself so reminders always reach the booker,
+            // regardless of what email the visitor table holds for that visitor_id.
+            addColumnIfMissing(st, "visit_order", "email", "VARCHAR(255) NULL DEFAULT NULL");
+            addColumnIfMissing(st, "visit_order", "phone", "VARCHAR(20)  NULL DEFAULT NULL");
 
             st.execute(
                 "CREATE TABLE IF NOT EXISTS park_promotion (" +
@@ -164,9 +171,11 @@ public class DBController {
                 // Result  : reminder fires at the 24h mark regardless of when the booking
                 //           was made, as long as the booking itself was before that mark.
                 //           notification_time IS NULL ensures it fires exactly once.
+                // email + phone come from visit_order (stored at booking time) so reminders
+                // always go to the address the booker typed, not the visitor profile's address.
                 String reminderQuery =
                     "SELECT v.order_id, v.visit_date, v.visit_time, v.visitor_count, " +
-                    "vis.first_name, vis.email, vis.phone FROM visit_order v " +
+                    "vis.first_name, v.email, v.phone FROM visit_order v " +
                     "JOIN visitor vis ON v.visitor_id = vis.visitor_id " +
                     "WHERE v.status = 'Booked' AND v.notification_time IS NULL " +
                     "AND TIMESTAMP(v.visit_date, v.visit_time) BETWEEN NOW() + INTERVAL 1438 MINUTE AND NOW() + INTERVAL 1440 MINUTE " +
@@ -174,39 +183,72 @@ public class DBController {
                 String updateReminder =
                     "UPDATE visit_order SET status = 'Pending Confirm', notification_time = NOW() WHERE order_id = ?";
 
+                // Step 1 — collect all due orders into a list before touching the DB.
+                // This closes the ResultSet before any UPDATEs run, avoiding cursor
+                // contamination on the shared connection.
+                List<Map<String, Object>> dueOrders = new ArrayList<>();
                 try (PreparedStatement checkStmt = conn.prepareStatement(reminderQuery);
                      ResultSet rs = checkStmt.executeQuery()) {
                     while (rs.next()) {
-                        int orderId       = rs.getInt("order_id");
-                        String visitDate  = rs.getString("visit_date");
-                        String visitTime  = rs.getString("visit_time");
-                        int visitorCount  = rs.getInt("visitor_count");
-                        String email      = rs.getString("email");
-                        String phone      = rs.getString("phone");
-                        String fName      = rs.getString("first_name");
-                        String shortTime  = visitTime != null ? visitTime.substring(0, Math.min(5, visitTime.length())) : "";
-
-                        String confirmUrl = serverBaseUrl + "/confirm?id=" + orderId;
-                        String cancelUrl  = serverBaseUrl + "/cancel?id="  + orderId;
-
-                        System.out.println("⚠ SYSTEM ALERT: 24-Hour Reminder — Order #" + orderId);
-                        System.out.println("  ↳ CONFIRM: " + confirmUrl);
-                        System.out.println("  ↳ CANCEL:  " + cancelUrl);
-
-                        if (email != null && email.contains("@")) {
-                            String subject = "⚠ Action Required: Confirm your GoNature Visit (Order #" + orderId + ")";
-                            String htmlBody = buildReminderEmail(fName, orderId, visitDate, shortTime,
-                                                                 visitorCount, confirmUrl, cancelUrl);
-                            EmailSender.sendHtmlEmail(email, subject, htmlBody);
-                        }
-                        SmsSender.sendSms(phone,
-                            "GoNature: Visit tomorrow! Confirm Order #" + orderId + " within 2h: " + confirmUrl);
-
-                        try (PreparedStatement updateStmt = conn.prepareStatement(updateReminder)) {
-                            updateStmt.setInt(1, orderId);
-                            updateStmt.executeUpdate();
-                        }
+                        Map<String, Object> row = new HashMap<>();
+                        row.put("orderId",      rs.getInt("order_id"));
+                        row.put("visitDate",    rs.getString("visit_date"));
+                        row.put("visitTime",    rs.getString("visit_time"));
+                        row.put("visitorCount", rs.getInt("visitor_count"));
+                        row.put("email",        rs.getString("email"));
+                        row.put("phone",        rs.getString("phone"));
+                        row.put("fName",        rs.getString("first_name"));
+                        dueOrders.add(row);
                     }
+                }
+                // ResultSet is now fully closed.
+
+                // Step 2 — lock every order in the DB first (status → Pending Confirm,
+                // notification_time = NOW()).  Doing this before sending any notification
+                // prevents a second scheduler tick from re-picking the same orders if
+                // email sending happens to take longer than expected.
+                // Log all SYSTEM ALERTs here so the console shows them together, in order,
+                // uninterrupted by concurrent OCSF-thread emails (booking confirmations, etc.).
+                for (Map<String, Object> row : dueOrders) {
+                    int    orderId = (int) row.get("orderId");
+                    String email   = (String) row.get("email");
+                    String confirmUrl = serverBaseUrl + "/confirm?id=" + orderId;
+                    String cancelUrl  = serverBaseUrl + "/cancel?id="  + orderId;
+                    row.put("confirmUrl", confirmUrl);
+                    row.put("cancelUrl",  cancelUrl);
+
+                    try (PreparedStatement updateStmt = conn.prepareStatement(updateReminder)) {
+                        updateStmt.setInt(1, orderId);
+                        updateStmt.executeUpdate();
+                    }
+                    System.out.println("⚠ SYSTEM ALERT: 24-Hour Reminder — Order #" + orderId
+                        + (email != null ? "  →  " + email : "  (no email on file)"));
+                    System.out.println("  ↳ CONFIRM: " + confirmUrl);
+                    System.out.println("  ↳ CANCEL:  " + cancelUrl);
+                }
+
+                // Step 3 — now send the actual notifications.  DB is already updated so
+                // failures here don't cause duplicate reminders.
+                for (Map<String, Object> row : dueOrders) {
+                    int    orderId      = (int)    row.get("orderId");
+                    String visitDate    = (String) row.get("visitDate");
+                    String visitTime    = (String) row.get("visitTime");
+                    int    visitorCount = (int)    row.get("visitorCount");
+                    String email        = (String) row.get("email");
+                    String phone        = (String) row.get("phone");
+                    String fName        = (String) row.get("fName");
+                    String confirmUrl   = (String) row.get("confirmUrl");
+                    String cancelUrl    = (String) row.get("cancelUrl");
+                    String shortTime    = visitTime != null ? visitTime.substring(0, Math.min(5, visitTime.length())) : "";
+
+                    if (email != null && email.contains("@")) {
+                        String subject  = "⚠ Action Required: Confirm your GoNature Visit (Order #" + orderId + ")";
+                        String htmlBody = buildReminderEmail(fName, orderId, visitDate, shortTime,
+                                                             visitorCount, confirmUrl, cancelUrl);
+                        EmailSender.sendHtmlEmail(email, subject, htmlBody);
+                    }
+                    SmsSender.sendSms(phone,
+                        "GoNature: Visit tomorrow! Confirm Order #" + orderId + " within 2h: " + confirmUrl);
                 }
 
                 // PHASE 2: Auto-Cancel orders that ignored the 2-hour window
@@ -409,8 +451,8 @@ public class DBController {
             order.setPrice(calculatedPrice);
 
             String insertQuery =
-                "INSERT INTO visit_order (park_id, visitor_id, visit_date, visit_time, visitor_count, order_type, status, price) " +
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+                "INSERT INTO visit_order (park_id, visitor_id, visit_date, visit_time, visitor_count, order_type, status, price, email, phone) " +
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
             try (PreparedStatement ps = conn.prepareStatement(insertQuery, Statement.RETURN_GENERATED_KEYS)) {
                 ps.setInt(1, order.getParkId());
                 ps.setString(2, order.getVisitorId());
@@ -420,6 +462,8 @@ public class DBController {
                 ps.setString(6, order.getOrderType());
                 ps.setString(7, assignedStatus);
                 ps.setDouble(8, calculatedPrice);
+                ps.setString(9, order.getEmail());
+                ps.setString(10, order.getPhone());
                 ps.executeUpdate();
 
                 try (ResultSet keys = ps.getGeneratedKeys()) {

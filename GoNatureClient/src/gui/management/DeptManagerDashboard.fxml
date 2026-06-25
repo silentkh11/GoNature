@@ -33,6 +33,9 @@
                        style="-fx-font-size: 12px; -fx-padding: 6 14;" text="📊  Reports" />
                <Button fx:id="themeBtn" focusTraversable="false" mnemonicParsing="false"
                        onAction="#handleToggleTheme" styleClass="theme-toggle" text="☀ Light" />
+               <Button focusTraversable="false" mnemonicParsing="false" onAction="#handleGoBack"
+                       styleClass="back-link"
+                       style="-fx-font-size: 12px; -fx-padding: 6 14;" text="← Main Menu" />
                <Button focusTraversable="false" mnemonicParsing="false" onAction="#handleLogout"
                        styleClass="danger-btn"
                        style="-fx-font-size: 12px; -fx-padding: 6 14;" text="Logout" />
@@ -47,7 +50,7 @@
 
                   <!-- Parameter Requests section -->
                   <VBox styleClass="card" spacing="12.0"
-                        style="-fx-border-color: #E2DFD9 #E2DFD9 #E2DFD9 #1A7A5E; -fx-border-width: 1 1 1 3; -fx-border-radius: 0 10 10 0; -fx-background-radius: 0 10 10 0;">
+                        style="-fx-border-color: rgba(29,201,138,0.14) rgba(29,201,138,0.14) rgba(29,201,138,0.14) rgba(29,201,138,0.70); -fx-border-width: 1 1 1 3; -fx-border-radius: 0 10 10 0; -fx-background-radius: 0 10 10 0;">
                      <padding><Insets bottom="20.0" left="20.0" right="20.0" top="18.0" /></padding>
 
                      <HBox alignment="CENTER_LEFT" spacing="8.0">
@@ -81,7 +84,7 @@
 
                   <!-- Promotions section -->
                   <VBox styleClass="card" spacing="12.0"
-                        style="-fx-border-color: #E2DFD9 #E2DFD9 #E2DFD9 #B8750A; -fx-border-width: 1 1 1 3; -fx-border-radius: 0 10 10 0; -fx-background-radius: 0 10 10 0;">
+                        style="-fx-border-color: rgba(232,160,32,0.14) rgba(232,160,32,0.14) rgba(232,160,32,0.14) rgba(232,160,32,0.70); -fx-border-width: 1 1 1 3; -fx-border-radius: 0 10 10 0; -fx-background-radius: 0 10 10 0;">
                      <padding><Insets bottom="20.0" left="20.0" right="20.0" top="18.0" /></padding>
 
                      <HBox alignment="CENTER_LEFT" spacing="8.0">
@@ -140,7 +143,8 @@
                      <Button fx:id="btnCancelDiscount" mnemonicParsing="false"
                              onAction="#handleCancelPromotion"
                              prefHeight="42.0" maxWidth="Infinity"
-                             style="-fx-background-color: rgba(190,49,36,0.80); -fx-text-fill: #FFFFFF; -fx-font-weight: 700; -fx-font-size: 13px; -fx-background-radius: 8; -fx-cursor: hand;"
+                             styleClass="danger-btn"
+                             style="-fx-font-weight: 700; -fx-font-size: 13px;"
                              text="Cancel Active Discount" />
                   </VBox>
 

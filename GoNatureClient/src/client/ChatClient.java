@@ -15,6 +15,14 @@ public class ChatClient extends AbstractClient {
     private Consumer<Message> responseHandler;
     private volatile boolean isLoggingOut = false;
 
+    /** Stores the currently logged-in employee so the UI can restore their session
+     *  without re-authenticating (e.g. after "← Main Menu" navigation). */
+    private static entities.Employee loggedInEmployee = null;
+
+    public static void setLoggedInEmployee(entities.Employee e) { loggedInEmployee = e; }
+    public static entities.Employee getLoggedInEmployee()        { return loggedInEmployee; }
+    public static void clearLoggedInEmployee()                   { loggedInEmployee = null; }
+
     // --- Singleton Pattern ---
     private ChatClient(String host, int port, Consumer<Message> responseHandler) throws IOException {
         super(host, port);
@@ -60,6 +68,7 @@ public class ChatClient extends AbstractClient {
             if (message instanceof Message
                     && "LOGOUT_REQUEST".equals(((Message) message).getCommand())) {
                 isLoggingOut = true;
+                loggedInEmployee = null;
             }
             // --- THE AUTO-RECONNECT ENGINE ---
             if (!isConnected()) {

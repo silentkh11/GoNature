@@ -23,18 +23,22 @@
                </VBox>
                <Region HBox.hgrow="ALWAYS" />
                <Label fx:id="lblEmployeeName"
-                      style="-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #4C9EE8;" />
+                      styleClass="body-label"
+                      style="-fx-font-size: 13px; -fx-font-weight: bold;" />
                <Button mnemonicParsing="false" onAction="#handleViewMyProfile"
-                       style="-fx-background-color: rgba(255,255,255,0.07); -fx-border-color: rgba(255,255,255,0.14); -fx-border-radius: 9; -fx-border-width: 1; -fx-text-fill: rgba(213,227,239,0.78); -fx-font-size: 13px; -fx-padding: 7 15; -fx-cursor: hand; -fx-background-radius: 9;"
-                       text="👤  Profile" />
+                       styleClass="secondary-btn"
+                       style="-fx-font-size: 13px; -fx-padding: 7 15;" text="👤  Profile" />
                <Button fx:id="themeBtn" focusTraversable="false" mnemonicParsing="false"
                        onAction="#handleToggleTheme" styleClass="theme-toggle" text="☀ Light Mode" />
+               <Button focusTraversable="false" mnemonicParsing="false" onAction="#handleGoBack"
+                       styleClass="back-link"
+                       style="-fx-font-size: 13px; -fx-padding: 7 16;" text="← Main Menu" />
                <Button focusTraversable="false" mnemonicParsing="false" onAction="#handleLogout"
                        styleClass="danger-btn"
                        style="-fx-font-size: 13px; -fx-padding: 7 16;" text="🚪  Logout" />
             </HBox>
 
-            <!-- 2-column: Enroll Subscriber + Lookup Order -->
+            <!-- 2-column: Enroll Subscriber + Lookup / Edit -->
             <HBox spacing="20.0" alignment="TOP_CENTER">
 
                <!-- LEFT: Enroll New Subscriber -->
@@ -63,54 +67,59 @@
 
                      <Label text="Visitor ID" styleClass="body-label"
                             style="-fx-font-weight: bold; -fx-font-size: 12px;" GridPane.rowIndex="0" />
-                     <TextField fx:id="enrollId" promptText="9-digit ID"
+                     <TextField fx:id="txtId" promptText="9-digit ID"
                                 GridPane.columnIndex="1" GridPane.rowIndex="0" />
 
                      <Label text="First Name" styleClass="body-label"
                             style="-fx-font-weight: bold; -fx-font-size: 12px;" GridPane.rowIndex="1" />
-                     <TextField fx:id="enrollFirst" promptText="First name"
+                     <TextField fx:id="txtFirst" promptText="First name"
                                 GridPane.columnIndex="1" GridPane.rowIndex="1" />
 
                      <Label text="Last Name" styleClass="body-label"
                             style="-fx-font-weight: bold; -fx-font-size: 12px;" GridPane.rowIndex="2" />
-                     <TextField fx:id="enrollLast" promptText="Last name"
+                     <TextField fx:id="txtLast" promptText="Last name"
                                 GridPane.columnIndex="1" GridPane.rowIndex="2" />
 
                      <Label text="Email" styleClass="body-label"
                             style="-fx-font-weight: bold; -fx-font-size: 12px;" GridPane.rowIndex="3" />
-                     <TextField fx:id="enrollEmail" promptText="example@mail.com"
+                     <TextField fx:id="txtEmail" promptText="example@mail.com"
                                 GridPane.columnIndex="1" GridPane.rowIndex="3" />
 
                      <Label text="Phone" styleClass="body-label"
                             style="-fx-font-weight: bold; -fx-font-size: 12px;" GridPane.rowIndex="4" />
-                     <TextField fx:id="enrollPhone" promptText="05X-XXXXXXX"
+                     <TextField fx:id="txtPhone" promptText="05X-XXXXXXX"
                                 GridPane.columnIndex="1" GridPane.rowIndex="4" />
 
-                     <Label text="Family Size" styleClass="body-label"
+                     <Label text="Credit Card" styleClass="body-label"
                             style="-fx-font-weight: bold; -fx-font-size: 12px;" GridPane.rowIndex="5" />
-                     <TextField fx:id="enrollFamily" promptText="Default: 1"
+                     <TextField fx:id="txtCard" promptText="Optional"
                                 GridPane.columnIndex="1" GridPane.rowIndex="5" />
+
+                     <Label text="Family Size" styleClass="body-label"
+                            style="-fx-font-weight: bold; -fx-font-size: 12px;" GridPane.rowIndex="6" />
+                     <TextField fx:id="txtFamilySize" promptText="Default: 1"
+                                GridPane.columnIndex="1" GridPane.rowIndex="6" />
                   </GridPane>
 
-                  <CheckBox fx:id="enrollGuide" mnemonicParsing="false"
+                  <CheckBox fx:id="chkGuide" mnemonicParsing="false"
                             text="Certified Tour Guide  🏕️">
                      <font><Font name="Segoe UI" size="13.0" /></font>
                      <VBox.margin><Insets top="14.0" bottom="14.0" /></VBox.margin>
                   </CheckBox>
 
-                  <Button fx:id="btnEnroll" mnemonicParsing="false" onAction="#handleEnrollSubscriber"
+                  <Button mnemonicParsing="false" onAction="#handleRegister"
                           prefHeight="44.0" maxWidth="Infinity"
                           styleClass="primary-btn"
                           style="-fx-font-size: 14px; -fx-font-weight: bold;"
                           text="Enroll Subscriber" />
 
-                  <Label fx:id="lblEnrollStatus" alignment="CENTER" maxWidth="Infinity"
-                         wrapText="true" style="-fx-font-size: 12px;">
+                  <Label fx:id="lblStatus" alignment="CENTER" maxWidth="Infinity"
+                         wrapText="true" style="-fx-font-size: 12px; -fx-font-weight: bold;">
                      <VBox.margin><Insets top="8.0" /></VBox.margin>
                   </Label>
                </VBox>
 
-               <!-- RIGHT: Lookup Visitor / Order -->
+               <!-- RIGHT: Lookup + Edit Subscriber -->
                <VBox spacing="18.0" HBox.hgrow="ALWAYS">
 
                   <!-- Visitor Lookup -->
@@ -121,7 +130,7 @@
                      <HBox alignment="CENTER_LEFT" spacing="8.0">
                         <VBox.margin><Insets bottom="6.0" /></VBox.margin>
                         <Label text="🔍" style="-fx-font-size: 14px;" />
-                        <Label styleClass="section-blue" text="Find Visitor / Order"
+                        <Label styleClass="section-blue" text="Find Subscriber"
                                style="-fx-font-size: 14px;" />
                      </HBox>
 
@@ -129,49 +138,83 @@
                         <VBox.margin><Insets bottom="14.0" /></VBox.margin>
                      </Separator>
 
-                     <GridPane hgap="12.0" vgap="12.0">
+                     <HBox spacing="10.0" alignment="CENTER_LEFT">
+                        <Label text="Visitor ID" styleClass="body-label"
+                               style="-fx-font-weight: bold; -fx-font-size: 12px;" />
+                        <TextField fx:id="txtLookupId" promptText="Enter visitor ID"
+                                   HBox.hgrow="ALWAYS" />
+                     </HBox>
+
+                     <Button mnemonicParsing="false" onAction="#handleLookup"
+                             prefHeight="42.0" maxWidth="Infinity" styleClass="secondary-btn"
+                             style="-fx-font-weight: bold; -fx-font-size: 13px;"
+                             text="🔍  Search Subscriber">
+                        <VBox.margin><Insets top="14.0" /></VBox.margin>
+                     </Button>
+                  </VBox>
+
+                  <!-- Edit Subscriber (populated after lookup) -->
+                  <VBox spacing="14.0" styleClass="card" VBox.vgrow="ALWAYS"
+                        style="-fx-border-color: rgba(232,160,32,0.14) rgba(232,160,32,0.14) rgba(232,160,32,0.14) rgba(232,160,32,0.60); -fx-border-width: 1 1 1 3; -fx-border-radius: 0 14 14 0; -fx-background-radius: 0 14 14 0;">
+                     <padding><Insets bottom="20.0" left="22.0" right="22.0" top="18.0" /></padding>
+
+                     <HBox alignment="CENTER_LEFT" spacing="8.0">
+                        <Label text="✏️" style="-fx-font-size: 14px;" />
+                        <Label styleClass="section-gold" text="Edit Subscriber"
+                               style="-fx-font-size: 14px;" />
+                     </HBox>
+
+                     <Label styleClass="subtitle-label"
+                            text="Search for a subscriber above to load their details for editing."
+                            wrapText="true" style="-fx-font-size: 12px;" />
+
+                     <GridPane hgap="12.0" vgap="11.0">
                         <columnConstraints>
                            <ColumnConstraints hgrow="SOMETIMES" minWidth="90.0" prefWidth="100.0" />
                            <ColumnConstraints hgrow="ALWAYS" minWidth="10.0" />
                         </columnConstraints>
 
-                        <Label text="Visitor ID" styleClass="body-label"
+                        <Label text="First Name" styleClass="body-label"
                                style="-fx-font-weight: bold; -fx-font-size: 12px;" GridPane.rowIndex="0" />
-                        <TextField fx:id="lookupId" promptText="Enter visitor ID"
+                        <TextField fx:id="txtEditFirst" promptText="First name"
                                    GridPane.columnIndex="1" GridPane.rowIndex="0" />
 
-                        <Label text="Order ID" styleClass="body-label"
+                        <Label text="Last Name" styleClass="body-label"
                                style="-fx-font-weight: bold; -fx-font-size: 12px;" GridPane.rowIndex="1" />
-                        <TextField fx:id="lookupOrderId" promptText="Optional — search by order"
+                        <TextField fx:id="txtEditLast" promptText="Last name"
                                    GridPane.columnIndex="1" GridPane.rowIndex="1" />
+
+                        <Label text="Email" styleClass="body-label"
+                               style="-fx-font-weight: bold; -fx-font-size: 12px;" GridPane.rowIndex="2" />
+                        <TextField fx:id="txtEditEmail" promptText="email@domain.com"
+                                   GridPane.columnIndex="1" GridPane.rowIndex="2" />
+
+                        <Label text="Phone" styleClass="body-label"
+                               style="-fx-font-weight: bold; -fx-font-size: 12px;" GridPane.rowIndex="3" />
+                        <TextField fx:id="txtEditPhone" promptText="05X-XXXXXXX"
+                                   GridPane.columnIndex="1" GridPane.rowIndex="3" />
+
+                        <Label text="Credit Card" styleClass="body-label"
+                               style="-fx-font-weight: bold; -fx-font-size: 12px;" GridPane.rowIndex="4" />
+                        <TextField fx:id="txtEditCard" promptText="Optional"
+                                   GridPane.columnIndex="1" GridPane.rowIndex="4" />
+
+                        <Label text="Family Size" styleClass="body-label"
+                               style="-fx-font-weight: bold; -fx-font-size: 12px;" GridPane.rowIndex="5" />
+                        <TextField fx:id="txtEditFamilySize" promptText="1"
+                                   GridPane.columnIndex="1" GridPane.rowIndex="5" />
                      </GridPane>
 
-                     <Button fx:id="btnLookup" mnemonicParsing="false" onAction="#handleLookup"
-                             prefHeight="42.0" maxWidth="Infinity"
-                             styleClass="secondary-btn"
+                     <Button mnemonicParsing="false" onAction="#handleUpdate"
+                             prefHeight="40.0" maxWidth="Infinity"
+                             styleClass="gold-btn"
                              style="-fx-font-weight: bold; -fx-font-size: 13px;"
-                             text="Search">
-                        <VBox.margin><Insets top="14.0" /></VBox.margin>
+                             text="💾  Save Changes">
+                        <VBox.margin><Insets top="4.0" /></VBox.margin>
                      </Button>
-                  </VBox>
 
-                  <!-- Lookup Results -->
-                  <VBox spacing="12.0" styleClass="card" VBox.vgrow="ALWAYS">
-                     <padding><Insets bottom="18.0" left="22.0" right="22.0" top="18.0" /></padding>
-                     <HBox alignment="CENTER_LEFT" spacing="8.0">
-                        <Label text="📋" style="-fx-font-size: 14px;" />
-                        <Label styleClass="section-blue" text="Results"
-                               style="-fx-font-size: 14px;" />
-                     </HBox>
-                     <TableView fx:id="lookupTable" prefHeight="200.0">
-                        <columns>
-                           <TableColumn fx:id="colLookupField"  prefWidth="130.0" text="Field" />
-                           <TableColumn fx:id="colLookupValue"  prefWidth="250.0" text="Value" />
-                        </columns>
-                        <columnResizePolicy><TableView fx:constant="CONSTRAINED_RESIZE_POLICY" /></columnResizePolicy>
-                     </TableView>
                      <Label fx:id="lblLookupStatus" alignment="CENTER" maxWidth="Infinity"
-                            wrapText="true" style="-fx-font-size: 12.5px;" />
+                            wrapText="true" style="-fx-font-size: 12.5px; -fx-font-weight: bold;" />
                   </VBox>
                </VBox>
             </HBox>

@@ -77,6 +77,18 @@ public class ServiceRepController {
     }
 
     @FXML
+    void handleGoBack(ActionEvent event) {
+        try {
+            javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(getClass().getResource("/gui/guest/MainMenu.fxml"));
+            javafx.scene.Parent root = loader.load();
+            javafx.stage.Stage stage = (javafx.stage.Stage) ((Node) event.getSource()).getScene().getWindow();
+            WindowChrome.setContent(stage, root, "GoNature - Welcome");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    @FXML
     void handleLogout(ActionEvent event) {
         try {
             ChatClient.getInstance().handleMessageFromClientUI(new Message("LOGOUT_REQUEST", null));
