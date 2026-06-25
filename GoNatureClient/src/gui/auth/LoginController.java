@@ -25,9 +25,15 @@ public class LoginController {
 	@FXML
 	public void initialize() {
 		themeBtn.setText(ThemeManager.getInstance().toggleLabel());
-		// Connection is attempted lazily on Login click, not here.
-		// This lets the user open the screen, start the server, then login
-		// without having to navigate away and back.
+
+		// If an employee already has an active session (they used "← Main Menu"
+		// without logging out), skip the form and go straight to their dashboard.
+		entities.Employee active = ChatClient.getLoggedInEmployee();
+		if (active != null) {
+			javafx.application.Platform.runLater(() -> navigateToDashboard(active));
+			return;
+		}
+
 		javafx.application.Platform.runLater(() -> usernameField.requestFocus());
 	}
 
@@ -112,75 +118,74 @@ public class LoginController {
 			}
 
 			if (msg.getCommand().equals("LOGIN_SUCCESS")) {
-
-				// 1. Extract the user object the Server sent us
 				entities.Employee user = (entities.Employee) msg.getData();
-
-				String targetFxml = "";
-				String windowTitle = "";
-
-				// 2. The Traffic Director (Check the role!)
-				switch (user.getRole()) {
-				case "ParkManager":
-					targetFxml = "/gui/management/ParkManagerDashboard.fxml";
-					windowTitle = "GoNature - Park Manager";
-					break;
-				case "GateWorker":
-					targetFxml = "/gui/gate/ParkEntrance.fxml";
-					windowTitle = "GoNature - Park Gate Scanner";
-					break;
-				case "DeptManager":
-                    targetFxml = "/gui/management/DeptManagerDashboard.fxml";
-                    windowTitle = "GoNature - Department Manager";
-                    break;
-				case "ServiceRep":
-                    targetFxml = "/gui/service/ServiceRepDashboard.fxml";
-                    windowTitle = "GoNature - Service Representative";
-                    break;
-				default:
-					showError("Error: Unknown employee role.");
-					return;
-				}
-
-				// 3. Load the designated screen
-				try {
-					javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(getClass().getResource(targetFxml));
-					javafx.scene.Parent root = loader.load();
-
-					if (user.getRole().equals("ParkManager")) {
-						ParkManagerController pmController = loader.getController();
-						pmController.setUser(user);
-					}
-					if (user.getRole().equals("GateWorker")) {
-						ParkEntranceController gateController = loader.getController();
-						gateController.setUser(user);
-					}
-					if (user.getRole().equals("DeptManager")) {
-						gui.management.DeptManagerController dmController = loader.getController();
-						dmController.setUser(user);
-					}
-					if (user.getRole().equals("ServiceRep")) {
-						gui.service.ServiceRepController srController = loader.getController();
-						srController.setUser(user);
-					}
-
-					// 4. Grab the current window and swap the ROOT smoothly
-					javafx.stage.Stage stage = (javafx.stage.Stage) loginBtn.getScene().getWindow();
-
-                    WindowChrome.setContent(stage, root, windowTitle); // Swap the content without resizing!
-                    
-                    // Removed stage.centerOnScreen() here as well!
-
-				} catch (Exception e) {
-					showError("Error loading " + user.getRole() + " screen.");
-					e.printStackTrace();
-				}
+				ChatClient.setLoggedInEmployee(user);
+				navigateToDashboard(user);
 
 			} else if (msg.getCommand().equals("LOGIN_FAILED")) {
 				String errorMsg = (String) msg.getData();
 				showError(errorMsg);
 			}
 		});
+	}
+
+	private void navigateToDashboard(entities.Employee user) {
+		String targetFxml;
+		String windowTitle;
+		switch (user.getRole()) {
+			case "ParkManager":
+				targetFxml = "/gui/management/ParkManagerDashboard.fxml";
+				windowTitle = "GoNature - Park Manager";
+				break;
+			case "GateWorker":
+				targetFxml = "/gui/gate/ParkEntrance.fxml";
+				windowTitle = "GoNature - Park Gate Scanner";
+				break;
+			case "DeptManager":
+				targetFxml = "/gui/management/DeptManagerDashboard.fxml";
+				windowTitle = "GoNature - Department Manager";
+				break;
+			case "ServiceRep":
+				targetFxml = "/gui/service/ServiceRepDashboard.fxml";
+				windowTitle = "GoNature - Service Representative";
+				break;
+			default:
+				if (errorLabel != null) showError("Error: Unknown employee role.");
+				return;
+		}
+		try {
+			javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(getClass().getResource(targetFxml));
+			javafx.scene.Parent root = loader.load();
+
+			switch (user.getRole()) {
+				case "ParkManager":
+					((ParkManagerController) loader.getController()).setUser(user);
+					break;
+				case "GateWorker":
+					((ParkEntranceController) loader.getController()).setUser(user);
+					break;
+				case "DeptManager":
+					((gui.management.DeptManagerController) loader.getController()).setUser(user);
+					break;
+				case "ServiceRep":
+					((gui.service.ServiceRepController) loader.getController()).setUser(user);
+					break;
+			}
+
+			// Find the stage: prefer loginBtn's scene (login form path),
+			// fall back to any visible window (session-restore path from initialize()).
+			javafx.stage.Stage stage = null;
+			if (loginBtn != null && loginBtn.getScene() != null)
+				stage = (javafx.stage.Stage) loginBtn.getScene().getWindow();
+			if (stage == null)
+				stage = (javafx.stage.Stage) javafx.stage.Window.getWindows()
+						.stream().filter(javafx.stage.Window::isShowing).findFirst().orElse(null);
+			if (stage != null)
+				WindowChrome.setContent(stage, root, windowTitle);
+		} catch (Exception e) {
+			if (errorLabel != null) showError("Error loading " + user.getRole() + " screen.");
+			e.printStackTrace();
+		}
 	}
 
 	private void showError(String message) {
