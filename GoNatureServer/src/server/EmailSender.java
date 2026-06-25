@@ -12,6 +12,12 @@ import javax.mail.Transport;
 import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeMessage;
 
+/**
+ * Utility class for sending HTML emails via Gmail SMTP.
+ * Credentials are loaded once at class-load time from {@code credentials.properties}.
+ * If the credentials file is absent or incomplete, all send calls are silently skipped
+ * so the server can still function without email support.
+ */
 public class EmailSender {
 
     private static final String SENDER_EMAIL;

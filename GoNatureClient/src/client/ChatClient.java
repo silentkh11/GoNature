@@ -6,8 +6,18 @@ import java.io.IOException;
 import java.util.function.Consumer;
 
 /**
- * ChatClient handles the client-side OCSF network operations.
- * Includes a Global Watchdog and a Buffered Auto-Reconnect Engine.
+ * Client-side OCSF singleton for all network communication with the GoNature server.
+ *
+ * <p>Key responsibilities:
+ * <ul>
+ *   <li>Singleton lifecycle: {@link #getInstance(String, int, java.util.function.Consumer)}
+ *       for first-time construction; {@link #getInstance()} after that.</li>
+ *   <li>Auto-reconnect: transparently reopens the connection if the socket has dropped.</li>
+ *   <li>Session state: holds the logged-in {@link entities.Employee} so role dashboards
+ *       can restore context without re-authenticating (e.g. "← Main Menu" navigation).</li>
+ *   <li>Watchdog: {@code connectionException} detects server crashes and sends a
+ *       {@code SERVER_DISCONNECTED} message to the active UI handler.</li>
+ * </ul>
  */
 public class ChatClient extends AbstractClient {
 

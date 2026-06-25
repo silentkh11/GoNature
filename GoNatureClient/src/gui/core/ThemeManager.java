@@ -4,6 +4,11 @@ import javafx.scene.Scene;
 import java.util.prefs.Preferences;
 
 
+/**
+ * Singleton that manages dark/light theme switching across all JavaFX scenes.
+ * The user's preference is persisted in the Java {@link java.util.prefs.Preferences} store
+ * so the same theme is applied on the next application launch.
+ */
 public class ThemeManager {
 
     private static ThemeManager instance;

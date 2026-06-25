@@ -2,6 +2,11 @@ package entities;
 
 import java.io.Serializable;
 
+/**
+ * Represents a pending park parameter change request submitted by a Park Manager.
+ * The Department Manager reviews and approves or denies it via the management dashboard.
+ * Once approved, the park's capacity and stay-time values are updated in the database.
+ */
 public class ParameterRequest implements Serializable {
     private static final long serialVersionUID = 1L;
     

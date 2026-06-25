@@ -15,6 +15,12 @@ import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import java.util.regex.Pattern;
 
+/**
+ * FXML controller for the Service Representative screen.
+ * Supports new subscriber/guide registration and subscriber data lookup/update.
+ * Validates Israeli ID numbers, email addresses, and mobile phone numbers before sending
+ * requests to the server.
+ */
 public class ServiceRepController {
 
     // --- Register section ---
@@ -56,17 +62,7 @@ public class ServiceRepController {
 
     @FXML
     void handleViewMyProfile(javafx.event.ActionEvent event) {
-        if (currentUser == null) return;
-        javafx.scene.control.Alert alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.INFORMATION);
-        alert.setTitle("My Profile");
-        alert.setHeaderText("Employee Information");
-        alert.setContentText(
-            "Name:        " + currentUser.getFirstName() + " " + currentUser.getLastName() + "\n" +
-            "Employee ID:  " + currentUser.getEmployeeId() + "\n" +
-            "Email:        " + (currentUser.getEmail() != null ? currentUser.getEmail() : "—") + "\n" +
-            "Role:         " + currentUser.getRole()
-        );
-        alert.showAndWait();
+        gui.core.ProfileDialog.show(currentUser);
     }
 
     @FXML

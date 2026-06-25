@@ -8,8 +8,14 @@ import ocsf.server.ConnectionToClient;
 import java.util.function.Consumer;
 
 /**
- * This class overrides some of the methods in the abstract superclass
- * in order to give more functionality to the server.
+ * OCSF-based server that routes all GoNature client requests to {@link database.DBController}.
+ * Handles login/logout, duplicate-login prevention, booking, gate entry/exit,
+ * parameter and promotion approvals, subscriber management, reporting, and
+ * real-time park-status push updates to connected Park Manager clients.
+ *
+ * <p>One instance is created per server start; {@link #activeInstance} exposes it to
+ * {@link ConfirmationHttpServer} so HTTP confirm/cancel events can trigger live DB
+ * updates without going through the OCSF channel.
  */
 public class EchoServer extends AbstractServer {
 
@@ -109,6 +115,15 @@ public class EchoServer extends AbstractServer {
                         client.sendToClient(new Message("ORDER_FAILED",
                             "Group bookings require a registered Tour Guide ID. Please contact a Service Representative to register as a guide."));
                         uiLogger.accept("> Group booking rejected — visitor is not a registered guide.\n");
+                        return;
+                    }
+
+                    // 2b. Organized groups are capped at 15 participants
+                    if (newOrder.getOrderType().equalsIgnoreCase("Group")
+                            && newOrder.getVisitorCount() > 15) {
+                        client.sendToClient(new Message("ORDER_FAILED",
+                            "Organized group bookings are limited to 15 participants."));
+                        uiLogger.accept("> Group booking rejected — exceeds 15-participant limit.\n");
                         return;
                     }
 

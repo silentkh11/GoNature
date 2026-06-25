@@ -1,0 +1,165 @@
+GoNature – Database Content Description
+Group 7 | Assignment 3
+========================================
+
+DATABASE: gonature_db
+ENGINE   : MySQL 8.x
+CHARSET  : utf8mb4 / utf8mb4_unicode_ci
+
+========================================
+TABLE OVERVIEW
+========================================
+
+1. park
+   Purpose : Configuration and real-time state of each national park.
+   Columns :
+     park_id              – Primary key (auto-increment)
+     name                 – Park display name
+     max_capacity         – Maximum simultaneous visitors allowed
+     casual_gap           – Number of slots reserved for walk-in (casual) visitors;
+                            pre-booked orders are capped at (max_capacity – casual_gap)
+     estimated_stay_time  – Average visit duration in hours; used for overlap detection
+                            when checking whether a new booking conflicts with existing ones
+     current_visitors     – Live count of visitors currently inside the park; incremented
+                            on entry, decremented on exit
+     active_discount      – Park-wide promotional discount in percent (0 = no discount);
+                            applied on top of the order-type pricing rules
+   Rows at seed : 8 parks (Banias, Carmel, Galilee, Negev, Masada, Caesarea, Timna, Nahal Ayun)
+
+2. visitor
+   Purpose : Stores every person who has ever booked or entered a park.
+   Columns :
+     visitor_id   – National ID number (9 chars, PK); walk-ins receive a synthetic
+                    "WI<timestamp>" ID that never conflicts with real IDs
+     first_name   – First name (default: 'Guest')
+     last_name    – Last name (default: 'Visitor')
+     email        – Contact email (default: 'Not Provided')
+     phone        – Mobile phone (default: 'Not Provided')
+     visitor_type – 'Regular' | 'Subscriber' | 'Guide'
+   Rows at seed : 3 sample visitors
+
+3. employee
+   Purpose : Staff accounts used for login and role-based access.
+   Columns :
+     employee_id – Primary key (auto-increment)
+     username    – Unique login username
+     password    – Password (plain text for course demo; production would use hashing)
+     first_name  – Employee first name
+     last_name   – Employee last name
+     email       – Employee email
+     role        – 'Park Manager' | 'Dept Manager' | 'Gate Worker' | 'Service Rep'
+     park_id     – FK to park; NULL for Department Manager (oversees all parks)
+   Rows at seed : 13 employees (1 Dept Manager, 8 Park Managers, 2 Gate Workers, 2 Service Reps)
+
+4. subscriber
+   Purpose : Members and certified tour guides (a subset of visitors with extra privileges).
+   Columns :
+     subscriber_id – Auto-increment member number (this is the card number shown to the user)
+     visitor_id    – FK to visitor; the visitor must already exist
+     family_size   – Maximum group size for family/group bookings
+     credit_card   – Credit card number (used for membership billing)
+     is_guide      – 1 = certified tour guide, 0 = regular subscriber
+   Notes :
+     - Subscribers receive a 10% loyalty discount on pre-booked orders.
+     - Guides receive a 25% + 12% group discount; the guide themselves enters free.
+   Rows at seed : 2 sample subscribers (1 regular, 1 guide)
+
+5. visit_order
+   Purpose : Every booking in the system (pre-planned and walk-in).
+   Columns :
+     order_id          – Primary key (auto-increment, printed on ticket)
+     park_id           – FK to park
+     visitor_id        – FK to visitor
+     visit_date        – Date of the visit (DATE)
+     visit_time        – Arrival time window (TIME, HH:MM:SS)
+     visitor_count     – Number of visitors in this booking
+     order_type        – 'Personal' | 'Family' | 'Group'
+     status            – Lifecycle state (see status flow below)
+     price             – Calculated price in ILS at the time of booking
+     email             – Booker's email (copied from visitor at booking time for notifications)
+     phone             – Booker's phone (copied from visitor at booking time for SMS)
+     entry_timestamp   – When visitors actually entered the park (NULL until entry)
+     exit_timestamp    – When visitors exited (NULL until exit)
+     created_at        – When the order was placed (used to guard the 24h reminder logic)
+     notification_time – When the 24h reminder was sent; NULL = not yet sent
+   Status flow :
+     Pre-booked  → Booked → [24h before] Pending Confirm → [confirmed] Confirmed → In Park → Completed
+     Full park   → Waitlisted → [slot freed] Waitlist Pending → [confirmed] Confirmed → In Park → Completed
+     Terminal    : Cancelled (manual or 2h timeout) | Expired (waitlist 1h timeout)
+   Walk-in orders skip the Booked/Waitlisted phases; they are inserted directly as 'In Park'.
+   Rows at seed : 3 sample orders
+
+6. parameter_request
+   Purpose : Park Manager requests to change park capacity, casual gap, or stay time.
+             Must be approved by the Department Manager before taking effect.
+   Columns :
+     request_id               – Primary key (auto-increment)
+     park_id                  – FK to park
+     new_max_capacity         – Proposed maximum capacity
+     new_casual_gap           – Proposed casual (walk-in) gap
+     new_estimated_stay_time  – Proposed average stay time in hours
+     status                   – 'Pending' | 'Approved' | 'Denied'
+   Rows at seed : 0 (populated at runtime)
+
+7. park_promotion
+   Purpose : Park Manager requests for a temporary promotional discount.
+             Must be approved or cancelled by the Department Manager.
+   Columns :
+     promotion_id     – Primary key (auto-increment)
+     park_id          – FK to park
+     park_name        – Denormalized park name (for display without JOIN)
+     discount_percent – Proposed discount in percent (1–100)
+     status           – 'Pending' | 'Approved' | 'Denied' | 'Cancelled'
+     created_at       – When the request was submitted
+   Rows at seed : 0 (populated at runtime)
+
+========================================
+PRICING RULES (applied by DBController.processNewOrder)
+========================================
+
+Base ticket price : 100 ILS per person
+
+Pre-booked Personal / Family:
+  - All visitors         : -15% (advance booking discount)
+  - + Subscriber         : additional -10%
+
+Pre-booked Group (requires certified guide):
+  - Paying visitors      : base * 0.75 * 0.88  (guide enters free)
+  - + Subscriber guide   : additional -10%
+
+Walk-in Personal / Family:
+  - Full price (100 ILS/person)
+
+Walk-in Group:
+  - 10% off full price
+
+Park-level promotional discount:
+  - Applied multiplicatively on top of any of the above rules
+
+========================================
+AUTOMATED NOTIFICATION ENGINE
+========================================
+
+A background thread (ScheduledExecutorService, 1-minute tick) runs inside DBController:
+
+Phase 1 – 24h Reminders:
+  - Selects Booked orders whose visit time is exactly 24h away.
+  - Updates status → 'Pending Confirm', stamps notification_time.
+  - Sends confirmation email (with clickable Confirm / Cancel links) and SMS.
+  - If the visitor does not confirm within 2 hours → Phase 2.
+
+Phase 2 – Auto-Cancel:
+  - Selects 'Pending Confirm' orders where notification_time ≤ NOW() – 2h.
+  - Cancels them; triggers waitlist promotion.
+
+Phase 3 – Waitlist Expiry:
+  - Selects 'Waitlist Pending' orders where notification_time ≤ NOW() – 1h.
+  - Cancels them; triggers next waitlist promotion.
+
+Waitlist Promotion:
+  - When a slot frees up, the oldest 'Waitlisted' order that fits is promoted
+    to 'Waitlist Pending' and the visitor receives an email + SMS alert.
+
+========================================
+END OF DESCRIPTION
+========================================

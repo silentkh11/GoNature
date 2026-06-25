@@ -24,6 +24,11 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 
+/**
+ * FXML controller for the visitor self-service portal.
+ * Allows visitors to view their booking history by ID, cancel orders,
+ * and confirm waitlist slots.
+ */
 public class GuestPortalController {
 
     // --- Search & Table ---

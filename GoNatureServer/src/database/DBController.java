@@ -19,8 +19,16 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Singleton database controller for GoNature.
- * Manages all DB operations via a HikariCP connection pool.
+ * Singleton database controller for the GoNature system.
+ *
+ * <p>All SQL operations (login, booking, gate entry/exit, parameter requests,
+ * promotional discounts, subscriber management, reporting, walk-ins) are
+ * implemented as static methods here so that {@link server.EchoServer} can call
+ * them directly on the OCSF network threads.
+ *
+ * <p>Uses a HikariCP connection pool (max 10 connections) backed by MySQL 8.x.
+ * A background {@link java.util.concurrent.ScheduledExecutorService} fires every
+ * minute to run the 24-h reminder, auto-cancel, and waitlist-expiry phases.
  */
 public class DBController {
 

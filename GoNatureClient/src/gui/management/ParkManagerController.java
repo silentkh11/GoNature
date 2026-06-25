@@ -19,6 +19,12 @@ import javafx.scene.control.TextField;
 import java.util.ArrayList;
 import java.util.HashMap;
 
+/**
+ * FXML controller for the Park Manager dashboard.
+ * Allows the Park Manager to view live occupancy, submit parameter change requests
+ * (capacity / gap / stay time) and promotional discount requests for their park.
+ * Receives live park-status push updates from the server.
+ */
 public class ParkManagerController {
 
     // --- NEW: The Park Selector ---
@@ -77,18 +83,7 @@ public class ParkManagerController {
 
     @FXML
     void handleViewMyProfile(ActionEvent event) {
-        if (currentUser == null) return;
-        javafx.scene.control.Alert alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.INFORMATION);
-        alert.setTitle("My Profile");
-        alert.setHeaderText("Employee Information");
-        alert.setContentText(
-            "Name:       " + currentUser.getFirstName() + " " + currentUser.getLastName() + "\n" +
-            "Employee ID: " + currentUser.getEmployeeId() + "\n" +
-            "Email:       " + (currentUser.getEmail() != null ? currentUser.getEmail() : "—") + "\n" +
-            "Role:        " + currentUser.getRole() + "\n" +
-            "Park ID:     " + (currentUser.getParkId() != null ? currentUser.getParkId() : "—")
-        );
-        alert.showAndWait();
+        gui.core.ProfileDialog.show(currentUser);
     }
 
     private void updateParkDisplay() {

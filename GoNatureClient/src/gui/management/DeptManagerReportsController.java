@@ -23,6 +23,11 @@ import javafx.stage.Stage;
 import java.util.ArrayList;
 import java.util.Map;
 
+/**
+ * FXML controller for the Department Manager reports screen.
+ * Displays monthly visitor and income reports for any park via bar and pie charts.
+ * Requests report data from the server with {@code GET_REPORT_REQUEST}.
+ */
 public class DeptManagerReportsController {
 
     @FXML private ComboBox<String> cmbPark;

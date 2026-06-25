@@ -19,6 +19,11 @@ import javafx.scene.control.TextField;
 import javafx.scene.text.Font;
 import javafx.stage.Stage;
 
+/**
+ * FXML controller for the Gate Terminal screen used by Gate Workers.
+ * Supports ticket scanning (order ID lookup for entry), walk-in entry,
+ * and visitor exit. Shows a payment overlay on walk-in cash payment.
+ */
 public class ParkEntranceController {
 
     @FXML private TextField txtOrderId;
@@ -94,18 +99,7 @@ public class ParkEntranceController {
 
     @FXML
     void handleViewMyProfile(ActionEvent event) {
-        if (currentUser == null) return;
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle("My Profile");
-        alert.setHeaderText("Employee Information");
-        alert.setContentText(
-            "Name:        " + currentUser.getFirstName() + " " + currentUser.getLastName() + "\n" +
-            "Employee ID:  " + currentUser.getEmployeeId() + "\n" +
-            "Email:        " + (currentUser.getEmail() != null ? currentUser.getEmail() : "—") + "\n" +
-            "Role:         " + currentUser.getRole() + "\n" +
-            "Assigned Park: " + (currentUser.getParkId() != null ? "Park " + currentUser.getParkId() : "—")
-        );
-        alert.showAndWait();
+        gui.core.ProfileDialog.show(currentUser);
     }
 
     @FXML

@@ -2,6 +2,12 @@ package entities;
 
 import java.io.Serializable;
 
+/**
+ * Represents a registered GoNature subscriber or certified tour guide.
+ * Subscribers receive booking discounts; guides additionally lead group tours
+ * and benefit from special group pricing (guide enters free).
+ * Fields span both the {@code visitor} and {@code subscriber} database tables.
+ */
 public class Subscriber implements Serializable {
     private static final long serialVersionUID = 1L;
     

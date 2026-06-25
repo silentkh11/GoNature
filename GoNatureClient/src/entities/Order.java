@@ -3,6 +3,10 @@ package entities;
 import java.io.Serializable;
 import java.sql.Date; // Use java.sql.Date for database dates
 
+/**
+ * Legacy order entity retained for compatibility.
+ * New bookings use {@link VisitOrder} instead.
+ */
 public class Order implements Serializable {
     
     // This ID is required by Serializable to ensure both sides have the same version of the class
