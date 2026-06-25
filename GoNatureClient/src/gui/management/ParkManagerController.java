@@ -233,6 +233,11 @@ public class ParkManagerController {
     }
 
     @FXML
+    void handleGoBack(ActionEvent event) {
+        forceUIToMainMenu();
+    }
+
+    @FXML
     void handleLogout(ActionEvent event) {
         try {
             ChatClient.getInstance().handleMessageFromClientUI(new Message("LOGOUT_REQUEST", null));

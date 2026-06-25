@@ -25,9 +25,10 @@ public final class PaymentOverlay {
     /**
      * Opens a modal payment overlay covering {@code owner}.
      * @param owner      the Gate Terminal stage
+     * @param price      amount to collect shown in the card, e.g. "₪140" (may be null)
      * @param onComplete called on the JavaFX thread after the overlay closes (may be null)
      */
-    public static void show(Stage owner, Runnable onComplete) {
+    public static void show(Stage owner, String price, Runnable onComplete) {
         Stage overlay = new Stage();
         overlay.initOwner(owner);
         overlay.initModality(Modality.WINDOW_MODAL);
@@ -65,6 +66,24 @@ public final class PaymentOverlay {
         divider.setMaxWidth(Double.MAX_VALUE);
         divider.setStyle("-fx-background-color: rgba(29,201,138,0.18);");
         VBox.setMargin(divider, new Insets(14, 0, 18, 0));
+
+        // ── AMOUNT DUE (optional) — built now, added to card after header/divider ──
+        VBox amountBox = null;
+        if (price != null && !price.isEmpty()) {
+            Label lblAmountCaption = new Label("AMOUNT DUE");
+            lblAmountCaption.setStyle(
+                "-fx-font-family: 'Segoe UI'; -fx-font-size: 10px;" +
+                "-fx-text-fill: #7A98B2; -fx-font-weight: 600;"
+            );
+            Label lblAmountValue = new Label(price.startsWith("₪") ? price : "₪" + price);
+            lblAmountValue.setStyle(
+                "-fx-font-family: 'Segoe UI'; -fx-font-size: 26px;" +
+                "-fx-font-weight: 800; -fx-text-fill: #E8A020;"
+            );
+            amountBox = new VBox(2, lblAmountCaption, lblAmountValue);
+            amountBox.setAlignment(Pos.CENTER);
+            VBox.setMargin(amountBox, new Insets(0, 0, 14, 0));
+        }
 
         // ── NFC PHASE ─────────────────────────────────────────
         Label nfcEmoji = new Label("📲");
@@ -164,7 +183,11 @@ public final class PaymentOverlay {
         bottomArea.setAlignment(Pos.CENTER);
         VBox.setMargin(bottomArea, new Insets(10, 0, 20, 0));
 
-        card.getChildren().addAll(header, divider, centerArea, bottomArea);
+        if (amountBox != null) {
+            card.getChildren().addAll(header, divider, amountBox, centerArea, bottomArea);
+        } else {
+            card.getChildren().addAll(header, divider, centerArea, bottomArea);
+        }
         backdrop.getChildren().add(card);
 
         // ── SCENE ─────────────────────────────────────────────

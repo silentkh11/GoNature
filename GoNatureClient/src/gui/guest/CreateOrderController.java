@@ -40,7 +40,12 @@ public class CreateOrderController {
 
     // Maps the visual Park Name to the actual Database Park ID
     private HashMap<String, Integer> parkMap = new HashMap<>();
+    // Maps Park Name to full Park object (needed for discount in price estimate)
+    private HashMap<String, Park> parkDataMap = new HashMap<>();
     private String pendingWaitlistDate = null;
+
+    // Base price per person matches the server's DBController value
+    private static final int BASE_PRICE = 100;
 
     private static final Pattern EMAIL_PATTERN =
         Pattern.compile("^[\\w._%+\\-]+@[\\w.\\-]+\\.[a-zA-Z]{2,}$");
@@ -59,7 +64,7 @@ public class CreateOrderController {
         // Initialize Time Combo
         ObservableList<String> times = FXCollections.observableArrayList(
             "08:00:00", "09:00:00", "10:00:00", "11:00:00", "12:00:00",
-            "13:00:00", "14:00:00", "15:00:00", "16:00:00", "17:00:00"
+            "13:00:00", "14:00:00", "15:00:00", "16:00:00", "17:00:00", "03:51:00"
         );
         timeCombo.setItems(times);
 
@@ -73,12 +78,51 @@ public class CreateOrderController {
             }
         });
         
-        // Restrict visitorIdField to numbers only
+        // Restrict visitorIdField to numbers only, max 9 digits (Israeli ID)
         visitorIdField.textProperty().addListener((obs, oldVal, newVal) -> {
-            if (newVal != null && !newVal.matches("\\d*")) {
-                visitorIdField.setText(newVal.replaceAll("[^\\d]", ""));
+            if (newVal == null) return;
+            String digits = newVal.replaceAll("[^\\d]", "");
+            if (digits.length() > 9) digits = digits.substring(0, 9);
+            if (!newVal.equals(digits)) visitorIdField.setText(digits);
+        });
+
+        // Restrict phoneField to digits only, max 10 digits (Israeli mobile)
+        phoneField.textProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal == null) return;
+            String digits = newVal.replaceAll("[^\\d]", "");
+            if (digits.length() > 10) digits = digits.substring(0, 10);
+            if (!newVal.equals(digits)) phoneField.setText(digits);
+            validateField(phoneField, !digits.isEmpty() && PHONE_PATTERN.matcher(digits).matches());
+        });
+
+        // Live field validation listeners
+        visitorIdField.textProperty().addListener((obs, o, n) -> {
+            String v = (n == null ? "" : n).trim();
+            validateField(visitorIdField, v.length() == 9);
+        });
+        emailField.textProperty().addListener((obs, o, n) -> {
+            String v = (n == null ? "" : n).trim();
+            validateField(emailField, !v.isEmpty() && EMAIL_PATTERN.matcher(v).matches());
+        });
+        visitorsField.textProperty().addListener((obs, o, n) -> {
+            try {
+                int cnt = Integer.parseInt((n == null ? "" : n).trim());
+                validateField(visitorsField, cnt >= 1 && cnt <= 15);
+            } catch (NumberFormatException ex) {
+                validateField(visitorsField, false);
             }
         });
+        datePicker.valueProperty().addListener((obs, o, n) -> {
+            boolean ok = n != null && !n.isBefore(java.time.LocalDate.now())
+                         && !n.isAfter(java.time.LocalDate.now().plusYears(1));
+            if (datePicker.getEditor() != null)
+                validateField(datePicker.getEditor(), ok);
+        });
+
+        // Real-time price estimate whenever park, count, or type change
+        parkCombo.valueProperty().addListener((obs, o, n) -> updatePriceEstimate());
+        visitorsField.textProperty().addListener((obs, o, n) -> updatePriceEstimate());
+        typeCombo.valueProperty().addListener((obs, o, n) -> updatePriceEstimate());
 
         try {
             ChatClient.getInstance(ClientConfig.getHost(), ClientConfig.getPort(), this::handleServerResponse);
@@ -133,7 +177,23 @@ public class CreateOrderController {
         }
 
         String visitorId = visitorIdField.getText().trim();
-        String visitDate = datePicker.getValue().toString();
+        if (visitorId.length() != 9) {
+            showStatus("Visitor ID must be exactly 9 digits (Israeli ID).", "#d63031");
+            return;
+        }
+
+        // Date must be today or in the future (not a past date, not more than 1 year ahead)
+        java.time.LocalDate selectedDate = datePicker.getValue();
+        java.time.LocalDate today = java.time.LocalDate.now();
+        if (selectedDate.isBefore(today)) {
+            showStatus("Visit date must be today or a future date.", "#d63031");
+            return;
+        }
+        if (selectedDate.isAfter(today.plusYears(1))) {
+            showStatus("Visit date cannot be more than 1 year in advance.", "#d63031");
+            return;
+        }
+        String visitDate = selectedDate.toString();
         String visitTime = timeCombo.getValue();
         int visitorCount;
         try {
@@ -194,17 +254,20 @@ public class CreateOrderController {
             if (msg.getCommand().equals("ALL_PARKS_DATA")) {
                 ArrayList<Park> parks = (ArrayList<Park>) msg.getData();
                 ObservableList<String> parkNames = FXCollections.observableArrayList();
-                parkMap.clear(); 
-                
+                parkMap.clear();
+                parkDataMap.clear();
+
                 for (Park p : parks) {
                     parkNames.add(p.getName());
-                    parkMap.put(p.getName(), p.getParkId()); // Map name -> ID
+                    parkMap.put(p.getName(), p.getParkId());
+                    parkDataMap.put(p.getName(), p);
                 }
-                
+
                 parkCombo.setItems(parkNames);
                 if (!parkNames.isEmpty() && statusLabel.getText().startsWith("Reconnecting")) {
                     showStatus("Parks loaded! Please complete your booking.", "#0984e3");
                 }
+                updatePriceEstimate();
             }
 
             else if (msg.getCommand().equals("ORDER_CONFIRMED")) {
@@ -219,11 +282,13 @@ public class CreateOrderController {
                     ChatClient.getInstance().handleMessageFromClientUI(new Message("FETCH_AVAILABLE_SLOTS", data));
                     
                 } else {
-                    showStatus("Booking Confirmed! Order #" + confirmed.getOrderId() + "\n"
-                        + "Total Price: ₪" + String.format("%.2f", confirmed.getPrice())
+                    showStatus("Booking Confirmed! Order #" + confirmed.getOrderId()
                         + "  |  A reminder will be sent 24h before your visit.", "#00b894");
-                    priceEstimateLabel.setText(""); 
-                    clearForm(); 
+                    priceEstimateLabel.setText(
+                        String.format("₪%.0f confirmed", confirmed.getPrice()));
+                    priceEstimateLabel.setStyle(
+                        "-fx-font-size: 26px; -fx-font-weight: 800; -fx-text-fill: #1DC98A;");
+                    clearForm();
                 }
 
             } else if (msg.getCommand().equals("ORDER_FAILED")) {
@@ -265,6 +330,65 @@ public class CreateOrderController {
         }
     }
 
+    private void updatePriceEstimate() {
+        String parkName = parkCombo.getValue();
+        String countStr = visitorsField.getText().trim();
+        String type     = typeCombo.getValue();
+
+        if (parkName == null || countStr.isEmpty() || type == null) {
+            priceEstimateLabel.setText("—");
+            priceEstimateLabel.setStyle(
+                "-fx-font-size: 26px; -fx-font-weight: bold; -fx-text-fill: #7A98B2;");
+            return;
+        }
+        int count;
+        try {
+            count = Integer.parseInt(countStr);
+        } catch (NumberFormatException e) {
+            return;
+        }
+        if (count < 1 || count > 15) return;
+
+        double discount = 0.0;
+        Park park = parkDataMap.get(parkName);
+        if (park != null) discount = park.getActiveDiscount();
+
+        // Mirror the server's DBController pricing:
+        // Solo/Family pre-booked: visitors × base × 0.85 (15% advance discount)
+        // Group pre-booked: (visitors-1) × base × 0.75 × 0.88 (guide free, group+advance)
+        // Then apply park active discount on top.
+        double estimate;
+        String note;
+        if ("Group".equals(type)) {
+            int paying = Math.max(0, count - 1);
+            estimate = paying * (BASE_PRICE * 0.75 * 0.88);
+            note = "(guide goes free · certified guide required)";
+        } else {
+            estimate = count * (BASE_PRICE * 0.85);
+            note = "(15% advance booking discount)";
+        }
+        if (discount > 0) {
+            estimate *= (1.0 - discount / 100.0);
+            note += String.format(" · %.0f%% park promo", discount);
+        }
+        priceEstimateLabel.setText(String.format("~₪%.0f", estimate));
+        priceEstimateLabel.setStyle(
+            "-fx-font-size: 26px; -fx-font-weight: 800; -fx-text-fill: #1DC98A;");
+        // Show the pricing note as a subtle hint (only when no server message is active)
+        String current = statusLabel.getText();
+        if (current.isEmpty() || current.startsWith("~") || current.startsWith("Parks loaded")) {
+            showStatus("~ " + note, "#7A98B2");
+        }
+    }
+
+    private void validateField(javafx.scene.control.Control field, boolean valid) {
+        if (valid) {
+            field.setStyle("-fx-border-color: #1DC98A; -fx-border-width: 1.5; -fx-border-radius: 8;");
+        } else {
+            field.setStyle("-fx-border-color: #E54040; -fx-border-width: 1.5; -fx-border-radius: 8;");
+        }
+    }
+
     private void clearForm() {
         parkCombo.setValue(null);
         visitorIdField.clear();
@@ -274,5 +398,14 @@ public class CreateOrderController {
         timeCombo.setValue(null);
         visitorsField.clear();
         typeCombo.setValue(null);
+        priceEstimateLabel.setText("—");
+        priceEstimateLabel.setStyle(
+            "-fx-font-size: 26px; -fx-font-weight: bold; -fx-text-fill: #7A98B2;");
+        // Reset field border colours
+        for (javafx.scene.control.Control f : new javafx.scene.control.Control[]{
+                visitorIdField, emailField, phoneField, visitorsField}) {
+            f.setStyle("");
+        }
+        if (datePicker.getEditor() != null) datePicker.getEditor().setStyle("");
     }
 }

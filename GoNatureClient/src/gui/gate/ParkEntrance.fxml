@@ -22,13 +22,17 @@
             </VBox>
             <Region HBox.hgrow="ALWAYS" />
             <Label fx:id="lblEmployeeName"
-                   style="-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #1DC98A;" />
+                   styleClass="body-label"
+                   style="-fx-font-size: 13px; -fx-font-weight: bold;" />
             <Button focusTraversable="false" mnemonicParsing="false"
                     onAction="#handleViewMyProfile"
                     styleClass="secondary-btn"
                     style="-fx-font-size: 13px; -fx-padding: 7 16;" text="👤  Profile" />
             <Button fx:id="themeBtn" focusTraversable="false" mnemonicParsing="false"
                     onAction="#handleToggleTheme" styleClass="theme-toggle" text="☀ Light Mode" />
+            <Button focusTraversable="false" mnemonicParsing="false" onAction="#handleGoBack"
+                    styleClass="back-link"
+                    style="-fx-font-size: 13px; -fx-padding: 7 16;" text="← Main Menu" />
             <Button focusTraversable="false" mnemonicParsing="false" onAction="#handleLogout"
                     styleClass="danger-btn"
                     style="-fx-font-size: 13px; -fx-padding: 7 16;" text="🚪  Logout" />
@@ -77,6 +81,16 @@
                           styleClass="secondary-btn"
                           style="-fx-font-weight: bold; -fx-font-size: 14px;"
                           text="🚪  Register Exit" />
+               </HBox>
+
+               <!-- Amount Due — populated automatically after ENTRY_APPROVED -->
+               <HBox alignment="CENTER" spacing="8.0"
+                     style="-fx-background-color: rgba(232,160,32,0.10); -fx-background-radius: 10; -fx-padding: 10 16;">
+                  <VBox.margin><Insets bottom="8.0" /></VBox.margin>
+                  <Label text="AMOUNT DUE" styleClass="body-label"
+                         style="-fx-font-size: 10px; -fx-font-weight: 700;" />
+                  <Label fx:id="lblOrderPrice" text="—"
+                         style="-fx-font-size: 22px; -fx-font-weight: 800; -fx-text-fill: #E8A020;" />
                </HBox>
 
                <Button fx:id="btnPayment" mnemonicParsing="false"
@@ -143,6 +157,16 @@
                           text="Register Walk-In">
                      <VBox.margin><Insets top="14.0" /></VBox.margin>
                   </Button>
+
+                  <!-- Amount Due — populated automatically after WALKIN_APPROVED -->
+                  <HBox alignment="CENTER" spacing="8.0"
+                        style="-fx-background-color: rgba(232,160,32,0.10); -fx-background-radius: 10; -fx-padding: 8 16;">
+                     <VBox.margin><Insets top="8.0" /></VBox.margin>
+                     <Label text="AMOUNT DUE" styleClass="body-label"
+                            style="-fx-font-size: 10px; -fx-font-weight: 700;" />
+                     <Label fx:id="lblWalkInPrice" text="—"
+                            style="-fx-font-size: 20px; -fx-font-weight: 800; -fx-text-fill: #E8A020;" />
+                  </HBox>
 
                   <Button fx:id="btnWalkInPayment" mnemonicParsing="false"
                           onAction="#handleWalkInPayment"

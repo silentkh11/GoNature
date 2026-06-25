@@ -36,6 +36,8 @@ public class ParkEntranceController {
 
     @FXML private Button btnPayment;
     @FXML private Button btnWalkInPayment;
+    @FXML private Label lblOrderPrice;
+    @FXML private Label lblWalkInPrice;
 
     @FXML private TextField txtManualExitCount;
     @FXML private Button btnManualExit;
@@ -43,6 +45,8 @@ public class ParkEntranceController {
 
     private Integer parkId;
     private Employee currentUser;
+    private String lastOrderPrice   = null;
+    private String lastWalkInPrice  = null;
 
     @FXML
     public void initialize() {
@@ -64,9 +68,13 @@ public class ParkEntranceController {
         btnPayment.setDisable(true);
         btnWalkInPayment.setDisable(true);
 
-        txtOrderId.textProperty().addListener((obs, old, val) ->
-            btnPayment.setDisable(val == null || val.trim().isEmpty())
-        );
+        txtOrderId.textProperty().addListener((obs, old, val) -> {
+            btnPayment.setDisable(val == null || val.trim().isEmpty());
+            if (val == null || val.trim().isEmpty()) {
+                lastOrderPrice = null;
+                if (lblOrderPrice != null) lblOrderPrice.setText("—");
+            }
+        });
 
         txtWalkInCount.textProperty().addListener((obs, old, val) ->
             btnWalkInPayment.setDisable(
@@ -109,6 +117,11 @@ public class ParkEntranceController {
     }
 
     @FXML
+    void handleGoBack(ActionEvent event) {
+        forceUIToMainMenu();
+    }
+
+    @FXML
     void handleLogout(ActionEvent event) {
         try {
             ChatClient.getInstance().handleMessageFromClientUI(new Message("LOGOUT_REQUEST", null));
@@ -129,13 +142,13 @@ public class ParkEntranceController {
     @FXML
     void handleCollectPayment(ActionEvent event) {
         Stage stage = (Stage) btnPayment.getScene().getWindow();
-        PaymentOverlay.show(stage, null);
+        PaymentOverlay.show(stage, lastOrderPrice, null);
     }
 
     @FXML
     void handleWalkInPayment(ActionEvent event) {
         Stage stage = (Stage) btnWalkInPayment.getScene().getWindow();
-        PaymentOverlay.show(stage, null);
+        PaymentOverlay.show(stage, lastWalkInPrice, null);
     }
 
     private void processGateAction(String command, String loadingMessage) {
@@ -235,6 +248,9 @@ public class ParkEntranceController {
                         String price  = parts[3];
                         String date   = parts[4];
                         String time   = parts[5];
+                        lastOrderPrice = price;
+                        if (lblOrderPrice != null)
+                            lblOrderPrice.setText("₪" + price);
                         showStatus("Order #" + ordId + " admitted — collect ₪" + price, "#00b894");
                         showReceiptDialog(buildPreBookedReceipt(ordId, vis, type, price, date, time));
                     } else {
@@ -256,9 +272,12 @@ public class ParkEntranceController {
 
                 case "WALKIN_APPROVED": {
                     VisitOrder ticket = (VisitOrder) msg.getData();
+                    lastWalkInPrice = String.format("%.0f", ticket.getPrice());
+                    if (lblWalkInPrice != null)
+                        lblWalkInPrice.setText("₪" + lastWalkInPrice);
                     showWalkInStatus(
                         "Ticket #" + ticket.getOrderId() + " admitted — collect ₪"
-                        + String.format("%.0f", ticket.getPrice()),
+                        + lastWalkInPrice,
                         "#00b894");
                     showReceiptDialog(buildWalkInReceipt(ticket));
                     txtWalkInCount.clear();
