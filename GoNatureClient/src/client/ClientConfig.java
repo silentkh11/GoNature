@@ -14,9 +14,11 @@ import java.util.Properties;
  */
 public class ClientConfig {
 
-    private static final String HOST;
-    private static final int    PORT;
+    private static String host;
+    private static int    port;
 
+    // Default values loaded from client.properties at class-load time.
+    // The startup connection dialog may override these before any network call.
     static {
         Properties props = new Properties();
         try (FileInputStream fis = new FileInputStream("client.properties")) {
@@ -25,17 +27,21 @@ public class ClientConfig {
         } catch (IOException e) {
             System.out.println("ClientConfig: client.properties not found — using 127.0.0.1:5555");
         }
-        HOST = props.getProperty("server.host", "127.0.0.1").trim();
-        int port = 5555;
+        host = props.getProperty("server.host", "127.0.0.1").trim();
+        int p = 5555;
         try {
-            port = Integer.parseInt(props.getProperty("server.port", "5555").trim());
+            p = Integer.parseInt(props.getProperty("server.port", "5555").trim());
         } catch (NumberFormatException e) {
             System.err.println("ClientConfig: invalid server.port value — defaulting to 5555");
         }
-        PORT = port;
-        System.out.println("ClientConfig: server = " + HOST + ":" + PORT);
+        port = p;
+        System.out.println("ClientConfig: server = " + host + ":" + port);
     }
 
-    public static String getHost() { return HOST; }
-    public static int    getPort() { return PORT; }
+    public static String getHost() { return host; }
+    public static int    getPort() { return port; }
+
+    /** Called by the startup connection dialog to override the values from client.properties. */
+    public static void setHost(String h) { host = h; }
+    public static void setPort(int   p) { port = p; }
 }

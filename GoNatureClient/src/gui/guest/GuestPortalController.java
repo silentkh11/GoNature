@@ -377,7 +377,7 @@ public class GuestPortalController {
                     Subscriber sub = (Subscriber) msg.getData();
                     currentSubscriber = sub;
                     // Populate and show the subscriber profile panel
-                    lblSubId.setText("Subscriber ID: " + sub.getVisitorId());
+                    lblSubId.setText("Member #" + sub.getSubscriberId() + "  (Visitor ID: " + sub.getVisitorId() + ")");
                     subFirstName.setText(sub.getFirstName() != null ? sub.getFirstName() : "");
                     subLastName.setText(sub.getLastName() != null ? sub.getLastName() : "");
                     subEmail.setText(sub.getEmail() != null ? sub.getEmail() : "");
