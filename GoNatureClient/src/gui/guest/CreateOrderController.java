@@ -43,9 +43,17 @@ public class CreateOrderController {
     // Maps Park Name to full Park object (needed for discount in price estimate)
     private HashMap<String, Park> parkDataMap = new HashMap<>();
     private String pendingWaitlistDate = null;
+    private boolean isSubscriber = false;
+    private String lastCheckedSubscriberId = "";
 
     // Base price per person matches the server's DBController value
     private static final int BASE_PRICE = 100;
+
+    // Full ordered list of bookable time slots — used to rebuild the combo on date change
+    private static final java.util.List<String> ALL_TIMES = java.util.Arrays.asList(
+        "08:00:00", "09:00:00", "10:00:00", "11:00:00", "12:00:00",
+        "13:00:00", "14:00:00", "15:00:00", "16:00:00", "17:00:00"
+    );
 
     private static final Pattern EMAIL_PATTERN =
         Pattern.compile("^[\\w._%+\\-]+@[\\w.\\-]+\\.[a-zA-Z]{2,}$");
@@ -61,12 +69,8 @@ public class CreateOrderController {
         // Wipe any hardcoded FXML "Ghost Items" instantly
         parkCombo.getItems().clear(); 
         
-        // Initialize Time Combo
-        ObservableList<String> times = FXCollections.observableArrayList(
-            "08:00:00", "09:00:00", "10:00:00", "11:00:00", "12:00:00",
-            "13:00:00", "14:00:00", "15:00:00", "16:00:00", "17:00:00", "03:51:00"
-        );
-        timeCombo.setItems(times);
+        // Initialize Time Combo — show all slots; past slots are hidden when today is selected
+        timeCombo.setItems(FXCollections.observableArrayList(ALL_TIMES));
 
         // Initialize Type Combo
         typeCombo.getItems().addAll("Solo", "Family", "Group");
@@ -99,6 +103,16 @@ public class CreateOrderController {
         visitorIdField.textProperty().addListener((obs, o, n) -> {
             String v = (n == null ? "" : n).trim();
             validateField(visitorIdField, v.length() == 9);
+            if (v.length() == 9 && !v.equals(lastCheckedSubscriberId)) {
+                lastCheckedSubscriberId = v;
+                try {
+                    ChatClient.getInstance().handleMessageFromClientUI(new Message("CHECK_SUBSCRIBER", v));
+                } catch (Exception ignored) {}
+            } else if (v.length() < 9) {
+                isSubscriber = false;
+                lastCheckedSubscriberId = "";
+                updatePriceEstimate();
+            }
         });
         emailField.textProperty().addListener((obs, o, n) -> {
             String v = (n == null ? "" : n).trim();
@@ -113,10 +127,12 @@ public class CreateOrderController {
             }
         });
         datePicker.valueProperty().addListener((obs, o, n) -> {
-            boolean ok = n != null && !n.isBefore(java.time.LocalDate.now())
-                         && !n.isAfter(java.time.LocalDate.now().plusYears(1));
+            java.time.LocalDate today = java.time.LocalDate.now();
+            boolean ok = n != null && !n.isBefore(today)
+                         && !n.isAfter(today.plusYears(1));
             if (datePicker.getEditor() != null)
                 validateField(datePicker.getEditor(), ok);
+            filterTimeSlotsForDate(n);
         });
 
         // Real-time price estimate whenever park, count, or type change
@@ -195,6 +211,18 @@ public class CreateOrderController {
         }
         String visitDate = selectedDate.toString();
         String visitTime = timeCombo.getValue();
+
+        // For today's date, the selected time slot must not have already passed
+        if (selectedDate.equals(today) && visitTime != null) {
+            try {
+                java.time.LocalTime slot = java.time.LocalTime.parse(visitTime.substring(0, 5));
+                if (java.time.LocalTime.now().isAfter(slot)) {
+                    showStatus("The " + visitTime.substring(0, 5) + " slot has already passed. Please choose a later time.", "#d63031");
+                    filterTimeSlotsForDate(today);
+                    return;
+                }
+            } catch (Exception ignored) {}
+        }
         int visitorCount;
         try {
             visitorCount = Integer.parseInt(visitorsField.getText().trim());
@@ -247,6 +275,22 @@ public class CreateOrderController {
                 alert.setContentText("Connection to the server was lost. Returning to the main menu.");
                 alert.showAndWait();
                 forceUIToMainMenu();
+                return;
+            }
+
+            if (msg.getCommand().equals("SUBSCRIBER_STATUS")) {
+                boolean isSub = (Boolean) msg.getData();
+                // Guard against stale responses — only apply if ID still matches
+                String currentId = visitorIdField.getText().trim();
+                if (currentId.equals(lastCheckedSubscriberId)) {
+                    isSubscriber = isSub;
+                    updatePriceEstimate();
+                    if (isSub) {
+                        showStatus("✓ Subscriber — 10% subscriber discount applied.", "#00b894");
+                    } else {
+                        showStatus("Standard pricing — visitor is not a subscriber.", "#7A98B2");
+                    }
+                }
                 return;
             }
 
@@ -330,6 +374,33 @@ public class CreateOrderController {
         }
     }
 
+    private void filterTimeSlotsForDate(java.time.LocalDate selected) {
+        String currentSelection = timeCombo.getValue();
+        ObservableList<String> available;
+
+        if (selected != null && selected.equals(java.time.LocalDate.now())) {
+            java.time.LocalTime now = java.time.LocalTime.now();
+            available = FXCollections.observableArrayList();
+            for (String t : ALL_TIMES) {
+                try {
+                    if (!java.time.LocalTime.parse(t.substring(0, 5)).isBefore(now)) {
+                        available.add(t);
+                    }
+                } catch (Exception ignored) {}
+            }
+        } else {
+            available = FXCollections.observableArrayList(ALL_TIMES);
+        }
+
+        timeCombo.setItems(available);
+        // Keep the current selection only if it's still in the valid list
+        if (currentSelection != null && available.contains(currentSelection)) {
+            timeCombo.setValue(currentSelection);
+        } else {
+            timeCombo.setValue(null);
+        }
+    }
+
     private void updatePriceEstimate() {
         String parkName = parkCombo.getValue();
         String countStr = visitorsField.getText().trim();
@@ -362,10 +433,20 @@ public class CreateOrderController {
         if ("Group".equals(type)) {
             int paying = Math.max(0, count - 1);
             estimate = paying * (BASE_PRICE * 0.75 * 0.88);
-            note = "(guide goes free · certified guide required)";
+            if (isSubscriber) {
+                estimate *= 0.90;
+                note = "(guide free · certified guide · 10% subscriber discount)";
+            } else {
+                note = "(guide goes free · certified guide required)";
+            }
         } else {
-            estimate = count * (BASE_PRICE * 0.85);
-            note = "(15% advance booking discount)";
+            if (isSubscriber) {
+                estimate = count * (BASE_PRICE * 0.85 * 0.90);
+                note = "(15% advance + 10% subscriber discount)";
+            } else {
+                estimate = count * (BASE_PRICE * 0.85);
+                note = "(15% advance booking discount)";
+            }
         }
         if (discount > 0) {
             estimate *= (1.0 - discount / 100.0);
@@ -374,9 +455,10 @@ public class CreateOrderController {
         priceEstimateLabel.setText(String.format("~₪%.0f", estimate));
         priceEstimateLabel.setStyle(
             "-fx-font-size: 26px; -fx-font-weight: 800; -fx-text-fill: #1DC98A;");
-        // Show the pricing note as a subtle hint (only when no server message is active)
+        // Show the pricing note as a subtle hint (only when no important server message is active)
         String current = statusLabel.getText();
-        if (current.isEmpty() || current.startsWith("~") || current.startsWith("Parks loaded")) {
+        if (current.isEmpty() || current.startsWith("~") || current.startsWith("Parks loaded")
+                || current.startsWith("Standard pricing")) {
             showStatus("~ " + note, "#7A98B2");
         }
     }
@@ -390,6 +472,8 @@ public class CreateOrderController {
     }
 
     private void clearForm() {
+        isSubscriber = false;
+        lastCheckedSubscriberId = "";
         parkCombo.setValue(null);
         visitorIdField.clear();
         emailField.clear();

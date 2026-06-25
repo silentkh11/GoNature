@@ -247,9 +247,9 @@ public class EchoServer extends AbstractServer {
                         // Push live update: all DeptManagers see the request leave their pending table
                         java.util.ArrayList<entities.ParameterRequest> freshRequests = DBController.getPendingRequests();
                         broadcastToRole("DeptManager", new Message("PENDING_REQUESTS_DATA", freshRequests));
-                        // Push live update: any DeptManager viewing the parks list sees updated capacity values
+                        // Push live park data to all clients so guest booking page reflects new params
                         java.util.ArrayList<entities.Park> allParks = DBController.getAllParks();
-                        broadcastToRole("DeptManager", new Message("ALL_PARKS_DATA", allParks));
+                        broadcastToAllClients(new Message("ALL_PARKS_DATA", allParks));
                     } else {
                         client.sendToClient(new Message("DECISION_FAILED", "Database error."));
                     }
@@ -538,6 +538,12 @@ public class EchoServer extends AbstractServer {
                     String username = clientUserMap.get(client);
                     uiLogger.accept("> Logout requested" + (username != null ? " by " + username : "") + " — closing connection.\n");
                     try { client.close(); } catch (Exception ignored) {}
+                }
+
+                else if (request.getCommand().equals("CHECK_SUBSCRIBER")) {
+                    String visitorId = (String) request.getData();
+                    boolean isSub = DBController.isSubscriber(visitorId);
+                    client.sendToClient(new Message("SUBSCRIBER_STATUS", isSub));
                 }
 
                 else if (request.getCommand().equals("FETCH_CONNECTED_USERS")) {

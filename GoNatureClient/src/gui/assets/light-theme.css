@@ -655,3 +655,72 @@
 .title-bar-btn:hover .title-bar-icon-stroke { -fx-stroke: #1A7A5E; }
 .title-bar-btn-close:hover .title-bar-icon,
 .title-bar-btn-close:hover .title-bar-icon-stroke { -fx-stroke: #FFFFFF; }
+
+/* ── MAIN MENU SPECIFIC ─────────────────────────────────── */
+.main-menu-bg {
+    -fx-background-color: #EDE0CE;
+}
+
+.login-nav-btn {
+    -fx-background-color:  rgba(60,48,30,0.07);
+    -fx-border-color:      rgba(60,48,30,0.24);
+    -fx-border-radius:     20;
+    -fx-background-radius: 20;
+    -fx-border-width:      1;
+    -fx-text-fill:         #3C2E1A;
+    -fx-font-size:         12px;
+    -fx-padding:           6 12;
+    -fx-cursor:            hand;
+}
+.login-nav-btn:hover {
+    -fx-background-color: rgba(60,48,30,0.13);
+    -fx-border-color:     rgba(60,48,30,0.38);
+}
+
+.main-menu-title {
+    -fx-text-fill: #1A2E1C;
+    -fx-effect:    dropshadow(gaussian, rgba(26,122,94,0.18), 16, 0, 0, 0);
+}
+
+.main-menu-subtitle {
+    -fx-text-fill: #1A7A5E;
+}
+
+.main-menu-divider {
+    -fx-text-fill: rgba(26,122,94,0.50);
+}
+
+.main-menu-hint {
+    -fx-text-fill: rgba(60,48,30,0.35);
+}
+
+/* ── MAIN MENU EMPLOYEE SESSION BAR ─────────────────────── */
+.employee-session-bar {
+    -fx-background-color: rgba(26,122,94,0.07);
+    -fx-border-color:     rgba(26,122,94,0.18) transparent transparent transparent;
+    -fx-border-width:     1 0 0 0;
+}
+.employee-session-dot {
+    -fx-text-fill:    #1A7A5E;
+    -fx-font-size:    8px;
+}
+.employee-session-text {
+    -fx-text-fill:    rgba(22,56,34,0.60);
+    -fx-font-size:    11px;
+    -fx-font-family:  'Segoe UI';
+    -fx-font-weight:  500;
+}
+
+/* ── EMPLOYEE DASHBOARD FOOTER ──────────────────────────── */
+.employee-footer {
+    -fx-background-color: rgba(0,0,0,0.035);
+    -fx-border-color:     rgba(0,0,0,0.08) transparent transparent transparent;
+    -fx-border-width:     1 0 0 0;
+    -fx-padding:          8 28;
+}
+.employee-footer-text {
+    -fx-text-fill:       rgba(0,0,0,0.28);
+    -fx-font-size:       10px;
+    -fx-font-family:     'Segoe UI';
+    -fx-letter-spacing:  1;
+}

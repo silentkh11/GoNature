@@ -4,7 +4,7 @@
 <?import javafx.scene.layout.*?>
 <?import javafx.scene.text.Font?>
 
-<ScrollPane fitToWidth="true" styleClass="page-root"
+<ScrollPane fitToWidth="true" fitToHeight="true" styleClass="page-root"
             xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
             fx:controller="gui.gate.ParkEntranceController">
    <content>
@@ -69,36 +69,32 @@
                   <VBox.margin><Insets bottom="20.0" /></VBox.margin>
                </TextField>
 
-               <HBox spacing="14.0" alignment="CENTER">
-                  <VBox.margin><Insets bottom="18.0" /></VBox.margin>
-                  <Button fx:id="btnAdmit" mnemonicParsing="false" onAction="#handleAdmit"
-                          prefHeight="48.0" HBox.hgrow="ALWAYS" maxWidth="Infinity"
-                          styleClass="success-btn"
-                          style="-fx-font-weight: bold; -fx-font-size: 14px;"
-                          text="✅  Admit Entry" />
-                  <Button fx:id="btnExit" mnemonicParsing="false" onAction="#handleExit"
-                          prefHeight="48.0" HBox.hgrow="ALWAYS" maxWidth="Infinity"
-                          styleClass="secondary-btn"
-                          style="-fx-font-weight: bold; -fx-font-size: 14px;"
-                          text="🚪  Register Exit" />
-               </HBox>
+               <!-- Collect Payment — primary action: sends admission request then opens payment overlay -->
+               <Button fx:id="btnPayment" mnemonicParsing="false"
+                       onAction="#handleCollectPayment"
+                       prefHeight="52.0" maxWidth="Infinity"
+                       styleClass="gold-btn"
+                       style="-fx-font-weight: bold; -fx-font-size: 15px;"
+                       text="💳  Collect Payment &amp; Admit">
+                  <VBox.margin><Insets bottom="12.0" /></VBox.margin>
+               </Button>
 
-               <!-- Amount Due — populated automatically after ENTRY_APPROVED -->
+               <!-- Amount Due — populated after ENTRY_APPROVED -->
                <HBox alignment="CENTER" spacing="8.0"
                      style="-fx-background-color: rgba(232,160,32,0.10); -fx-background-radius: 10; -fx-padding: 10 16;">
-                  <VBox.margin><Insets bottom="8.0" /></VBox.margin>
+                  <VBox.margin><Insets bottom="10.0" /></VBox.margin>
                   <Label text="AMOUNT DUE" styleClass="body-label"
                          style="-fx-font-size: 10px; -fx-font-weight: 700;" />
                   <Label fx:id="lblOrderPrice" text="—"
                          style="-fx-font-size: 22px; -fx-font-weight: 800; -fx-text-fill: #E8A020;" />
                </HBox>
 
-               <Button fx:id="btnPayment" mnemonicParsing="false"
-                       onAction="#handleCollectPayment"
-                       prefHeight="44.0" maxWidth="Infinity"
-                       styleClass="gold-btn"
+               <!-- Register Exit — separate action for departing visitors -->
+               <Button fx:id="btnExit" mnemonicParsing="false" onAction="#handleExit"
+                       prefHeight="40.0" maxWidth="Infinity"
+                       styleClass="secondary-btn"
                        style="-fx-font-weight: bold; -fx-font-size: 13px;"
-                       text="💳  Collect Payment">
+                       text="🚪  Register Exit">
                   <VBox.margin><Insets bottom="10.0" /></VBox.margin>
                </Button>
 
@@ -151,31 +147,24 @@
                                 GridPane.columnIndex="1" GridPane.rowIndex="2" />
                   </GridPane>
 
-                  <Button fx:id="btnWalkIn" mnemonicParsing="false" onAction="#handleWalkIn"
-                          prefHeight="42.0" maxWidth="Infinity" styleClass="primary-btn"
-                          style="-fx-font-weight: bold; -fx-font-size: 13px;"
-                          text="Register Walk-In">
-                     <VBox.margin><Insets top="14.0" /></VBox.margin>
+                  <!-- Collect Payment — primary action: sends walk-in request then opens payment overlay -->
+                  <Button fx:id="btnWalkInPayment" mnemonicParsing="false"
+                          onAction="#handleWalkInPayment"
+                          prefHeight="48.0" maxWidth="Infinity"
+                          styleClass="gold-btn"
+                          style="-fx-font-weight: bold; -fx-font-size: 14px;"
+                          text="💳  Collect Payment &amp; Register">
+                     <VBox.margin><Insets top="14.0" bottom="8.0" /></VBox.margin>
                   </Button>
 
-                  <!-- Amount Due — populated automatically after WALKIN_APPROVED -->
+                  <!-- Amount Due — populated after WALKIN_APPROVED -->
                   <HBox alignment="CENTER" spacing="8.0"
                         style="-fx-background-color: rgba(232,160,32,0.10); -fx-background-radius: 10; -fx-padding: 8 16;">
-                     <VBox.margin><Insets top="8.0" /></VBox.margin>
                      <Label text="AMOUNT DUE" styleClass="body-label"
                             style="-fx-font-size: 10px; -fx-font-weight: 700;" />
                      <Label fx:id="lblWalkInPrice" text="—"
                             style="-fx-font-size: 20px; -fx-font-weight: 800; -fx-text-fill: #E8A020;" />
                   </HBox>
-
-                  <Button fx:id="btnWalkInPayment" mnemonicParsing="false"
-                          onAction="#handleWalkInPayment"
-                          prefHeight="40.0" maxWidth="Infinity"
-                          styleClass="gold-btn"
-                          style="-fx-font-weight: bold; -fx-font-size: 13px;"
-                          text="💳  Collect Payment">
-                     <VBox.margin><Insets top="6.0" /></VBox.margin>
-                  </Button>
 
                   <Label fx:id="lblWalkInStatus" alignment="CENTER" maxWidth="Infinity"
                          wrapText="true" style="-fx-font-size: 12px;">
@@ -221,6 +210,16 @@
                </VBox>
 
             </VBox>
+         </HBox>
+
+         <!-- Elastic spacer — pushes footer to viewport bottom -->
+         <Region VBox.vgrow="ALWAYS" />
+
+         <!-- Footer strip -->
+         <HBox alignment="CENTER_LEFT" styleClass="employee-footer">
+            <Label text="🚧  GoNature Platform  ·  Gate Terminal" styleClass="employee-footer-text" />
+            <Region HBox.hgrow="ALWAYS" />
+            <Label text="Park Entry &amp; Exit Processing" styleClass="employee-footer-text" />
          </HBox>
       </VBox>
    </content>

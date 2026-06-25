@@ -792,3 +792,73 @@
     -fx-font-size:   12px;
     -fx-font-weight: 500;
 }
+
+/* ── MAIN MENU SPECIFIC ─────────────────────────────────── */
+.main-menu-bg {
+    -fx-background-color: linear-gradient(from 0% 0% to 100% 100%, #070E1A, #0B1422, #0F1C30);
+}
+
+.login-nav-btn {
+    -fx-background-color:  rgba(255,255,255,0.06);
+    -fx-border-color:      rgba(255,255,255,0.16);
+    -fx-border-radius:     20;
+    -fx-background-radius: 20;
+    -fx-border-width:      1;
+    -fx-text-fill:         rgba(255,255,255,0.75);
+    -fx-font-size:         12px;
+    -fx-padding:           6 12;
+    -fx-cursor:            hand;
+}
+.login-nav-btn:hover {
+    -fx-background-color: rgba(255,255,255,0.11);
+    -fx-border-color:     rgba(255,255,255,0.30);
+    -fx-text-fill:        rgba(255,255,255,0.92);
+}
+
+.main-menu-title {
+    -fx-text-fill: rgba(255,255,255,0.95);
+    -fx-effect:    dropshadow(gaussian, rgba(29,201,138,0.40), 18, 0, 0, 0);
+}
+
+.main-menu-subtitle {
+    -fx-text-fill: rgba(29,201,138,0.70);
+}
+
+.main-menu-divider {
+    -fx-text-fill: rgba(29,201,138,0.45);
+}
+
+.main-menu-hint {
+    -fx-text-fill: rgba(29,201,138,0.30);
+}
+
+/* ── MAIN MENU EMPLOYEE SESSION BAR ─────────────────────── */
+.employee-session-bar {
+    -fx-background-color: rgba(29,201,138,0.06);
+    -fx-border-color:     rgba(29,201,138,0.16) transparent transparent transparent;
+    -fx-border-width:     1 0 0 0;
+}
+.employee-session-dot {
+    -fx-text-fill:    rgba(29,201,138,0.75);
+    -fx-font-size:    8px;
+}
+.employee-session-text {
+    -fx-text-fill:    rgba(213,227,239,0.55);
+    -fx-font-size:    11px;
+    -fx-font-family:  'Segoe UI';
+    -fx-font-weight:  500;
+}
+
+/* ── EMPLOYEE DASHBOARD FOOTER ──────────────────────────── */
+.employee-footer {
+    -fx-background-color: rgba(255,255,255,0.025);
+    -fx-border-color:     rgba(255,255,255,0.07) transparent transparent transparent;
+    -fx-border-width:     1 0 0 0;
+    -fx-padding:          8 28;
+}
+.employee-footer-text {
+    -fx-text-fill:       rgba(255,255,255,0.20);
+    -fx-font-size:       10px;
+    -fx-font-family:     'Segoe UI';
+    -fx-letter-spacing:  1;
+}

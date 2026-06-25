@@ -4,11 +4,11 @@
 <?import javafx.scene.layout.*?>
 <?import javafx.scene.text.Font?>
 
-<StackPane prefHeight="780.0" prefWidth="1000.0" style="-fx-background-color: transparent;"
+<StackPane prefHeight="780.0" prefWidth="1000.0" styleClass="page-root"
            xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
            fx:controller="gui.management.DeptManagerController">
 
-   <ScrollPane fitToWidth="true" fitToHeight="false"
+   <ScrollPane fitToWidth="true" fitToHeight="true"
                style="-fx-background: transparent; -fx-background-color: transparent; -fx-border-color: transparent;">
       <content>
          <VBox alignment="TOP_CENTER" prefWidth="1000.0" spacing="0" styleClass="page-root">
@@ -193,6 +193,16 @@
 
                </VBox>
 
+            </HBox>
+
+            <!-- Elastic spacer — pushes footer to viewport bottom -->
+            <Region VBox.vgrow="ALWAYS" />
+
+            <!-- Footer strip -->
+            <HBox alignment="CENTER_LEFT" styleClass="employee-footer">
+               <Label text="🏛  GoNature Platform  ·  Department Management" styleClass="employee-footer-text" />
+               <Region HBox.hgrow="ALWAYS" />
+               <Label text="Request Approval &amp; Connected Users Monitor" styleClass="employee-footer-text" />
             </HBox>
 
          </VBox>

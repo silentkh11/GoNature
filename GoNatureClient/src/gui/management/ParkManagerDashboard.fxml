@@ -4,11 +4,11 @@
 <?import javafx.scene.layout.*?>
 <?import javafx.scene.text.Font?>
 
-<StackPane prefHeight="720.0" prefWidth="900.0" style="-fx-background-color: transparent;"
+<StackPane prefHeight="720.0" prefWidth="900.0" styleClass="page-root"
            xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
            fx:controller="gui.management.ParkManagerController">
 
-   <ScrollPane fitToWidth="true" fitToHeight="false"
+   <ScrollPane fitToWidth="true" fitToHeight="true"
                style="-fx-background: transparent; -fx-background-color: transparent; -fx-border-color: transparent;">
       <content>
          <VBox alignment="TOP_CENTER" prefWidth="900.0" spacing="0" styleClass="page-root">
@@ -248,6 +248,16 @@
                              style="-fx-font-size: 12px;" text="👤  My Profile" />
                   </VBox>
                </VBox>
+            </HBox>
+
+            <!-- Elastic spacer — pushes footer to viewport bottom -->
+            <Region VBox.vgrow="ALWAYS" />
+
+            <!-- Footer strip -->
+            <HBox alignment="CENTER_LEFT" styleClass="employee-footer">
+               <Label text="🌲  GoNature Platform  ·  Park Manager Portal" styleClass="employee-footer-text" />
+               <Region HBox.hgrow="ALWAYS" />
+               <Label text="Park Parameter &amp; Promotion Management" styleClass="employee-footer-text" />
             </HBox>
 
          </VBox>

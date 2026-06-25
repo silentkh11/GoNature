@@ -22,7 +22,6 @@ import javafx.stage.Stage;
 public class ParkEntranceController {
 
     @FXML private TextField txtOrderId;
-    @FXML private Button btnAdmit;
     @FXML private Button btnExit;
     @FXML private Button themeBtn;
     @FXML private Label lblStatus;
@@ -31,7 +30,6 @@ public class ParkEntranceController {
     @FXML private TextField txtWalkInCount;
     @FXML private TextField txtSubscriberId;
     @FXML private ComboBox<String> cmbWalkInType;
-    @FXML private Button btnWalkIn;
     @FXML private Label lblWalkInStatus;
 
     @FXML private Button btnPayment;
@@ -64,9 +62,10 @@ public class ParkEntranceController {
                 txtManualExitCount.setText(val.replaceAll("[^0-9]", ""));
         });
 
-        // Payment buttons are disabled until the relevant booking fields are filled
+        // Payment buttons are the primary action — disabled until fields are filled
         btnPayment.setDisable(true);
         btnWalkInPayment.setDisable(true);
+        btnExit.setDisable(false);
 
         txtOrderId.textProperty().addListener((obs, old, val) -> {
             btnPayment.setDisable(val == null || val.trim().isEmpty());
@@ -130,53 +129,27 @@ public class ParkEntranceController {
     }
 
     @FXML
-    void handleAdmit(ActionEvent event) {
-        processGateAction("ENTER_PARK_REQUEST", "Verifying ticket...");
-    }
-
-    @FXML
     void handleExit(ActionEvent event) {
         processGateAction("EXIT_PARK_REQUEST", "Registering exit...");
     }
 
     @FXML
     void handleCollectPayment(ActionEvent event) {
-        Stage stage = (Stage) btnPayment.getScene().getWindow();
-        PaymentOverlay.show(stage, lastOrderPrice, null);
+        // Payment button now drives the full admission flow:
+        // validate → send ENTER_PARK_REQUEST → on ENTRY_APPROVED open overlay → show receipt
+        processGateAction("ENTER_PARK_REQUEST", "Verifying ticket...");
     }
 
     @FXML
     void handleWalkInPayment(ActionEvent event) {
-        Stage stage = (Stage) btnWalkInPayment.getScene().getWindow();
-        PaymentOverlay.show(stage, lastWalkInPrice, null);
-    }
-
-    private void processGateAction(String command, String loadingMessage) {
-        String input = txtOrderId.getText().trim();
-        if (input.isEmpty()) {
-            showStatus("Please enter an Order ID.", "#d63031");
-            return;
-        }
-        try {
-            int orderId = Integer.parseInt(input);
-            btnAdmit.setDisable(true);
-            btnExit.setDisable(true);
-            showStatus(loadingMessage, "#0984e3");
-            ChatClient.getInstance().handleMessageFromClientUI(new Message(command, orderId));
-        } catch (NumberFormatException e) {
-            showStatus("Order ID must be a valid number.", "#d63031");
-        }
-    }
-
-    @FXML
-    void handleWalkIn(ActionEvent event) {
+        // Payment button now drives the full walk-in flow:
+        // validate → send WALKIN_REQUEST → on WALKIN_APPROVED open overlay → show receipt
         if (parkId == null) {
             showWalkInStatus("Error: Gate worker has no park assigned.", "#d63031");
             return;
         }
         String countStr = txtWalkInCount.getText().trim();
         String type = cmbWalkInType.getValue();
-
         if (countStr.isEmpty()) {
             showWalkInStatus("Please enter the number of visitors.", "#d63031");
             return;
@@ -194,11 +167,28 @@ public class ParkEntranceController {
             String orderType = type.equals("Group") ? "Group" : "Solo";
             String subscriberId = (txtSubscriberId != null) ? txtSubscriberId.getText().trim() : "";
             String[] data = { String.valueOf(parkId), String.valueOf(count), orderType, subscriberId };
-            btnWalkIn.setDisable(true);
+            btnWalkInPayment.setDisable(true);
             showWalkInStatus("Checking park capacity...", "#0984e3");
             ChatClient.getInstance().handleMessageFromClientUI(new Message("WALKIN_REQUEST", data));
         } catch (NumberFormatException e) {
             showWalkInStatus("Please enter a valid number.", "#d63031");
+        }
+    }
+
+    private void processGateAction(String command, String loadingMessage) {
+        String input = txtOrderId.getText().trim();
+        if (input.isEmpty()) {
+            showStatus("Please enter an Order ID.", "#d63031");
+            return;
+        }
+        try {
+            int orderId = Integer.parseInt(input);
+            btnPayment.setDisable(true);
+            btnExit.setDisable(true);
+            showStatus(loadingMessage, "#0984e3");
+            ChatClient.getInstance().handleMessageFromClientUI(new Message(command, orderId));
+        } catch (NumberFormatException e) {
+            showStatus("Order ID must be a valid number.", "#d63031");
         }
     }
 
@@ -230,10 +220,12 @@ public class ParkEntranceController {
 
     public void handleServerResponse(Message msg) {
         Platform.runLater(() -> {
-            btnAdmit.setDisable(false);
+            // Re-enable buttons based on current field state
             btnExit.setDisable(false);
-            btnWalkIn.setDisable(false);
             btnManualExit.setDisable(false);
+            btnPayment.setDisable(txtOrderId.getText().trim().isEmpty());
+            btnWalkInPayment.setDisable(
+                txtWalkInCount.getText().trim().isEmpty() || cmbWalkInType.getValue() == null);
 
             switch (msg.getCommand()) {
 
@@ -251,8 +243,11 @@ public class ParkEntranceController {
                         lastOrderPrice = price;
                         if (lblOrderPrice != null)
                             lblOrderPrice.setText("₪" + price);
-                        showStatus("Order #" + ordId + " admitted — collect ₪" + price, "#00b894");
-                        showReceiptDialog(buildPreBookedReceipt(ordId, vis, type, price, date, time));
+                        showStatus("Order #" + ordId + " — payment processing...", "#0984e3");
+                        String receipt = buildPreBookedReceipt(ordId, vis, type, price, date, time);
+                        Stage stage = (Stage) lblStatus.getScene().getWindow();
+                        PaymentOverlay.show(stage, price,
+                            () -> Platform.runLater(() -> showReceiptDialog(receipt)));
                     } else {
                         showStatus(data, "#00b894");
                     }
@@ -275,11 +270,11 @@ public class ParkEntranceController {
                     lastWalkInPrice = String.format("%.0f", ticket.getPrice());
                     if (lblWalkInPrice != null)
                         lblWalkInPrice.setText("₪" + lastWalkInPrice);
-                    showWalkInStatus(
-                        "Ticket #" + ticket.getOrderId() + " admitted — collect ₪"
-                        + lastWalkInPrice,
-                        "#00b894");
-                    showReceiptDialog(buildWalkInReceipt(ticket));
+                    showWalkInStatus("Ticket #" + ticket.getOrderId() + " — payment processing...", "#0984e3");
+                    String receipt = buildWalkInReceipt(ticket);
+                    Stage stage = (Stage) lblWalkInStatus.getScene().getWindow();
+                    PaymentOverlay.show(stage, lastWalkInPrice,
+                        () -> Platform.runLater(() -> showReceiptDialog(receipt)));
                     txtWalkInCount.clear();
                     cmbWalkInType.setValue(null);
                     if (txtSubscriberId != null) txtSubscriberId.clear();
