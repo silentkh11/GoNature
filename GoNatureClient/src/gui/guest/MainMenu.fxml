@@ -15,17 +15,15 @@
            xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
            fx:controller="gui.guest.MainMenuController">
 
-   <!-- Layer 0: Deep slate base — always visible, shows through parks-view fold corner -->
-   <Pane prefHeight="615.0" prefWidth="850.0"
-         style="-fx-background-color: linear-gradient(to bottom right, #060C16, #0B1422, #0D1830);" />
+   <!-- Layer 0: Warm linen base — always visible, shows through parks-view fold corner -->
+   <Pane prefHeight="615.0" prefWidth="850.0" styleClass="main-menu-bg" />
 
-   <!-- Layer 1: Parks view (deep slate-space — stars + circles added by controller) -->
-   <Pane fx:id="parksView" prefHeight="615.0" prefWidth="850.0"
-         style="-fx-background-color: linear-gradient(to bottom right, #04080F, #070F1C, #0C1830);" />
+   <!-- Layer 1: Parks view — background and particles injected by controller (theme-aware) -->
+   <Pane fx:id="parksView" prefHeight="615.0" prefWidth="850.0" />
 
-   <!-- Layer 2: Main dashboard (glass slate card — clip applied by controller) -->
+   <!-- Layer 2: Main dashboard (warm linen card — clip applied by controller) -->
    <StackPane fx:id="mainView" prefHeight="615.0" prefWidth="850.0"
-              style="-fx-background-color: linear-gradient(to bottom right, #070E1A, #0B1422, #0F1C30);">
+              styleClass="main-menu-bg">
 
       <BorderPane maxHeight="Infinity" maxWidth="Infinity">
 
@@ -34,10 +32,10 @@
                <padding><Insets bottom="8.0" left="20.0" right="20.0" top="16.0" /></padding>
                <Button fx:id="themeBtn" focusTraversable="false" mnemonicParsing="false"
                        onAction="#handleToggleTheme" prefWidth="118.0" text="☀ Light Mode"
-                       style="-fx-background-color: rgba(29,201,138,0.09); -fx-border-color: rgba(29,201,138,0.32); -fx-border-radius: 20; -fx-border-width: 1; -fx-text-fill: rgba(29,201,138,0.88); -fx-font-size: 12px; -fx-padding: 6 12; -fx-cursor: hand; -fx-background-radius: 20;" />
+                       styleClass="theme-toggle" />
                <Button fx:id="loginBtn" focusTraversable="false" mnemonicParsing="false"
                        onAction="#handleEmployeeLogin" prefWidth="138.0" text="Employee Login"
-                       style="-fx-background-color: rgba(255,255,255,0.06); -fx-border-color: rgba(255,255,255,0.16); -fx-border-radius: 20; -fx-border-width: 1; -fx-text-fill: rgba(255,255,255,0.75); -fx-font-size: 12px; -fx-padding: 6 12; -fx-cursor: hand; -fx-background-radius: 20;" />
+                       styleClass="login-nav-btn" />
             </HBox>
          </top>
 
@@ -49,13 +47,15 @@
                       style="-fx-font-size: 46px;" />
 
                <Label text="GoNature" alignment="CENTER" maxWidth="Infinity"
-                      style="-fx-font-family: 'Segoe UI Light'; -fx-font-size: 40px; -fx-font-weight: bold; -fx-text-fill: rgba(255,255,255,0.95); -fx-effect: dropshadow(gaussian, rgba(29,201,138,0.40), 18, 0, 0, 0);" />
+                      styleClass="main-menu-title"
+                      style="-fx-font-family: 'Segoe UI Light'; -fx-font-size: 40px; -fx-font-weight: bold;" />
 
                <Label text="NATIONAL PARKS PORTAL" alignment="CENTER" maxWidth="Infinity"
-                      style="-fx-font-family: 'Segoe UI'; -fx-font-size: 12px; -fx-letter-spacing: 3; -fx-text-fill: rgba(29,201,138,0.70);" />
+                      styleClass="main-menu-subtitle"
+                      style="-fx-font-family: 'Segoe UI'; -fx-font-size: 12px; -fx-letter-spacing: 3;" />
 
                <Label text="────── ✦ ──────" alignment="CENTER" maxWidth="Infinity"
-                      style="-fx-text-fill: rgba(29,201,138,0.45); -fx-font-size: 14px;">
+                      styleClass="main-menu-divider" style="-fx-font-size: 14px;">
                   <VBox.margin><Insets top="-2.0" bottom="2.0" /></VBox.margin>
                </Label>
 
@@ -74,16 +74,27 @@
                        text="Start Guest Booking" />
 
                <Button fx:id="manageOrdersBtn" mnemonicParsing="false" onAction="#handleManageOrders"
-                       styleClass="primary-btn" style="-fx-font-size: 14px; -fx-padding: 9 40;"
+                       styleClass="gold-btn" style="-fx-font-size: 14px; -fx-padding: 9 40;"
                        text="Manage My Orders" />
 
                <Label text="↖  hover to peek · click to lock" alignment="CENTER" maxWidth="Infinity"
-                      style="-fx-text-fill: rgba(29,201,138,0.30); -fx-font-size: 11px;">
+                      styleClass="main-menu-hint" style="-fx-font-size: 11px;">
                   <VBox.margin><Insets top="4.0" /></VBox.margin>
                </Label>
 
             </VBox>
          </center>
+
+         <bottom>
+            <!-- Employee session bar — hidden until an employee logs in -->
+            <HBox fx:id="employeeSessionBar" alignment="CENTER_LEFT" spacing="10.0"
+                  visible="false" managed="false"
+                  styleClass="employee-session-bar">
+               <padding><Insets left="22.0" top="8.0" bottom="8.0" right="22.0" /></padding>
+               <Label text="●" styleClass="employee-session-dot" style="-fx-font-size:7px;" />
+               <Label fx:id="employeeSessionLabel" styleClass="employee-session-text" />
+            </HBox>
+         </bottom>
 
       </BorderPane>
    </StackPane>

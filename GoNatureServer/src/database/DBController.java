@@ -368,10 +368,13 @@ public class DBController {
         }
 
         try (Connection conn = getInstance().getConnection()) {
+            conn.setAutoCommit(false);
             int maxCapacity = 0, casualGap = 0, currentBooked = 0, estimatedStayTime = 4;
             double activeDiscount = 0;
 
-            String parkQuery = "SELECT max_capacity, casual_gap, active_discount, estimated_stay_time FROM park WHERE park_id = ?";
+            // FOR UPDATE locks the park row so concurrent bookings for the same park
+            // cannot both pass the capacity check before either inserts its order.
+            String parkQuery = "SELECT max_capacity, casual_gap, active_discount, estimated_stay_time FROM park WHERE park_id = ? FOR UPDATE";
             try (PreparedStatement ps = conn.prepareStatement(parkQuery)) {
                 ps.setInt(1, order.getParkId());
                 try (ResultSet rs = ps.executeQuery()) {
@@ -470,6 +473,7 @@ public class DBController {
                     if (keys.next()) {
                         order.setOrderId(keys.getInt(1));
                         order.setStatus(assignedStatus);
+                        conn.commit();
 
                         // Send booking confirmation email + SMS immediately on booking
                         if (assignedStatus.equals("Booked")) {
@@ -556,26 +560,57 @@ public class DBController {
                     return "DENIED:Order #" + orderId + " is on the waitlist and has not been confirmed yet.";
                 }
 
-                // 2. Validate Park Capacity
+                // 2. Date validation: entry only allowed on the exact booked day
+                java.time.LocalDate today    = java.time.LocalDate.now();
+                java.time.LocalDate bookedDay;
+                try {
+                    bookedDay = java.time.LocalDate.parse(visitDate.substring(0, 10));
+                } catch (Exception ex) {
+                    return "DENIED:Cannot verify the visit date for Order #" + orderId + ".";
+                }
+                if (bookedDay.isAfter(today)) {
+                    return "DENIED:This booking is for " + visitDate.substring(0, 10)
+                        + ". Entry is only permitted on the day of your visit.";
+                }
+                if (bookedDay.isBefore(today)) {
+                    return "DENIED:This booking was for " + visitDate.substring(0, 10)
+                        + " and has already expired. Please contact the park service desk.";
+                }
+
+                // 3. Time validation: entry only allowed at or after the booked visit time
+                if (visitTime != null && visitTime.length() >= 5) {
+                    try {
+                        java.time.LocalTime booked = java.time.LocalTime.parse(visitTime.substring(0, 5));
+                        java.time.LocalTime now    = java.time.LocalTime.now();
+                        if (now.isBefore(booked)) {
+                            return "DENIED:Your entry window opens at " + visitTime.substring(0, 5)
+                                + ". Please return at your scheduled time.";
+                        }
+                    } catch (Exception ex) {
+                        // If time format is unexpected, allow entry rather than blocking on a parse error
+                    }
+                }
+
+                // 4. Validate Park Capacity
                 entities.Park park = getParkById(parkId);
                 if (park != null && (park.getCurrentVisitors() + visitors > park.getMaxCapacity())) {
                     return "DENIED:Park is currently full. Wait for visitors to exit.";
                 }
 
-                // 3. Update the Order status to 'In Park'
+                // 5. Update the Order status to 'In Park'
                 try (java.sql.PreparedStatement updateOrderStmt = conn.prepareStatement(updateOrderQuery)) {
                     updateOrderStmt.setInt(1, orderId);
                     updateOrderStmt.executeUpdate();
                 }
 
-                // 4. Update the live visitor count in the Park table
+                // 6. Update the live visitor count in the Park table
                 try (java.sql.PreparedStatement updateParkStmt = conn.prepareStatement(updateParkQuery)) {
                     updateParkStmt.setInt(1, visitors);
                     updateParkStmt.setInt(2, parkId);
                     updateParkStmt.executeUpdate();
                 }
 
-                // 5. Return all receipt fields as pipe-delimited string for invoice generation
+                // 7. Return all receipt fields as pipe-delimited string for invoice generation
                 // Format: APPROVED:{orderId}|{visitors}|{orderType}|{price}|{date}|{time}
                 return "APPROVED:" + orderId + "|" + visitors + "|" + orderType
                     + "|" + String.format("%.0f", price)
@@ -1297,6 +1332,21 @@ public class DBController {
     /** Returns true if the given visitor ID belongs to a registered tour guide. */
     public static boolean isRegisteredGuide(String visitorId) {
         String query = "SELECT is_guide FROM subscriber WHERE visitor_id = ? AND is_guide = true";
+        try (Connection conn = getInstance().getConnection();
+             PreparedStatement ps = conn.prepareStatement(query)) {
+            ps.setString(1, visitorId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    /** Returns true if the given visitor ID is a registered subscriber (any type). */
+    public static boolean isSubscriber(String visitorId) {
+        String query = "SELECT visitor_id FROM subscriber WHERE visitor_id = ?";
         try (Connection conn = getInstance().getConnection();
              PreparedStatement ps = conn.prepareStatement(query)) {
             ps.setString(1, visitorId);
